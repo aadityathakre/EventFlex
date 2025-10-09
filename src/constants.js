@@ -1,2 +1,2 @@
-export const DB_Name = "VideoTube";
+export const DB_Name = "EventPro";
 export const OTHER_PORT = 8000;

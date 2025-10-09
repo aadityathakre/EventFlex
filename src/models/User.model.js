@@ -4,14 +4,6 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
 const UserSchema = new   mongoose.Schema({
-    username:{
-        type: String,
-        require:true,
-        unique: true,
-        lowercase: true,
-        trim : true,
-        index: true
-    },
      email:{
         type: String,
         require:true,
@@ -19,29 +11,65 @@ const UserSchema = new   mongoose.Schema({
         lowercase: true,
         trim : true
     },
-     fullname:{
-        type: String,
+    phone :{
+        type : String,
         require:true,
+        unique: true,
         trim : true,
-        index: true
+
     },
-    avatar:{
-        type: String, 
-        required:true
-    },
-    coverImage:{
-        type: String
-    },
-    watchHistory:[{
-        type: Schema.Types.ObjectId,
-        ref: "Video" 
-    }],
-    password:{
+      password:{
         type:String,
         required:[true, "Password is required"],
         min: 8,
         max:18
     },
+
+    
+    role :{
+        type : String ,
+        require: true,
+        trim : true,
+
+    },
+
+     firstname:{
+        type: String,
+        require:true,
+        trim : true,
+        index: true
+    },
+
+    lastname:{
+        type: String,
+        require:true,
+        trim : true,
+        index: true
+    },
+
+    wallet_address :{
+        type : String ,
+        require: true,
+        trim : true,
+
+    },
+    avatar:{
+        type: String, 
+        required:true
+    },
+   
+    universal_gig_id:{
+        type:String,
+        required:[true, "GIG ID is required"],
+        min: 8,
+        max:18
+    },
+
+     isVarified :{
+        type: Boolean, 
+        required:true
+    },
+
     refreshToken:{
         type:String 
     }
