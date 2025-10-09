@@ -1,91 +1,92 @@
-import {mongoose, Schema} from "mongoose";
-import Video from "./video.model.js";
+import { mongoose, Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-const UserSchema = new   mongoose.Schema({
-     email:{
-        type: String,
-        require:true,
-        unique: true,
-        lowercase: true,
-        trim : true
+const UserSchema = new mongoose.Schema(
+  {
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index:true
     },
-    phone :{
-        type : String,
-        require:true,
-        unique: true,
-        trim : true,
-
+    phone: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      index:true
     },
-      password:{
-        type:String,
-        required:[true, "Password is required"],
-        min: 8,
-        max:18
-    },
-
-    
-    role :{
-        type : String ,
-        require: true,
-        trim : true,
-
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minLength: 8,
+      maxLength: 18,
     },
 
-     firstname:{
-        type: String,
-        require:true,
-        trim : true,
-        index: true
+    role: {
+      type: String,
+      enum: ["gig", "organizer", "host"],
+      required: true,
+      trim: true,
+    },
+    first_name: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
     },
 
-    lastname:{
-        type: String,
-        require:true,
-        trim : true,
-        index: true
+    last_name: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
     },
 
-    wallet_address :{
-        type : String ,
-        require: true,
-        trim : true,
-
+    wallet_address: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    avatar:{
-        type: String, 
-        required:true
-    },
-   
-    universal_gig_id:{
-        type:String,
-        required:[true, "GIG ID is required"],
-        min: 8,
-        max:18
+    avatar: {
+      type: String,
+      required: true,
     },
 
-     isVarified :{
-        type: Boolean, 
-        required:true
+    universal_gig_id: {
+      type: String,
+      required: [true, "GIG ID is required"],
+      minLength: 8,
+      maxLength: 18,
     },
 
-    refreshToken:{
-        type:String 
-    }
-}, {timestamps :true });
+    isVerified: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
 
-UserSchema.pre("save", async function(next){
-    if(!this.isModified("password")){
-        return next();
-    }
-    this.password = await bcrypt.hash(this.password, 10)
-    next();
-})
+    refreshToken: {
+      type: String,
+    },
+  },
+  { timestamps: true }
+);
 
-UserSchema.methods.isPasswordCorrect = async function(password){
-    return   await bcrypt.compare(password, this.password)
-}
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) {
+    return next();
+  }
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
 
-const User = mongoose.model("User", UserSchema );
+UserSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+const User = mongoose.model("User", UserSchema);
 export default User;
