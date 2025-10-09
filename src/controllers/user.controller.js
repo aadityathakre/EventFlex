@@ -17,19 +17,17 @@ const registerUser = asyncHandler(async (req, res) => {
   } = req.body;
 
   // 1. Validate required fields
-  if (
-    [
-      email,
-      phone,
-      password,
-      role,
-      first_name,
-      last_name,
-      universal_role_id,
-      wallet_address,
-      
-    ].some((field) => !field || field.trim() === "")
-  ) {
+  const requiredFields = [
+    email,
+    phone,
+    password,
+    role,
+    first_name,
+    last_name,
+    wallet_address,
+    universal_role_id,
+  ];
+  if (requiredFields.some((field) => !field || field.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
 
@@ -41,28 +39,25 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // 3. Check if user already exists
   const existingUser = await User.findOne({
-    $or: [{ email }, {password},{ universal_role_id }],
+    $or: [{ email }, { universal_role_id }],
   });
   if (existingUser) {
-    throw new ApiError(
-      409,
-      "User with provided email, phone, or role ID already exists"
-    );
+    throw new ApiError(409, "User with provided email or role ID already exists");
   }
 
-  // 4. Check avatar file
+  // 4. Handle avatar upload
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required");
+  let avatarUrl = null;
+
+  if (avatarLocalPath) {
+    const avatarUpload = await uploadOnCloudinary(avatarLocalPath);
+    if (!avatarUpload?.url) {
+      throw new ApiError(500, "Avatar upload failed");
+    }
+    avatarUrl = avatarUpload.url;
   }
 
-  // 5. Upload avatar to Cloudinary
-  const avatarUpload = await uploadOnCloudinary(avatarLocalPath);
-  if (!avatarUpload?.url) {
-    throw new ApiError(500, "Avatar upload failed");
-  }
-
-  // 6. Create user
+  // 5. Create user
   const user = await User.create({
     email,
     phone,
@@ -71,21 +66,17 @@ const registerUser = asyncHandler(async (req, res) => {
     first_name,
     last_name,
     wallet_address,
-    avatar: avatarUpload.url,
+    avatar: avatarUrl,
     universal_role_id,
   });
 
-  const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
+  const createdUser = await User.findById(user._id).select("-password -refreshToken");
   if (!createdUser) {
     throw new ApiError(500, "User registration failed");
   }
 
-  // 7. Respond
-  return res
-    .status(201)
-    .json(new ApiResponse(201, createdUser, "User registered successfully"));
+  // 6. Respond
+  return res.status(201).json(new ApiResponse(201, createdUser, "User registered successfully"));
 });
 
 export { registerUser };
