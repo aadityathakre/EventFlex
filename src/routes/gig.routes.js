@@ -5,6 +5,13 @@ import { getMyEvents, checkIn, getAttendanceHistory} from "../controllers/gig.co
 //import for nearby-events, organizer-pools and join-pool
 import { getNearbyEvents, getOrganizerPools, joinPool } from "../controllers/gig.controller.js";
 
+//import for payment, withdraw and wallet
+import { getWallet, withdraw, getPaymentHistory} from "../controllers/gig.controller.js";
+
+//import for wellness-score and reminders
+import {getWellnessScore,getReminders} from "../controllers/gig.controller.js";
+
+
 // import for authentication and authorization
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -21,5 +28,15 @@ router.get("/nearby-events", verifyToken, authorizeRoles("gig"), getNearbyEvents
 router.get("/organizer-pools", verifyToken, authorizeRoles("gig"), getOrganizerPools);
 router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
 
+
+//routes for payment, withdraw and wallet
+router.get("/wallet", verifyToken, authorizeRoles("gig"), getWallet);
+router.post("/withdraw", verifyToken, authorizeRoles("gig"), withdraw);
+router.get("/payment-history", verifyToken, authorizeRoles("gig"), getPaymentHistory);
+
+
+//routes for wellness-score and reminders
+router.get("/wellness-score", verifyToken, authorizeRoles("gig"), getWellnessScore);
+router.get("/reminders", verifyToken, authorizeRoles("gig"), getReminders);
 
 export default router;

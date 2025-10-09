@@ -6,6 +6,10 @@ import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
 import PoolApplication from "../models/PoolApplication.model.js";
 import PoolMember from "../models/PoolMember.model.js";
+import UserWallet from "../models/UserWallet.model.js";
+import Payment from "../models/Payment.model.js";
+import BehavioralAnalytics from "../models/BehavioralAnalytics.model.js";
+import WellnessInteraction from "../models/WellnessInteraction.model.js";
 
 
 // 1. View accepted events
@@ -127,7 +131,91 @@ const joinPool = asyncHandler(async (req, res) => {
 
   return res.status(201).json(new ApiResponse(201, application, "Pool application submitted"));
 });
+ 
 
+
+// 7. View wallet balance
+const getWallet = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const wallet = await UserWallet.findOne({ user: gigId });
+  if (!wallet) {
+    throw new ApiError(404, "Wallet not found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, wallet, "Wallet fetched"));
+});
+
+// 8. UPI withdrawal request
+const withdraw = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { amount } = req.body;
+
+  const wallet = await UserWallet.findOne({ user: gigId });
+  if (!wallet) {
+    throw new ApiError(404, "Wallet not found");
+  }
+
+  const currentBalance = parseFloat(wallet.balance_inr.toString());
+  const requestedAmount = parseFloat(amount);
+
+  if (requestedAmount > currentBalance) {
+    throw new ApiError(400, "Insufficient balance");
+  }
+
+  // Simulate withdrawal logic
+  wallet.balance_inr = currentBalance - requestedAmount;
+  await wallet.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, { new_balance: wallet.balance_inr }, "Withdrawal processed")
+  );
+});
+
+// 9. View payment history
+const getPaymentHistory = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const payments = await Payment.find({ payee: gigId })
+    .populate("escrow", "event total_amount status")
+    .select("amount payment_method processed_at upi_transaction_id");
+
+  if (!payments || payments.length === 0) {
+    throw new ApiError(404, "No payments found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, payments, "Payment history fetched"));
+});
+
+
+
+// 10. View AI-predicted no-show risk
+const getWellnessScore = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const score = await BehavioralAnalytics.findOne({ user: gigId }).select("no_show_risk_score last_calculated");
+  if (!score) {
+    throw new ApiError(404, "No behavioral analytics found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, score, "Wellness score fetched"));
+});
+
+// 11. Get rest/hydration reminders
+const getReminders = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const reminders = await WellnessInteraction.find({ user: gigId })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .select("ai_response wellness_score createdAt");
+
+  if (!reminders || reminders.length === 0) {
+    throw new ApiError(404, "No wellness reminders found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, reminders, "Wellness reminders fetched"));
+});
 
 export {
   getNearbyEvents,
@@ -136,4 +224,9 @@ export {
   getMyEvents,
   checkIn,
   getAttendanceHistory,
+  getWallet,
+  withdraw,
+  getPaymentHistory,
+  getWellnessScore,
+  getReminders,
 };
