@@ -15,14 +15,14 @@ const UserSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       index:true
     },
     password: {
       type: String,
+      unique: true,
       required: [true, "Password is required"],
-      minLength: 8,
+      minLength: 4,
       maxLength: 18,
     },
 
@@ -56,10 +56,10 @@ const UserSchema = new mongoose.Schema(
       required: true,
     },
 
-    universal_gig_id: {
+    universal_role_id: {
       type: String,
-      required: [true, "GIG ID is required"],
-      minLength: 8,
+      required: true,
+      minLength: 4,
       maxLength: 18,
     },
 
