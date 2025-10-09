@@ -10,7 +10,9 @@ import UserWallet from "../models/UserWallet.model.js";
 import Payment from "../models/Payment.model.js";
 import BehavioralAnalytics from "../models/BehavioralAnalytics.model.js";
 import WellnessInteraction from "../models/WellnessInteraction.model.js";
-
+import UserProfile from "../models/UserProfile.model.js";
+import UserBadge from "../models/UserBadge.model.js";
+import ReputationScore from "../models/ReputationScore.model.js";
 
 // 1. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
@@ -21,7 +23,9 @@ const getMyEvents = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No accepted events found");
   }
 
-  return res.status(200).json(new ApiResponse(200, events, "Accepted events fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, events, "Accepted events fetched"));
 });
 
 // 2. QR/GPS check-in
@@ -34,7 +38,10 @@ const checkIn = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Event not found");
   }
 
-  const alreadyCheckedIn = await EventAttendance.findOne({ gig: gigId, event: eventId });
+  const alreadyCheckedIn = await EventAttendance.findOne({
+    gig: gigId,
+    event: eventId,
+  });
   if (alreadyCheckedIn) {
     throw new ApiError(409, "Already checked in");
   }
@@ -46,7 +53,9 @@ const checkIn = asyncHandler(async (req, res) => {
     status: "checked_in",
   });
 
-  return res.status(201).json(new ApiResponse(201, attendance, "Check-in successful"));
+  return res
+    .status(201)
+    .json(new ApiResponse(201, attendance, "Check-in successful"));
 });
 
 // 3. View attendance history
@@ -61,7 +70,9 @@ const getAttendanceHistory = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No attendance history found");
   }
 
-  return res.status(200).json(new ApiResponse(200, history, "Attendance history fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, history, "Attendance history fetched"));
 });
 
 // 4. View nearby events
@@ -81,9 +92,10 @@ const getNearbyEvents = asyncHandler(async (req, res) => {
     status: "published",
   }).select("title start_date end_date location budget");
 
-  return res.status(200).json(new ApiResponse(200, events, "Nearby events fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, events, "Nearby events fetched"));
 });
-
 
 // 5. View nearby organizer pools
 const getOrganizerPools = asyncHandler(async (req, res) => {
@@ -102,9 +114,10 @@ const getOrganizerPools = asyncHandler(async (req, res) => {
     isActive: true,
   }).select("organizer skills_needed pool_size location");
 
-  return res.status(200).json(new ApiResponse(200, pools, "Nearby pools fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
 });
-
 
 // 6. Join a specific pool
 const joinPool = asyncHandler(async (req, res) => {
@@ -117,7 +130,10 @@ const joinPool = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Pool not found");
   }
 
-  const existingApplication = await PoolApplication.findOne({ gig: gigId, pool: poolId });
+  const existingApplication = await PoolApplication.findOne({
+    gig: gigId,
+    pool: poolId,
+  });
   if (existingApplication) {
     throw new ApiError(409, "Already applied to this pool");
   }
@@ -129,10 +145,10 @@ const joinPool = asyncHandler(async (req, res) => {
     cover_message,
   });
 
-  return res.status(201).json(new ApiResponse(201, application, "Pool application submitted"));
+  return res
+    .status(201)
+    .json(new ApiResponse(201, application, "Pool application submitted"));
 });
- 
-
 
 // 7. View wallet balance
 const getWallet = asyncHandler(async (req, res) => {
@@ -167,9 +183,15 @@ const withdraw = asyncHandler(async (req, res) => {
   wallet.balance_inr = currentBalance - requestedAmount;
   await wallet.save();
 
-  return res.status(200).json(
-    new ApiResponse(200, { new_balance: wallet.balance_inr }, "Withdrawal processed")
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { new_balance: wallet.balance_inr },
+        "Withdrawal processed"
+      )
+    );
 });
 
 // 9. View payment history
@@ -184,21 +206,25 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No payments found");
   }
 
-  return res.status(200).json(new ApiResponse(200, payments, "Payment history fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, payments, "Payment history fetched"));
 });
-
-
 
 // 10. View AI-predicted no-show risk
 const getWellnessScore = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const score = await BehavioralAnalytics.findOne({ user: gigId }).select("no_show_risk_score last_calculated");
+  const score = await BehavioralAnalytics.findOne({ user: gigId }).select(
+    "no_show_risk_score last_calculated"
+  );
   if (!score) {
     throw new ApiError(404, "No behavioral analytics found");
   }
 
-  return res.status(200).json(new ApiResponse(200, score, "Wellness score fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, score, "Wellness score fetched"));
 });
 
 // 11. Get rest/hydration reminders
@@ -214,7 +240,66 @@ const getReminders = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No wellness reminders found");
   }
 
-  return res.status(200).json(new ApiResponse(200, reminders, "Wellness reminders fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, reminders, "Wellness reminders fetched"));
+});
+
+// 12. View profile
+const getProfile = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const profile = await UserProfile.findOne({ user: gigId }).select("-__v");
+  if (!profile) {
+    throw new ApiError(404, "Profile not found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, profile, "Profile fetched"));
+});
+
+// 13. Update profile
+const updateProfile = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const updates = req.body;
+
+  const profile = await UserProfile.findOneAndUpdate(
+    { user: gigId },
+    { $set: updates },
+    { new: true, runValidators: true }
+  );
+
+  if (!profile) {
+    throw new ApiError(404, "Profile not found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, profile, "Profile updated"));
+});
+
+// 14. View earned badges
+const getBadges = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const badges = await UserBadge.find({ user: gigId })
+    .populate("badge", "name description icon_url")
+    .select("awarded_at");
+
+  return res.status(200).json(new ApiResponse(200, badges, "Badges fetched"));
+});
+
+// 15. View leaderboard position
+const getLeaderboard = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const score = await ReputationScore.findOne({ user: gigId }).select(
+    "overall_rating trust_level last_updated"
+  );
+  if (!score) {
+    throw new ApiError(404, "Reputation score not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, score, "Leaderboard data fetched"));
 });
 
 export {
@@ -229,4 +314,8 @@ export {
   getPaymentHistory,
   getWellnessScore,
   getReminders,
+  getProfile,
+  updateProfile,
+  getBadges,
+  getLeaderboard,
 };

@@ -11,6 +11,10 @@ import { getWallet, withdraw, getPaymentHistory} from "../controllers/gig.contro
 //import for wellness-score and reminders
 import {getWellnessScore,getReminders} from "../controllers/gig.controller.js";
 
+// import for additional user profile routes for gig users
+import {getProfile,updateProfile,getBadges, getLeaderboard } from "../controllers/gig.controller.js";
+
+
 
 // import for authentication and authorization
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
@@ -38,5 +42,13 @@ router.get("/payment-history", verifyToken, authorizeRoles("gig"), getPaymentHis
 //routes for wellness-score and reminders
 router.get("/wellness-score", verifyToken, authorizeRoles("gig"), getWellnessScore);
 router.get("/reminders", verifyToken, authorizeRoles("gig"), getReminders);
+
+
+// Additional user profile, update, bagde, leaderboard routes for gig users
+router.get("/profile", verifyToken, authorizeRoles("gig"), getProfile);
+router.put("/profile", verifyToken, authorizeRoles("gig"), updateProfile);
+router.get("/badges", verifyToken, authorizeRoles("gig"), getBadges);
+router.get("/leaderboard", verifyToken, authorizeRoles("gig"), getLeaderboard);
+
 
 export default router;
