@@ -17,10 +17,13 @@ app.use(
 );
 app.use(cookieParser());
 
-
+//registration and login route
 import userRoutes from "./routes/user.routes.js";
-app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/users", userRoutes); 
 
+//gig route
+import gigRoutes from "./routes/gig.routes.js";
+app.use("/api/v1/gigs", gigRoutes);
 
 //export
 export {app};
