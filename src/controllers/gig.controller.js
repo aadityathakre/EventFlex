@@ -13,6 +13,9 @@ import WellnessInteraction from "../models/WellnessInteraction.model.js";
 import UserProfile from "../models/UserProfile.model.js";
 import UserBadge from "../models/UserBadge.model.js";
 import ReputationScore from "../models/ReputationScore.model.js";
+import Conversation from "../models/Conversation.model.js";
+import Message from "../models/Message.model.js";
+
 
 // 1. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
@@ -302,6 +305,41 @@ const getLeaderboard = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, score, "Leaderboard data fetched"));
 });
 
+// 16. List chat threads
+const getConversations = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const conversations = await Conversation.find({
+    participants: { $in: [gigId] },
+  })
+    .populate("event", "name date location")
+    .populate("pool", "name")
+    .sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+// 17. Send message in chat
+const sendMessage = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { conversationId } = req.params;
+  const { message_text } = req.body;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.includes(gigId)) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const message = await Message.create({
+    conversation: conversationId,
+    sender: gigId,
+    message_text,
+  });
+
+  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
+
 export {
   getNearbyEvents,
   getOrganizerPools,
@@ -318,4 +356,6 @@ export {
   updateProfile,
   getBadges,
   getLeaderboard,
+  getConversations,
+  sendMessage
 };

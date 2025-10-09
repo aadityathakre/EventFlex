@@ -14,7 +14,8 @@ import {getWellnessScore,getReminders} from "../controllers/gig.controller.js";
 // import for additional user profile routes for gig users
 import {getProfile,updateProfile,getBadges, getLeaderboard } from "../controllers/gig.controller.js";
 
-
+// import for messaging system
+import { getConversations, sendMessage } from "../controllers/gig.controller.js"; 
 
 // import for authentication and authorization
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
@@ -50,5 +51,9 @@ router.put("/profile", verifyToken, authorizeRoles("gig"), updateProfile);
 router.get("/badges", verifyToken, authorizeRoles("gig"), getBadges);
 router.get("/leaderboard", verifyToken, authorizeRoles("gig"), getLeaderboard);
 
+
+// Routes for messaging system  
+router.get("/conversations", verifyToken, authorizeRoles("gig"), getConversations);
+router.post("/message/:conversationId", verifyToken, authorizeRoles("gig"), sendMessage);
 
 export default router;
