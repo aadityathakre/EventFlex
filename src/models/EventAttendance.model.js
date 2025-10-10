@@ -48,4 +48,5 @@ const EventAttendance = mongoose.model(
   "EventAttendance",
   EventAttendanceSchema
 );
+
 export default EventAttendance;
