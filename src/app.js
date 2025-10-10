@@ -25,5 +25,9 @@ app.use("/api/v1/users", userRoutes);
 import gigRoutes from "./routes/gig.routes.js";
 app.use("/api/v1/gigs", gigRoutes);
 
+// auth route
+import authRoutes from "./routes/auth.routes.js";
+app.use("/api/v1/auth", authRoutes);
+
 //export
 export {app};

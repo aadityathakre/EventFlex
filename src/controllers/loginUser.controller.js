@@ -4,62 +4,48 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import User from "../models/User.model.js";
 import jwt from "jsonwebtoken";
 
+// Token generators
 const generateAccessToken = (user) => {
   return jwt.sign(
-    {
-      _id: user._id,
-      role: user.role,
-      email: user.email,
-    },
+    { _id: user._id, role: user.role, email: user.email },
     process.env.ACCESS_TOKEN_SECRET,
-    {
-        expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
-    }
+    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
   );
 };
 
 const generateRefreshToken = (user) => {
   return jwt.sign(
-    {
-      _id: user._id,
-    },
+    { _id: user._id },
     process.env.REFRESH_TOKEN_SECRET,
-    {
-        expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
-    }
-
+    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
   );
 };
 
-const loginUser = asyncHandler(async (req, res) => {
+export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // 1. Validate input
   if (!email || !password) {
     throw new ApiError(400, "Email and password are required");
   }
 
-  // 2. Find user
   const user = await User.findOne({ email });
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-
-  // 3. Verify password
-  const isMatch = await user.isPasswordCorrect(password);
-  if (!isMatch) {
+  if (!user || !(await user.isPasswordCorrect(password))) {
     throw new ApiError(401, "Invalid credentials");
   }
 
-  // 4. Generate tokens
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  // 5. Store refresh token
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
-  // 6. Respond
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
   const userData = {
     _id: user._id,
     email: user.email,
@@ -69,11 +55,7 @@ const loginUser = asyncHandler(async (req, res) => {
     avatar: user.avatar,
   };
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, { user: userData, accessToken, refreshToken }, "Login successful")
-    );
+  return res.status(200).json(
+    new ApiResponse(200, { user: userData, accessToken }, "Login successful")
+  );
 });
-
-export { loginUser };
