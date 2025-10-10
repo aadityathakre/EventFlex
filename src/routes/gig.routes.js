@@ -5,8 +5,6 @@ import { uploadKycVideo } from "../controllers/gig.controller.js";
 import { getGigDashboard } from "../controllers/gig.controller.js";
 import { verifyAadhaar } from "../controllers/gig.controller.js";
 
-router.post("/aadhaar/verify", verifyToken, authorizeRoles("gig"), verifyAadhaar);
-
 //import for my-events, check-in and attendence-history
 import { getMyEvents, checkIn, getAttendanceHistory} from "../controllers/gig.controller.js";
 
