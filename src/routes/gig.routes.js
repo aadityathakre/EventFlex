@@ -1,4 +1,12 @@
 import express from "express";
+import { uploadDocuments } from "../controllers/gig.controller.js";
+import { upload } from "../middlewares/fileUpload.middleware.js";
+import { uploadKycVideo } from "../controllers/gig.controller.js";
+import { getGigDashboard } from "../controllers/gig.controller.js";
+import { verifyAadhaar } from "../controllers/gig.controller.js";
+
+router.post("/aadhaar/verify", verifyToken, authorizeRoles("gig"), verifyAadhaar);
+
 //import for my-events, check-in and attendence-history
 import { getMyEvents, checkIn, getAttendanceHistory} from "../controllers/gig.controller.js";
 
@@ -23,6 +31,10 @@ import { raiseDispute, getNotifications, updateProfileImage, simulatePayout } fr
 
 //import for feedback submission
 import { submitFeedback, deleteProfileImage, getKYCStatus, debugGigData } from "../controllers/gig.controller.js";
+
+// import for wallet creation
+import { createWallet } from "../controllers/gig.controller.js";
+
 
 // import for authentication and authorization
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
@@ -84,5 +96,35 @@ router.get("/debug/gig/:id", verifyToken, authorizeRoles("admin"), debugGigData)
 
 // dashboard for gig
 router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
+
+// upload documents route
+router.post(
+  "/upload-documents",
+  verifyToken,
+  authorizeRoles("gig"),
+  upload.single("document"),
+  uploadDocuments
+);
+
+
+// upload kyc video route   
+router.post(
+  "/kyc/video",
+  verifyToken,
+  authorizeRoles("gig"),
+  upload.single("video"),
+  uploadKycVideo
+);
+
+// simulate payout route for testing
+router.post(
+  "/wallet/create",
+  verifyToken,
+  authorizeRoles("gig"),
+  createWallet
+);
+
+// Aadhaar verification route
+router.post("/aadhaar/verify", verifyToken, authorizeRoles("gig"), verifyAadhaar);
 
 export default router;

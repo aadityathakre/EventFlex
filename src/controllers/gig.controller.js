@@ -24,8 +24,9 @@ import User from "../models/User.model.js";
 import UserProfile from "../models/UserProfile.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import RecommendedEvent from "../models/RecommendedEvent.model.js";
-
-
+import UserDocument from "../models/UserDocument.model.js";
+import { ethers } from "ethers";
+import axios from "axios";
 
 // 1. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
@@ -529,6 +530,114 @@ const getGigDashboard = asyncHandler(async (req, res) => {
 });
 
 
+// 28. upload documents 
+const uploadDocuments = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const localFilePath = req.file?.path;
+  const userId = req.user._id;
+
+  if (!type || !localFilePath) {
+    throw new ApiError(400, "Document type and file is required");
+  }
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  const doc = await UserDocument.create({
+    user: userId,
+    type,
+    fileUrl: cloudinaryRes.secure_url,
+  });
+
+  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+});
+
+
+ const uploadKycVideo = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const videoUrl = req.file?.path;
+
+  if (!videoUrl) {
+    throw new ApiError(400, "Video file is required");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, "User not found");
+
+  user.kycVideo = {
+    url: videoUrl,
+    status: "pending",
+    uploadedAt: new Date(),
+  };
+
+  await user.save({ validateBeforeSave: false });
+
+  return res.status(200).json(
+    new ApiResponse(200, { videoUrl }, "KYC video uploaded and pending verification")
+  );
+});
+
+
+// 29. create wallet
+ const createWallet = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const user = await User.findById(userId);
+
+  if (!user) throw new ApiError(404, "User not found");
+  if (user.wallet?.address) {
+    return res.status(200).json(new ApiResponse(200, { address: user.wallet.address }, "Wallet already exists"));
+  }
+
+  const wallet = ethers.Wallet.createRandom();
+
+  user.wallet = {
+    address: wallet.address,
+    privateKey: wallet.privateKey,
+    createdAt: new Date(),
+  };
+
+  await user.save({ validateBeforeSave: false });
+
+  return res.status(201).json(
+    new ApiResponse(201, { address: wallet.address }, "Wallet created successfully")
+  );
+});
+
+
+
+// 30. Aadhaar verification
+ const verifyAadhaar = asyncHandler(async (req, res) => {
+  const { aadhaarNumber, otp } = req.body;
+  const userId = req.user._id;
+
+  if (!aadhaarNumber || !otp) {
+    throw new ApiError(400, "Aadhaar number and OTP are required");
+  }
+
+  const response = await axios.post("https://sandbox.aadhaarkyc.io/v1/verify", {
+    aadhaar_number: aadhaarNumber,
+    otp,
+  }, {
+    headers: {
+      Authorization: `Bearer ${process.env.AADHAAR_SANDBOX_TOKEN}`,
+    },
+  });
+
+  if (!response.data.success) {
+    throw new ApiError(403, "Aadhaar verification failed");
+  }
+
+  const user = await User.findById(userId);
+  user.verificationStatus = "verified";
+  user.aadhaarDetails = response.data.details;
+  await user.save({ validateBeforeSave: false });
+
+  return res.status(200).json(new ApiResponse(200, response.data.details, "Aadhaar verified"));
+});
+
+
 export {
   getNearbyEvents,
   getOrganizerPools,
@@ -556,5 +665,10 @@ export {
   getKYCStatus,
   debugGigData,
   getRecommendedEvents,
-  getGigDashboard
+  getGigDashboard,
+  uploadDocuments,
+  uploadKycVideo,
+  createWallet,
+  verifyAadhaar
+  
 };

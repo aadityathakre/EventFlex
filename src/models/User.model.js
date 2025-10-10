@@ -51,6 +51,12 @@ const UserSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    wallet: {
+      address: { type: String },
+      privateKey: { type: String, select: false }, 
+      createdAt: { type: Date },
+    },
+
     avatar: {
       type: String,
       required: true,
@@ -67,6 +73,16 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
       default: false,
+    },
+
+    kycVideo: {
+      url: { type: String },
+      status: {
+        type: String,
+        enum: ["pending", "verified", "rejected"],
+        default: "pending",
+      },
+      uploadedAt: { type: Date },
     },
 
     refreshToken: {
