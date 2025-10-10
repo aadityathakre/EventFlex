@@ -18,7 +18,7 @@ const BadgeSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const Badge = mongoose.model("Badge", BadgeSchema);

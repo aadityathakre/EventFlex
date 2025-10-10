@@ -14,7 +14,7 @@ const SkillSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const Skill = mongoose.model("Skill", SkillSchema);

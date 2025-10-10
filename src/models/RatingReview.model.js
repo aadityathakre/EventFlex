@@ -45,7 +45,7 @@ const RatingReviewSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const RatingReview = mongoose.model("RatingReview", RatingReviewSchema);

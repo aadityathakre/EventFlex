@@ -31,7 +31,7 @@ const AdminSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: true }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 AdminSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {

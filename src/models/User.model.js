@@ -74,7 +74,7 @@ const UserSchema = new mongoose.Schema(
       default: "",
     },
   },
-  { timestamps: true }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 UserSchema.pre("save", async function (next) {

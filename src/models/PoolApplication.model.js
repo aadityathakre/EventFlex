@@ -32,7 +32,7 @@ const PoolApplicationSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: "applied_at", updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const PoolApplication = mongoose.model("PoolApplication", PoolApplicationSchema);

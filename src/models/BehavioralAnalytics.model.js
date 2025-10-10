@@ -14,7 +14,7 @@ const BehavioralAnalyticsSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: false, updatedAt: "last_calculated" } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const BehavioralAnalytics = mongoose.model("BehavioralAnalytics", BehavioralAnalyticsSchema);

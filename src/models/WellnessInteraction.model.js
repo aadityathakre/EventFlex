@@ -18,7 +18,7 @@ const WellnessInteractionSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const WellnessInteraction = mongoose.model("WellnessInteraction", WellnessInteractionSchema);

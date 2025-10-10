@@ -39,7 +39,7 @@ const OrganizerPoolSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const OrganizerPool = mongoose.model("OrganizerPool", OrganizerPoolSchema);

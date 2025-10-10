@@ -27,7 +27,7 @@ const UserProfileSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const UserProfile = mongoose.model("UserProfile", UserProfileSchema);

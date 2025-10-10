@@ -26,7 +26,7 @@ const UserSkillSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const UserSkill = mongoose.model("UserSkill", UserSkillSchema);

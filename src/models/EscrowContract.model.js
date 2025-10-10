@@ -50,7 +50,7 @@ const EscrowContractSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const EscrowContract = mongoose.model("EscrowContract", EscrowContractSchema);

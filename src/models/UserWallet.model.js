@@ -19,7 +19,7 @@ const UserWalletSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const UserWallet = mongoose.model("UserWallet", UserWalletSchema);

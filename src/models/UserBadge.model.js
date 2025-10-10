@@ -17,7 +17,7 @@ const UserBadgeSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: { createdAt: "awarded_at", updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const UserBadge = mongoose.model("UserBadge", UserBadgeSchema);

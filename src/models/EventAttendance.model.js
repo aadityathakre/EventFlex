@@ -41,7 +41,7 @@ const EventAttendanceSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: false }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const EventAttendance = mongoose.model(

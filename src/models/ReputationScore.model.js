@@ -20,7 +20,7 @@ const ReputationScoreSchema = new mongoose.Schema(
       default: "bronze",
     },
   },
-  { timestamps: { createdAt: false, updatedAt: "last_updated" } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const ReputationScore = mongoose.model("ReputationScore", ReputationScoreSchema);

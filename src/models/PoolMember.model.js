@@ -27,7 +27,7 @@ const PoolMemberSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: { createdAt: "joined_at", updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const PoolMember = mongoose.model("PoolMember", PoolMemberSchema);

@@ -42,7 +42,7 @@ const PaymentSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: { createdAt: "processed_at", updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const Payment = mongoose.model("Payment", PaymentSchema);

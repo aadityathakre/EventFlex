@@ -21,7 +21,7 @@ const ConversationSchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const Conversation = mongoose.model("Conversation", ConversationSchema);

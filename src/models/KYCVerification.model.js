@@ -32,7 +32,7 @@ const KYCVerificationSchema = new mongoose.Schema(
       type: Date,
     },
   },
-  { timestamps: true }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
 const KYCVerification = mongoose.model("KYCVerification", KYCVerificationSchema);
