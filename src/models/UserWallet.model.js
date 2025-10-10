@@ -9,6 +9,7 @@ const UserWalletSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
     balance_inr: {
       type: mongoose.Types.Decimal128,
       required: true,
@@ -17,6 +18,11 @@ const UserWalletSchema = new mongoose.Schema(
     upi_id: {
       type: String,
       trim: true,
+    },
+    balance_inr: {
+      type: mongoose.Types.Decimal128,
+      required: true,
+      default: 0.0,
     },
   },
   { timestamps: { createdAt: true, updatedAt: true } }

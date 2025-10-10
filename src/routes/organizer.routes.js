@@ -19,6 +19,29 @@ import {
   markEventComplete,
 } from "../controllers/organizer.controller.js";
 
+import {
+  getWallet,
+  withdrawFunds,
+  getPaymentHistory,
+  simulatePayout,
+  getLeaderboard,
+  getBadges,
+  getOrganizerProfile,
+  getCertificates,
+} from "../controllers/organizer.controller.js";
+
+import {
+  getNotifications,
+  markNotificationRead,
+} from "../controllers/organizer.controller.js";
+
+import {
+  raiseDispute,
+  getDisputes,
+} from "../controllers/organizer.controller.js";
+
+import { getWellnessScore } from "../controllers/organizer.controller.js";
+
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/fileUpload.middleware.js";
 
@@ -74,7 +97,6 @@ router.post(
   chatWithGig
 );
 
-
 // 📅 Event Management
 router.post(
   "/events/create",
@@ -105,6 +127,87 @@ router.post(
   verifyToken,
   authorizeRoles("organizer"),
   markEventComplete
+);
+
+// 💰 Wallet & Escrow
+
+router.get("/wallet", verifyToken, authorizeRoles("organizer"), getWallet);
+router.post(
+  "/withdraw",
+  verifyToken,
+  authorizeRoles("organizer"),
+  withdrawFunds
+);
+
+router.get(
+  "/payment-history",
+  verifyToken,
+  authorizeRoles("organizer"),
+  getPaymentHistory
+);
+router.post(
+  "/simulate-payout/:escrowId",
+  verifyToken,
+  authorizeRoles("organizer"),
+  simulatePayout
+);
+
+// 🏆 Reputation & Gamification
+router.get(
+  "/leaderboard",
+  verifyToken,
+  authorizeRoles("organizer"),
+  getLeaderboard
+);
+router.get("/badges", verifyToken, authorizeRoles("organizer"), getBadges);
+router.get(
+  "/profile",
+  verifyToken,
+  authorizeRoles("organizer"),
+  getOrganizerProfile
+);
+router.get(
+  "/certificates",
+  verifyToken,
+  authorizeRoles("organizer"),
+  getCertificates
+);
+
+//notifications
+router.get(
+  "/notifications",
+  verifyToken,
+  authorizeRoles("organizer"),
+  getNotifications
+);
+router.put(
+  "/notifications/:id/read",
+  verifyToken,
+  authorizeRoles("organizer"),
+  markNotificationRead
+);
+
+// 🚨 Dispute Management
+router.post(
+  "/disputes/:eventId",
+  verifyToken,
+  authorizeRoles("organizer"),
+  raiseDispute
+);
+router.get("/disputes", verifyToken, authorizeRoles("organizer"), getDisputes);
+
+// Additional analytics and wellness routes
+router.get(
+  "/wellness-score",
+  verifyToken,
+  authorizeRoles("organizer"),
+  getWellnessScore
+);
+router.get(
+  "/no-show-risk/:gigId",
+  verifyToken,
+  authorizeRoles("organizer"),
+  getNoShowRisk
 );
 
 export default router;

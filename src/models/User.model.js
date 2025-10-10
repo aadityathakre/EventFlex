@@ -53,7 +53,7 @@ const UserSchema = new mongoose.Schema(
     },
     wallet: {
       address: { type: String },
-      privateKey: { type: String, select: false }, 
+      privateKey: { type: String, select: false },
       createdAt: { type: Date },
     },
 
@@ -82,6 +82,11 @@ const UserSchema = new mongoose.Schema(
         enum: ["pending", "verified", "rejected"],
         default: "pending",
       },
+
+      wellnessScore: { type: Number, default: 100 },
+      
+      noShowRisk: { type: Number, default: 0 },
+
       uploadedAt: { type: Date },
     },
 
