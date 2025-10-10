@@ -15,6 +15,15 @@ import UserBadge from "../models/UserBadge.model.js";
 import ReputationScore from "../models/ReputationScore.model.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
+import Dispute from "../models/Dispute.model.js";
+import Notification from "../models/Notification.model.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import EscrowContract from "../models/EscrowContract.model.js";
+import Feedback from "../models/Feedback.model.js";
+import User from "../models/User.model.js";
+import UserProfile from "../models/UserProfile.model.js";
+import KYCVerification from "../models/KYCVerification.model.js";
+
 
 
 // 1. View accepted events
@@ -339,7 +348,144 @@ const sendMessage = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, message, "Message sent"));
 });
 
+//18. Raise dispute for an event
+const raiseDispute = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { eventId } = req.params;
+  const { reason } = req.body;
 
+  if (!reason || reason.trim() === "") {
+    throw new ApiError(400, "Dispute reason is required");
+  }
+
+  const dispute = await Dispute.create({
+    event: eventId,
+    gig: gigId,
+    reason,
+  });
+
+  return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
+});
+
+
+// 19. Get notifications
+const getNotifications = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const notifications = await Notification.find({ user: gigId }).sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, notifications, "Notifications fetched"));
+});
+
+
+// 20. Update profile image
+const updateProfileImage = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const avatarLocalPath = req.files?.avatar?.[0]?.path;
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is required");
+  }
+
+  const avatarUpload = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatarUpload?.url) {
+    throw new ApiError(500, "Avatar upload failed");
+  }
+
+  const updatedProfile = await UserProfile.findOneAndUpdate(
+    { user: gigId },
+    { profile_image_url: avatarUpload.url },
+    { new: true }
+  );
+
+  return res.status(200).json(new ApiResponse(200, updatedProfile, "Profile image updated"));
+});
+
+// 21. Simulate payout from escrow (for testing)
+const simulatePayout = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { escrowId } = req.params;
+
+  const escrow = await EscrowContract.findOne({
+    _id: escrowId,
+    gig: gigId,
+    status: "locked",
+  });
+
+  if (!escrow) {
+    throw new ApiError(404, "Escrow not found or already released");
+  }
+
+  escrow.status = "released";
+  escrow.released_at = new Date();
+  await escrow.save();
+
+  return res.status(200).json(new ApiResponse(200, escrow, "Payout simulated"));
+});
+
+
+
+// 22. Submit event feedback
+const submitFeedback = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { eventId } = req.params;
+  const { rating, comment } = req.body;
+
+  if (!rating || rating < 1 || rating > 5) {
+    throw new ApiError(400, "Rating must be between 1 and 5");
+  }
+
+  const feedback = await Feedback.create({
+    event: eventId,
+    gig: gigId,
+    rating,
+    comment,
+  });
+
+  return res.status(201).json(new ApiResponse(201, feedback, "Feedback submitted"));
+});
+
+
+// 23. Delete profile image
+const deleteProfileImage = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const updatedProfile = await UserProfile.findOneAndUpdate(
+    { user: gigId },
+    { profile_image_url: "" },
+    { new: true }
+  );
+
+  return res.status(200).json(new ApiResponse(200, updatedProfile, "Profile image removed"));
+});
+
+
+// 24. get kyc status
+const getKYCStatus = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const kyc = await KYCVerification.findOne({ user: gigId });
+
+  if (!kyc) {
+    throw new ApiError(404, "KYC record not found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, kyc, "KYC status fetched"));
+});
+
+
+// 25. Debugging endpoint to fetch gig data
+const debugGigData = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const user = await User.findById(id);
+  const attendance = await EventAttendance.find({ gig: id });
+  const wallet = await UserWallet.findOne({ user: id });
+
+  return res.status(200).json(
+    new ApiResponse(200, { user, attendance, wallet }, "Gig debug data")
+  );
+});
 export {
   getNearbyEvents,
   getOrganizerPools,
@@ -357,5 +503,13 @@ export {
   getBadges,
   getLeaderboard,
   getConversations,
-  sendMessage
+  sendMessage,
+  raiseDispute,
+  getNotifications,
+  updateProfileImage,
+  simulatePayout,
+  submitFeedback,
+  deleteProfileImage,
+  getKYCStatus,
+  debugGigData,
 };

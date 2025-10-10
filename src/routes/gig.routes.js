@@ -17,6 +17,13 @@ import {getProfile,updateProfile,getBadges, getLeaderboard } from "../controller
 // import for messaging system
 import { getConversations, sendMessage } from "../controllers/gig.controller.js"; 
 
+
+// import for additional routes for gig users
+import { raiseDispute, getNotifications, updateProfileImage, simulatePayout } from "../controllers/gig.controller.js";
+
+//import for feedback submission
+import { submitFeedback, deleteProfileImage, getKYCStatus, debugGigData } from "../controllers/gig.controller.js";
+
 // import for authentication and authorization
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -55,5 +62,25 @@ router.get("/leaderboard", verifyToken, authorizeRoles("gig"), getLeaderboard);
 // Routes for messaging system  
 router.get("/conversations", verifyToken, authorizeRoles("gig"), getConversations);
 router.post("/message/:conversationId", verifyToken, authorizeRoles("gig"), sendMessage);
+
+// Additional routes for gig users
+router.post("/raise-dispute/:eventId", verifyToken, authorizeRoles("gig"), raiseDispute);
+router.get("/notifications", verifyToken, authorizeRoles("gig"), getNotifications);
+router.put("/profile-image", verifyToken, authorizeRoles("gig"), updateProfileImage);
+router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("gig"), simulatePayout);
+
+
+// Feedback submission
+router.post("/feedback/:eventId", verifyToken, authorizeRoles("gig"), submitFeedback);
+
+// Profile image deletion
+router.delete("/profile-image", verifyToken, authorizeRoles("gig"), deleteProfileImage);
+
+// KYC status check
+router.get("/kyc-status", verifyToken, authorizeRoles("gig"), getKYCStatus);
+
+// Debug route for internal QA
+router.get("/debug/gig/:id", verifyToken, authorizeRoles("admin"), debugGigData);
+
 
 export default router;
