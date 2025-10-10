@@ -82,5 +82,7 @@ router.get("/kyc-status", verifyToken, authorizeRoles("gig"), getKYCStatus);
 // Debug route for internal QA
 router.get("/debug/gig/:id", verifyToken, authorizeRoles("admin"), debugGigData);
 
+// dashboard for gig
+router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
 
 export default router;

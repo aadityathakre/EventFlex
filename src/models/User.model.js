@@ -10,13 +10,13 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index:true
+      index: true,
     },
     phone: {
       type: String,
       required: true,
       trim: true,
-      index:true
+      index: true,
     },
     password: {
       type: String,
@@ -71,6 +71,7 @@ const UserSchema = new mongoose.Schema(
 
     refreshToken: {
       type: String,
+      default: "",
     },
   },
   { timestamps: true }

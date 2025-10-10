@@ -23,6 +23,7 @@ import Feedback from "../models/Feedback.model.js";
 import User from "../models/User.model.js";
 import UserProfile from "../models/UserProfile.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
+import RecommendedEvent from "../models/RecommendedEvent.model.js";
 
 
 
@@ -486,6 +487,48 @@ const debugGigData = asyncHandler(async (req, res) => {
     new ApiResponse(200, { user, attendance, wallet }, "Gig debug data")
   );
 });
+
+// 26. get recommended events
+ const getRecommendedEvents = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const recommendations = await RecommendedEvent.find({ gig: gigId })
+    .populate("event")
+    .sort({ score: -1 });
+
+  return res.status(200).json(new ApiResponse(200, recommendations, "Recommended events fetched"));
+});
+
+
+// 27. get gig dashboard
+const getGigDashboard = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const [attendance, wallet, feedbacks, badges] = await Promise.all([
+    EventAttendance.find({ gig: gigId }),
+    UserWallet.findOne({ user: gigId }),
+    Feedback.find({ gig: gigId }),
+    UserBadge.find({ user: gigId }),
+  ]);
+
+  const totalEvents = attendance.length;
+  const totalEarnings = wallet?.balance || 0;
+  const averageRating =
+    feedbacks.length > 0
+      ? feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length
+      : null;
+
+  return res.status(200).json(
+    new ApiResponse(200, {
+      totalEvents,
+      totalEarnings,
+      averageRating,
+      badges,
+    }, "Gig dashboard fetched")
+  );
+});
+
+
 export {
   getNearbyEvents,
   getOrganizerPools,
@@ -512,4 +555,6 @@ export {
   deleteProfileImage,
   getKYCStatus,
   debugGigData,
+  getRecommendedEvents,
+  getGigDashboard
 };
