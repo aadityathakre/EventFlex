@@ -3,12 +3,23 @@ import User from "./User.model.js";
 
 const EventSchema = new mongoose.Schema(
   {
+    // 1. Host reference (existing)
     host: {
       type: Schema.Types.ObjectId,
-      ref: "User", // assuming Host is a User with role = "host"
-      required: true,
+      ref: "User", // role = "host"
+      required: false, // now optional
       index: true,
     },
+
+    // 2. Organizer reference (new)
+    organizer: {
+      type: Schema.Types.ObjectId,
+      ref: "User", // role = "organizer"
+      required: false, // optional to support dual creation
+      index: true,
+    },
+
+    // 3. Event metadata
     title: {
       type: String,
       required: true,
@@ -34,19 +45,28 @@ const EventSchema = new mongoose.Schema(
     location: {
       type: Schema.Types.Mixed, // Accepts JSON object
     },
+
+    // 4. Budget
     budget: {
       type: mongoose.Types.Decimal128,
       required: true,
     },
+
+    // 5. Status
     status: {
       type: String,
       enum: ["published", "in_progress", "completed"],
       default: "published",
       required: true,
     },
+
+    // 6. Gigs assigned (new)
+    gigs: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User", // role = "gig"
+      },
+    ],
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );
-
-const Event = mongoose.model("Event", EventSchema);
-export default Event;
