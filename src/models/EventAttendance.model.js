@@ -19,6 +19,7 @@ const EventAttendanceSchema = new mongoose.Schema(
     },
     check_in_time: {
       type: Date,
+    
     },
     check_out_time: {
       type: Date,
@@ -31,6 +32,7 @@ const EventAttendanceSchema = new mongoose.Schema(
     },
     hours_worked: {
       type: mongoose.Types.Decimal128,
+      
     },
     resolved_by_admin: {
       type: Schema.Types.ObjectId,

@@ -2,6 +2,5 @@
 
 # author - Aditya
 
-# about professional setup 
 ``` npm init 
   

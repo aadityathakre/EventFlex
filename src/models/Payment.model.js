@@ -12,28 +12,31 @@ const PaymentSchema = new mongoose.Schema(
     },
     payer: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "User", // host
       required: true,
       index: true,
     },
     payee: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "User", //gig, organizer
       required: true,
       index: true,
     },
     amount: {
       type: mongoose.Types.Decimal128,
       required: true,
+      default : 0.0,
     },
+
     payment_method: {
       type: String,
       enum: ["upi", "crypto"],
       required: true,
+      default :"upi",
     },
     status: {
       type: String,
-      enum: ["completed"],
+      enum: ["completed", "pending"],
       default: "completed",
       required: true,
     },

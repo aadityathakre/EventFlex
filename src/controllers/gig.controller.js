@@ -26,25 +26,40 @@ import RecommendedEvent from "../models/RecommendedEvents.model.js";
 import UserDocument from "../models/UserDocument.model.js";
 import { ethers } from "ethers";
 import axios from "axios";
+import mongoose from "mongoose"
+import { ObjectId } from "mongodb";
+
 
 // 1. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
+  const gigObjectId = new mongoose.Types.ObjectId(req.user._id);
 
-  const events = await Event.find({ gigs: gigId }).select("-__v");
+  //dummy data added for testing
+   // ensure ObjectId
+//    await Event.create({
+//   title: "Seeded Event",
+//   gigs: [gigObjectId],
+//   event_type: "function",
+//   start_date: new Date(),
+//   end_date: new Date(),
+//   budget: 10000,
+// });
+
+  const events = await Event.find({ gigs: gigObjectId }).select("-__v");
+
   if (!events || events.length === 0) {
+    console.log("No events found for gig:", gigObjectId);
     throw new ApiError(404, "No accepted events found");
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, events, "Accepted events fetched"));
+  return res.status(200).json(new ApiResponse(200, events, "Accepted events fetched"));
 });
 
 // 2. QR/GPS check-in
 const checkIn = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { eventId } = req.params;
+
 
   const event = await Event.findById(eventId);
   if (!event) {
@@ -55,6 +70,7 @@ const checkIn = asyncHandler(async (req, res) => {
     gig: gigId,
     event: eventId,
   });
+
   if (alreadyCheckedIn) {
     throw new ApiError(409, "Already checked in");
   }
@@ -115,25 +131,27 @@ const getOrganizerPools = asyncHandler(async (req, res) => {
   const { coordinates } = req.body;
 
   const pools = await OrganizerPool.find({
-    location: {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates,
-        },
-        $maxDistance: 10000,
+  location: {
+    $near: {
+      $geometry: {
+        type: "Point",
+        coordinates,
       },
+      $maxDistance: 10000,
     },
-    isActive: true,
-  }).select("organizer skills_needed pool_size location");
+  },
+  status: "active", // ✅ match schema
+}).select("-organizer -required_skills -max_capacity -location");
 
   return res
     .status(200)
-    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
+    .json(new ApiResponse(200,  pools , "Nearby pools fetched"));
 });
 
 // 6. Join a specific pool
 const joinPool = asyncHandler(async (req, res) => {
+
+
   const gigId = req.user._id;
   const { poolId } = req.params;
   const { proposed_rate, cover_message } = req.body;
@@ -152,76 +170,123 @@ const joinPool = asyncHandler(async (req, res) => {
   }
 
   const application = await PoolApplication.create({
-    gig: gigId,
-    pool: poolId,
-    proposed_rate,
-    cover_message,
-  });
+  gig: gigId,
+  pool: poolId,
+  proposed_rate: mongoose.Types.Decimal128.fromString(proposed_rate.toString()),
+  cover_message,
+});
 
   return res
     .status(201)
     .json(new ApiResponse(201, application, "Pool application submitted"));
 });
 
-// 7. View wallet balance
+//gig wallet
 const getWallet = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const wallet = await UserWallet.findOne({ user: gigId });
+  let wallet = await UserWallet.findOne({ user: gigId });
+
+  // If wallet doesn't exist, create one with default balance
   if (!wallet) {
-    throw new ApiError(404, "Wallet not found");
+    wallet = await UserWallet.create({
+      user: gigId,
+      upi_id: "aditya3676",
+      balance_inr: mongoose.Types.Decimal128.fromString("2000.00")
+    });
   }
 
-  return res.status(200).json(new ApiResponse(200, wallet, "Wallet fetched"));
+  // Defensive check: ensure balance_inr is valid
+  const balanceRaw = wallet.balance_inr?.toString();
+  const balanceFloat = isNaN(balanceRaw) ? 0.0 : parseFloat(balanceRaw);
+
+  const formattedWallet = {
+    ...wallet.toObject(),
+    balance_inr: balanceFloat
+  };
+
+  return res.status(200).json(
+    new ApiResponse(200, formattedWallet, "Wallet fetched")
+  );
 });
+
 
 // 8. UPI withdrawal request
 const withdraw = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { amount } = req.body;
 
-  const wallet = await UserWallet.findOne({ user: gigId });
-  if (!wallet) {
-    throw new ApiError(404, "Wallet not found");
+  // Validate input
+  const requestedAmount = parseFloat(amount);
+  if (isNaN(requestedAmount) || requestedAmount <= 0) {
+    throw new ApiError(400, "Invalid withdrawal amount");
   }
 
-  const currentBalance = parseFloat(wallet.balance_inr.toString());
-  const requestedAmount = parseFloat(amount);
+  // Fetch wallet
+  const wallet = await UserWallet.findOne({ user: gigId });
+  if (!wallet || !wallet.balance_inr) {
+    throw new ApiError(404, "Wallet not found or balance missing");
+  }
 
+  // Convert Decimal128 to float safely
+  const balanceRaw = wallet.balance_inr.toString?.() || "0.00";
+  const currentBalance = parseFloat(balanceRaw);
+
+  if (isNaN(currentBalance)) {
+    throw new ApiError(500, "Corrupted wallet balance");
+  }
+
+  // Check balance
   if (requestedAmount > currentBalance) {
     throw new ApiError(400, "Insufficient balance");
   }
 
-  // Simulate withdrawal logic
-  wallet.balance_inr = currentBalance - requestedAmount;
+  // Calculate new balance and cast back to Decimal128
+  const newBalance = (currentBalance - requestedAmount).toFixed(2);
+  wallet.balance_inr = mongoose.Types.Decimal128.fromString(newBalance);
+
   await wallet.save();
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { new_balance: wallet.balance_inr },
-        "Withdrawal processed"
-      )
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        new_balance: parseFloat(wallet.balance_inr.toString())
+      },
+      "Withdrawal processed"
+    )
+  );
 });
 
 // 9. View payment history
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
+  await Payment.create({
+    escrow: dummyEscrowId,
+    payer: dummyPayerId,
+    payee: gigId,
+    amount: mongoose.Types.Decimal128.fromString("1500.00"),
+    payment_method: "upi",
+    upi_transaction_id: "TXN1234567890"
+  });
+
   const payments = await Payment.find({ payee: gigId })
     .populate("escrow", "event total_amount status")
-    .select("amount payment_method processed_at upi_transaction_id");
+    .select("amount payment_method processed_at upi_transaction_id escrow");
 
   if (!payments || payments.length === 0) {
     throw new ApiError(404, "No payments found");
   }
 
+  const formattedPayments = payments.map(p => ({
+    ...p.toObject(),
+    amount: parseFloat(p.amount?.toString() || "0.00")
+  }));
+
   return res
     .status(200)
-    .json(new ApiResponse(200, payments, "Payment history fetched"));
+    .json(new ApiResponse(200, formattedPayments, "Payment history fetched"));
 });
 
 // 10. View AI-predicted no-show risk

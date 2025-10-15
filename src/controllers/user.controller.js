@@ -27,6 +27,7 @@ const registerUser = asyncHandler(async (req, res) => {
     wallet_address,
     universal_role_id,
   ];
+
   if (requiredFields.some((field) => !field || field.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
@@ -74,9 +75,13 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!createdUser) {
     throw new ApiError(500, "User registration failed");
   }
-
+  
   // 6. Respond
-  return res.status(201).json(new ApiResponse(201, createdUser, "User registered successfully"));
+  return res
+  .status(201)
+  .json(
+    new ApiResponse(201, createdUser, "User registered successfully")
+  );
 });
 
 export { registerUser };

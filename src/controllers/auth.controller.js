@@ -4,74 +4,92 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import User from "../models/User.model.js";
 import jwt from "jsonwebtoken";
 
-// Token generators
-const generateAccessToken = (user) => {
-  return jwt.sign(
-    { _id: user._id, role: user.role, email: user.email },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
-  );
+// generate Access And Refresh Tokens
+const generateAccessAndRefreshTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "something went wrong while generating refresh and access token"
+    );
+  }
 };
 
-
-
-
-//refresh access tokens 
+//refresh token access
 export const refreshAccessToken = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body;
-
-  if (!refreshToken) {
-    throw new ApiError(401, "Refresh token missing");
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized request || Refresh token not found");
   }
 
-  let decoded;
   try {
-    decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-  } catch (err) {
-    throw new ApiError(403, "Invalid or expired refresh token");
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh token");
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(401, "Refresh token is expired or used!!");
+    }
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, newRefreshToken } =
+      await generateAccessAndRefreshTokens(user._id);
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken, newRefreshToken },
+          "Access token refreshed !"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, error?.message || "Invalid refresh token");
   }
-
-  const user = await User.findById(decoded._id);
-  if (!user || user.refreshToken !== refreshToken) {
-    throw new ApiError(403, "Refresh token mismatch");
-  }
-
-  // ✅ Token Rotation Starts Here
-  const newAccessToken = generateAccessToken(user);
-  const newRefreshToken = jwt.sign(
-    { _id: user._id },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
-  );
-
-  user.refreshToken = newRefreshToken;
-  await user.save({ validateBeforeSave: false });
-
-  res.cookie("refreshToken", newRefreshToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "Strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-
-  return res.status(200).json(
-    new ApiResponse(200, { accessToken: newAccessToken }, "Access token refreshed")
-  );
 });
-
-
 
 //logout route
 export const logoutUser = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-
-  const user = await User.findById(userId);
-  if (!user) throw new ApiError(404, "User not found");
-
-  user.refreshToken = "";
-  await user.save({ validateBeforeSave: false });
-
-  res.clearCookie("refreshToken");
-
-  return res.status(200).json(new ApiResponse(200, null, "Logged out successfully"));
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: { refreshToken: undefined },
+    },
+    { new: true }
+  );
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out !"));
 });

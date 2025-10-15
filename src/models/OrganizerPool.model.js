@@ -16,6 +16,18 @@ const OrganizerPoolSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        required: true,
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true,
+      },
+    },
     pool_name: {
       type: String,
       required: true,
@@ -41,6 +53,7 @@ const OrganizerPoolSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );
+OrganizerPoolSchema.index({ location: "2dsphere" });
 
 const OrganizerPool = mongoose.model("OrganizerPool", OrganizerPoolSchema);
 export default OrganizerPool;

@@ -23,33 +23,48 @@ const EventSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
+      default: "Reception",
       trim: true,
     },
     description: {
       type: String,
+      default: "wedding reception",
       trim: true,
     },
     event_type: {
       type: String,
       enum: ["function", "corporate", "festival"],
       required: true,
+      default: "function",
     },
     start_date: {
       type: Date,
       required: true,
+      default: Date,
     },
     end_date: {
       type: Date,
       required: true,
+      default: Date,
     },
     location: {
-      type: Schema.Types.Mixed, // Accepts JSON object
+      type: {
+        type: String,
+        enum: ["Point"],
+        required: true,
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number],
+        required: true,
+      },
     },
 
     // 4. Budget
     budget: {
       type: mongoose.Types.Decimal128,
       required: true,
+      default: 10000,
     },
 
     // 5. Status
@@ -58,6 +73,7 @@ const EventSchema = new mongoose.Schema(
       enum: ["published", "in_progress", "completed"],
       default: "published",
       required: true,
+      default: "published",
     },
 
     // 6. Gigs assigned (new)
@@ -70,5 +86,7 @@ const EventSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );
+EventSchema.index({ location: "2dsphere" });
 const Event = mongoose.model("Event", EventSchema);
+
 export default Event;
