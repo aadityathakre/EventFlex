@@ -1,6 +1,6 @@
 import express from "express";
 import { uploadDocuments } from "../controllers/gig.controller.js";
-import { upload } from "../middlewares/fileUpload.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 import { uploadKycVideo } from "../controllers/gig.controller.js";
 import { getGigDashboard } from "../controllers/gig.controller.js";
 import { verifyAadhaar } from "../controllers/gig.controller.js";
@@ -63,7 +63,7 @@ import {
 } from "../controllers/gig.controller.js";
 
 // import for wallet creation
-import { createWallet } from "../controllers/gig.controller.js";
+import { createWallet , getRecommendedEvents } from "../controllers/gig.controller.js";
 
 // import for authentication and authorization
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
@@ -152,6 +152,7 @@ router.get(
 router.put(
   "/profile-image",
   verifyToken,
+  upload.fields([{ name: "avatar", maxCount: 1 }]),
   authorizeRoles("gig"),
   updateProfileImage
 );
@@ -189,6 +190,11 @@ router.get(
   debugGigData
 );
 
+//recomended events
+router.get("/recommended-events", verifyToken,
+  
+  authorizeRoles("gig"), getRecommendedEvents );
+
 // dashboard for gig
 router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
 
@@ -197,7 +203,7 @@ router.post(
   "/upload-documents",
   verifyToken,
   authorizeRoles("gig"),
-  upload.single("document"),
+  upload.fields([{ name: "fileUrl", maxCount: 1 }]),
   uploadDocuments
 );
 
@@ -206,7 +212,7 @@ router.post(
   "/kyc/video",
   verifyToken,
   authorizeRoles("gig"),
-  upload.single("video"),
+   upload.fields([{ name: "videoUrl", maxCount: 1 }]),
   uploadKycVideo
 );
 

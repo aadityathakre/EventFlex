@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import EventAttendance from "../models/EventAttendance.model.js";
 import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
+import Pool from "../models/Pool.model.js"
 import PoolApplication from "../models/PoolApplication.model.js";
 import PoolMember from "../models/PoolMember.model.js";
 import UserWallet from "../models/UserWallet.model.js";
@@ -26,24 +27,12 @@ import RecommendedEvent from "../models/RecommendedEvents.model.js";
 import UserDocument from "../models/UserDocument.model.js";
 import { ethers } from "ethers";
 import axios from "axios";
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 import { ObjectId } from "mongodb";
-
 
 // 1. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
-  const gigObjectId = new mongoose.Types.ObjectId(req.user._id);
-
-  //dummy data added for testing
-   // ensure ObjectId
-//    await Event.create({
-//   title: "Seeded Event",
-//   gigs: [gigObjectId],
-//   event_type: "function",
-//   start_date: new Date(),
-//   end_date: new Date(),
-//   budget: 10000,
-// });
+  const gigObjectId = new mongoose.Types.ObjectId(req.user._id); // ✅ use 'new'
 
   const events = await Event.find({ gigs: gigObjectId }).select("-__v");
 
@@ -52,14 +41,15 @@ const getMyEvents = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No accepted events found");
   }
 
-  return res.status(200).json(new ApiResponse(200, events, "Accepted events fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, events, "Accepted events fetched"));
 });
 
 // 2. QR/GPS check-in
 const checkIn = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { eventId } = req.params;
-
 
   const event = await Event.findById(eventId);
   if (!event) {
@@ -72,7 +62,9 @@ const checkIn = asyncHandler(async (req, res) => {
   });
 
   if (alreadyCheckedIn) {
-    throw new ApiError(409, "Already checked in");
+    return res
+    .status(200)
+    .json(new ApiResponse(201, alreadyCheckedIn, "User Already checked in"));
   }
 
   const attendance = await EventAttendance.create({
@@ -131,27 +123,25 @@ const getOrganizerPools = asyncHandler(async (req, res) => {
   const { coordinates } = req.body;
 
   const pools = await OrganizerPool.find({
-  location: {
-    $near: {
-      $geometry: {
-        type: "Point",
-        coordinates,
+    location: {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates,
+        },
+        $maxDistance: 10000,
       },
-      $maxDistance: 10000,
     },
-  },
-  status: "active", // ✅ match schema
-}).select("-organizer -required_skills -max_capacity -location");
+    status: "open", // ✅ match schema
+  }).select("-organizer");
 
   return res
     .status(200)
-    .json(new ApiResponse(200,  pools , "Nearby pools fetched"));
+    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
 });
 
 // 6. Join a specific pool
 const joinPool = asyncHandler(async (req, res) => {
-
-
   const gigId = req.user._id;
   const { poolId } = req.params;
   const { proposed_rate, cover_message } = req.body;
@@ -166,15 +156,19 @@ const joinPool = asyncHandler(async (req, res) => {
     pool: poolId,
   });
   if (existingApplication) {
-    throw new ApiError(409, "Already applied to this pool");
+    return res
+    .status(200)
+    .json(new ApiResponse(201, existingApplication, "GiG  already in this pool"));
   }
 
   const application = await PoolApplication.create({
-  gig: gigId,
-  pool: poolId,
-  proposed_rate: mongoose.Types.Decimal128.fromString(proposed_rate.toString()),
-  cover_message,
-});
+    gig: gigId,
+    pool: poolId,
+    proposed_rate: mongoose.Types.Decimal128.fromString(
+      proposed_rate.toString()
+    ),
+    cover_message,
+  });
 
   return res
     .status(201)
@@ -192,7 +186,7 @@ const getWallet = asyncHandler(async (req, res) => {
     wallet = await UserWallet.create({
       user: gigId,
       upi_id: "aditya3676",
-      balance_inr: mongoose.Types.Decimal128.fromString("2000.00")
+      balance_inr: mongoose.Types.Decimal128.fromString("2000.00"),
     });
   }
 
@@ -202,14 +196,13 @@ const getWallet = asyncHandler(async (req, res) => {
 
   const formattedWallet = {
     ...wallet.toObject(),
-    balance_inr: balanceFloat
+    balance_inr: balanceFloat,
   };
 
-  return res.status(200).json(
-    new ApiResponse(200, formattedWallet, "Wallet fetched")
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, formattedWallet, "Wallet fetched"));
 });
-
 
 // 8. UPI withdrawal request
 const withdraw = asyncHandler(async (req, res) => {
@@ -251,7 +244,7 @@ const withdraw = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-        new_balance: parseFloat(wallet.balance_inr.toString())
+        new_balance: parseFloat(wallet.balance_inr.toString()),
       },
       "Withdrawal processed"
     )
@@ -261,14 +254,15 @@ const withdraw = asyncHandler(async (req, res) => {
 // 9. View payment history
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
-
+  const escrowId = "68f07d7c2620923b5bf1f50b";
+  const payerId = "652abc123def4567890aaaab";
   await Payment.create({
-    escrow: dummyEscrowId,
-    payer: dummyPayerId,
+    escrow: escrowId,
+    payer: payerId,
     payee: gigId,
     amount: mongoose.Types.Decimal128.fromString("1500.00"),
     payment_method: "upi",
-    upi_transaction_id: "TXN1234567890"
+    upi_transaction_id: "TXN1234567890",
   });
 
   const payments = await Payment.find({ payee: gigId })
@@ -279,9 +273,9 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     throw new ApiError(404, "No payments found");
   }
 
-  const formattedPayments = payments.map(p => ({
+  const formattedPayments = payments.map((p) => ({
     ...p.toObject(),
-    amount: parseFloat(p.amount?.toString() || "0.00")
+    amount: parseFloat(p.amount?.toString() || "0.00"),
   }));
 
   return res
@@ -369,7 +363,7 @@ const getLeaderboard = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
   const score = await ReputationScore.findOne({ user: gigId }).select(
-    "overall_rating trust_level last_updated"
+    "last_updated"
   );
   if (!score) {
     throw new ApiError(404, "Reputation score not found");
@@ -384,15 +378,22 @@ const getLeaderboard = asyncHandler(async (req, res) => {
 const getConversations = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const conversations = await Conversation.find({
-    participants: { $in: [gigId] },
-  })
+const conversations = await Conversation.find({
+  $or: [
+    { "participants.gig": gigId },
+    { "participants.organizer": gigId }
+  ]
+})
     .populate("event", "name date location")
     .populate("pool", "name")
     .sort({ createdAt: -1 });
 
-  return res.status(200).json(new ApiResponse(200, conversations, "Conversations fetched"));
+    console.log(conversations)
+  return res
+    .status(200)
+    .json(new ApiResponse(200, conversations, "Conversations fetched"));
 });
+
 
 // 17. Send message in chat
 const sendMessage = asyncHandler(async (req, res) => {
@@ -401,9 +402,15 @@ const sendMessage = asyncHandler(async (req, res) => {
   const { message_text } = req.body;
 
   const conversation = await Conversation.findById(conversationId);
-  if (!conversation || !conversation.participants.includes(gigId)) {
-    throw new ApiError(403, "Access denied to this conversation");
-  }
+ if (
+  !conversation ||
+  !conversation.participants.some(
+    (p) => p.userId?.toString() === gigId.toString()
+  )
+) {
+  throw new ApiError(403, "Access denied to this conversation");
+}
+
 
   const message = await Message.create({
     conversation: conversationId,
@@ -413,6 +420,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 
   return res.status(201).json(new ApiResponse(201, message, "Message sent"));
 });
+
 
 //18. Raise dispute for an event
 const raiseDispute = asyncHandler(async (req, res) => {
@@ -433,16 +441,18 @@ const raiseDispute = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
 });
 
-
 // 19. Get notifications
 const getNotifications = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const notifications = await Notification.find({ user: gigId }).sort({ createdAt: -1 });
+  const notifications = await Notification.find({ user: gigId }).sort({
+    createdAt: -1,
+  });
 
-  return res.status(200).json(new ApiResponse(200, notifications, "Notifications fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, notifications, "Notifications fetched"));
 });
-
 
 // 20. Update profile image
 const updateProfileImage = asyncHandler(async (req, res) => {
@@ -464,32 +474,34 @@ const updateProfileImage = asyncHandler(async (req, res) => {
     { new: true }
   );
 
-  return res.status(200).json(new ApiResponse(200, updatedProfile, "Profile image updated"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedProfile, "Profile image updated"));
 });
 
 // 21. Simulate payout from escrow (for testing)
 const simulatePayout = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { escrowId } = req.params;
-
+  console.log(typeof gigId, typeof escrowId);
   const escrow = await EscrowContract.findOne({
-    _id: escrowId,
+    _id: "68f07d7c2620923b5bf1f50b",
     gig: gigId,
-    status: "locked",
+    status: "funded",
   });
 
+  console.log(typeof escrowId, typeof gigId);
   if (!escrow) {
     throw new ApiError(404, "Escrow not found or already released");
   }
 
+  // Update escrow status
   escrow.status = "released";
   escrow.released_at = new Date();
   await escrow.save();
 
   return res.status(200).json(new ApiResponse(200, escrow, "Payout simulated"));
 });
-
-
 
 // 22. Submit event feedback
 const submitFeedback = asyncHandler(async (req, res) => {
@@ -508,9 +520,10 @@ const submitFeedback = asyncHandler(async (req, res) => {
     comment,
   });
 
-  return res.status(201).json(new ApiResponse(201, feedback, "Feedback submitted"));
+  return res
+    .status(201)
+    .json(new ApiResponse(201, feedback, "Feedback submitted"));
 });
-
 
 // 23. Delete profile image
 const deleteProfileImage = asyncHandler(async (req, res) => {
@@ -522,9 +535,10 @@ const deleteProfileImage = asyncHandler(async (req, res) => {
     { new: true }
   );
 
-  return res.status(200).json(new ApiResponse(200, updatedProfile, "Profile image removed"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedProfile, "Profile image removed"));
 });
-
 
 // 24. get kyc status
 const getKYCStatus = asyncHandler(async (req, res) => {
@@ -539,7 +553,6 @@ const getKYCStatus = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, kyc, "KYC status fetched"));
 });
 
-
 // 25. Debugging endpoint to fetch gig data
 const debugGigData = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -548,22 +561,23 @@ const debugGigData = asyncHandler(async (req, res) => {
   const attendance = await EventAttendance.find({ gig: id });
   const wallet = await UserWallet.findOne({ user: id });
 
-  return res.status(200).json(
-    new ApiResponse(200, { user, attendance, wallet }, "Gig debug data")
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { user, attendance, wallet }, "Gig debug data"));
 });
 
 // 26. get recommended events
- const getRecommendedEvents = asyncHandler(async (req, res) => {
+const getRecommendedEvents = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
   const recommendations = await RecommendedEvent.find({ gig: gigId })
     .populate("event")
     .sort({ score: -1 });
 
-  return res.status(200).json(new ApiResponse(200, recommendations, "Recommended events fetched"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, recommendations, "Recommended events fetched"));
 });
-
 
 // 27. get gig dashboard
 const getGigDashboard = asyncHandler(async (req, res) => {
@@ -584,20 +598,23 @@ const getGigDashboard = asyncHandler(async (req, res) => {
       : null;
 
   return res.status(200).json(
-    new ApiResponse(200, {
-      totalEvents,
-      totalEarnings,
-      averageRating,
-      badges,
-    }, "Gig dashboard fetched")
+    new ApiResponse(
+      200,
+      {
+        totalEvents,
+        totalEarnings,
+        averageRating,
+        badges,
+      },
+      "Gig dashboard fetched"
+    )
   );
 });
 
-
-// 28. upload documents 
+// 28. upload documents
 const uploadDocuments = asyncHandler(async (req, res) => {
   const { type } = req.body;
-  const localFilePath = req.file?.path;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
   const userId = req.user._id;
 
   if (!type || !localFilePath) {
@@ -618,10 +635,9 @@ const uploadDocuments = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
-
- const uploadKycVideo = asyncHandler(async (req, res) => {
+const uploadKycVideo = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const videoUrl = req.file?.path;
+  const videoUrl = req.files?.videoUrl?.[0]?.path;
 
   if (!videoUrl) {
     throw new ApiError(400, "Video file is required");
@@ -638,20 +654,34 @@ const uploadDocuments = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  return res.status(200).json(
-    new ApiResponse(200, { videoUrl }, "KYC video uploaded and pending verification")
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { videoUrl },
+        "KYC video uploaded and pending verification"
+      )
+    );
 });
 
-
 // 29. create wallet
- const createWallet = asyncHandler(async (req, res) => {
+const createWallet = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const user = await User.findById(userId);
 
+  const user = await User.findById(userId);
   if (!user) throw new ApiError(404, "User not found");
+
   if (user.wallet?.address) {
-    return res.status(200).json(new ApiResponse(200, { address: user.wallet.address }, "Wallet already exists"));
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { address: user.wallet.address },
+          "Wallet already exists"
+        )
+      );
   }
 
   const wallet = ethers.Wallet.createRandom();
@@ -664,15 +694,19 @@ const uploadDocuments = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  return res.status(201).json(
-    new ApiResponse(201, { address: wallet.address }, "Wallet created successfully")
-  );
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        { address: wallet.address },
+        "Wallet created successfully"
+      )
+    );
 });
 
-
-
-// 30. Aadhaar verification
- const verifyAadhaar = asyncHandler(async (req, res) => {
+// 30. Aadhaar verification  (not currently in feature)
+const verifyAadhaar = asyncHandler(async (req, res) => {
   const { aadhaarNumber, otp } = req.body;
   const userId = req.user._id;
 
@@ -680,14 +714,18 @@ const uploadDocuments = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Aadhaar number and OTP are required");
   }
 
-  const response = await axios.post("https://sandbox.aadhaarkyc.io/v1/verify", {
-    aadhaar_number: aadhaarNumber,
-    otp,
-  }, {
-    headers: {
-      Authorization: `Bearer ${process.env.AADHAAR_SANDBOX_TOKEN}`,
+  const response = await axios.post(
+    "https://sandbox.aadhaarkyc.io/v1/verify",
+    {
+      aadhaar_number: aadhaarNumber,
+      otp,
     },
-  });
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.AADHAAR_SANDBOX_TOKEN}`,
+      },
+    }
+  );
 
   if (!response.data.success) {
     throw new ApiError(403, "Aadhaar verification failed");
@@ -698,9 +736,10 @@ const uploadDocuments = asyncHandler(async (req, res) => {
   user.aadhaarDetails = response.data.details;
   await user.save({ validateBeforeSave: false });
 
-  return res.status(200).json(new ApiResponse(200, response.data.details, "Aadhaar verified"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, response.data.details, "Aadhaar verified"));
 });
-
 
 export {
   getNearbyEvents,
@@ -733,6 +772,5 @@ export {
   uploadDocuments,
   uploadKycVideo,
   createWallet,
-  verifyAadhaar
-  
+  verifyAadhaar,
 };
