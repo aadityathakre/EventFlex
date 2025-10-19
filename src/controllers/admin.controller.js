@@ -1,4 +1,4 @@
-import asyncHandler from "../utils/asyncHandler.js";
+import {asyncHandler} from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
 import Admin from "../models/Admin.model.js";
 import User from "../models/User.model.js";
@@ -14,8 +14,6 @@ import Notification from "../models/Notification.model.js";
 import Payment from "../models/Payment.model.js";
 import Event from "../models/Event.model.js";
 import WellnessInteraction from "../models/WellnessInteraction.model.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
-
 
 // 1. 🔐 Admin Login (uses Admin schema)
 
