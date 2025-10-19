@@ -1,237 +1,123 @@
 import express from "express";
-import { uploadDocuments } from "../controllers/gig.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import { uploadKycVideo } from "../controllers/gig.controller.js";
-import { getGigDashboard } from "../controllers/gig.controller.js";
-import { verifyAadhaar } from "../controllers/gig.controller.js";
-
-//import for my-events, check-in and attendence-history
+import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 import {
+  // Auth & KYC
+  verifyAadhaar,
+  uploadDocuments,
+  uploadKycVideo,
+  getKYCStatus,
+
+  // Dashboard & Debug
+  getGigDashboard,
+  debugGigData,
+
+  // Events & Attendance
   getMyEvents,
   checkIn,
   getAttendanceHistory,
-} from "../controllers/gig.controller.js";
-
-//import for nearby-events, organizer-pools and join-pool
-import {
   getNearbyEvents,
   getOrganizerPools,
   joinPool,
-} from "../controllers/gig.controller.js";
+  getRecommendedEvents,
 
-//import for payment, withdraw and wallet
-import {
+  // Wallet & Payments
   getWallet,
   withdraw,
   getPaymentHistory,
-} from "../controllers/gig.controller.js";
+  createWallet,
+  simulatePayout,
 
-//import for wellness-score and reminders
-import {
+  // Wellness & Reminders
   getWellnessScore,
   getReminders,
-} from "../controllers/gig.controller.js";
 
-// import for additional user profile routes for gig users
-import {
+  // Profile & Badges
   getProfile,
   updateProfile,
+  updateProfileImage,
+  deleteProfileImage,
   getBadges,
   getLeaderboard,
-} from "../controllers/gig.controller.js";
 
-// import for messaging system
-import {
+  // Messaging
   getConversations,
   sendMessage,
-} from "../controllers/gig.controller.js";
 
-// import for additional routes for gig users
-import {
-  raiseDispute,
+  // Notifications & Disputes
   getNotifications,
-  updateProfileImage,
-  simulatePayout,
-} from "../controllers/gig.controller.js";
+  raiseDispute,
 
-//import for feedback submission
-import {
+  // Feedback
   submitFeedback,
-  deleteProfileImage,
-  getKYCStatus,
-  debugGigData,
 } from "../controllers/gig.controller.js";
-
-// import for wallet creation
-import {
-  createWallet,
-  getRecommendedEvents,
-} from "../controllers/gig.controller.js";
-
-// import for authentication and authorization
-import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-//routes for my-events, check-in and attendence-history
+//
+// 🔐 Authentication & KYC
+//
+router.post("/aadhaar/verify", verifyToken, authorizeRoles("gig"), verifyAadhaar);
+router.post("/upload-documents", verifyToken, authorizeRoles("gig"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadDocuments);
+router.post("/kyc/video", verifyToken, authorizeRoles("gig"), upload.fields([{ name: "videoUrl", maxCount: 1 }]), uploadKycVideo);
+router.get("/kyc-status", verifyToken, authorizeRoles("gig"), getKYCStatus);
+
+//
+// 📊 Dashboard & Debug
+//
+router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
+router.get("/debug/gig/:id", verifyToken, authorizeRoles("admin"), debugGigData);
+
+//
+// 📅 Events & Attendance
+//
 router.get("/my-events", verifyToken, authorizeRoles("gig"), getMyEvents);
-
 router.post("/check-in/:eventId", verifyToken, authorizeRoles("gig"), checkIn);
-
-router.get(
-  "/attendance-history",
-  verifyToken,
-  authorizeRoles("gig"),
-  getAttendanceHistory
-);
-
-//routes for nearby-events, organizer-pools and join-pool
-router.get(
-  "/nearby-events",
-  verifyToken,
-  authorizeRoles("gig"),
-  getNearbyEvents
-);
-router.get(
-  "/organizer-pools",
-  verifyToken,
-  authorizeRoles("gig"),
-  getOrganizerPools
-);
+router.get("/attendance-history", verifyToken, authorizeRoles("gig"), getAttendanceHistory);
+router.get("/nearby-events", verifyToken, authorizeRoles("gig"), getNearbyEvents);
+router.get("/organizer-pools", verifyToken, authorizeRoles("gig"), getOrganizerPools);
 router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
+router.get("/recommended-events", verifyToken, authorizeRoles("gig"), getRecommendedEvents);
 
-//routes for payment, withdraw and wallet
+//
+// 💰 Wallet & Payments
+//
 router.get("/wallet", verifyToken, authorizeRoles("gig"), getWallet);
 router.post("/withdraw", verifyToken, authorizeRoles("gig"), withdraw);
-router.get(
-  "/payment-history",
-  verifyToken,
-  authorizeRoles("gig"),
-  getPaymentHistory
-);
+router.get("/payment-history", verifyToken, authorizeRoles("gig"), getPaymentHistory);
+router.post("/wallet/create", verifyToken, authorizeRoles("gig"), createWallet);
+router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("gig"), simulatePayout);
 
-//routes for wellness-score and reminders
-router.get(
-  "/wellness-score",
-  verifyToken,
-  authorizeRoles("gig"),
-  getWellnessScore
-);
+//
+// 🧠 Wellness & Reminders
+//
+router.get("/wellness-score", verifyToken, authorizeRoles("gig"), getWellnessScore);
 router.get("/reminders", verifyToken, authorizeRoles("gig"), getReminders);
 
-// Additional user profile, update, bagde, leaderboard routes for gig users
+//
+// 👤 Profile & Badges
+//
 router.get("/profile", verifyToken, authorizeRoles("gig"), getProfile);
 router.put("/profile", verifyToken, authorizeRoles("gig"), updateProfile);
+router.put("/profile-image", verifyToken, upload.fields([{ name: "avatar", maxCount: 1 }]), authorizeRoles("gig"), updateProfileImage);
+router.delete("/profile-image", verifyToken, authorizeRoles("gig"), deleteProfileImage);
 router.get("/badges", verifyToken, authorizeRoles("gig"), getBadges);
 router.get("/leaderboard", verifyToken, authorizeRoles("gig"), getLeaderboard);
 
-// Routes for messaging system
-router.get(
-  "/conversations",
-  verifyToken,
-  authorizeRoles("gig"),
-  getConversations
-);
-router.post(
-  "/message/:conversationId",
-  verifyToken,
-  authorizeRoles("gig"),
-  sendMessage
-);
+//
+// 💬 Messaging
+//
+router.get("/conversations", verifyToken, authorizeRoles("gig"), getConversations);
+router.post("/message/:conversationId", verifyToken, authorizeRoles("gig"), sendMessage);
 
-// Additional routes for gig users
-router.post(
-  "/raise-dispute/:eventId",
-  verifyToken,
-  authorizeRoles("gig"),
-  raiseDispute
-);
-router.get(
-  "/notifications",
-  verifyToken,
-  authorizeRoles("gig"),
-  getNotifications
-);
-router.put(
-  "/profile-image",
-  verifyToken,
-  upload.fields([{ name: "avatar", maxCount: 1 }]),
-  authorizeRoles("gig"),
-  updateProfileImage
-);
-router.post(
-  "/simulate-payout/:escrowId",
-  verifyToken,
-  authorizeRoles("gig"),
-  simulatePayout
-);
+//
+// 🔔 Notifications & Disputes
+//
+router.get("/notifications", verifyToken, authorizeRoles("gig"), getNotifications);
+router.post("/raise-dispute/:eventId", verifyToken, authorizeRoles("gig"), raiseDispute);
 
-// Feedback submission
-router.post(
-  "/feedback/:eventId",
-  verifyToken,
-  authorizeRoles("gig"),
-  submitFeedback
-);
 
-// Profile image deletion
-router.delete(
-  "/profile-image",
-  verifyToken,
-  authorizeRoles("gig"),
-  deleteProfileImage
-);
-
-// KYC status check
-router.get("/kyc-status", verifyToken, authorizeRoles("gig"), getKYCStatus);
-
-// Debug route for internal QA
-router.get(
-  "/debug/gig/:id",
-  verifyToken,
-  authorizeRoles("admin"),
-  debugGigData
-);
-
-//recomended events
-router.get(
-  "/recommended-events",
-  verifyToken,
-
-  authorizeRoles("gig"),
-  getRecommendedEvents
-);
-
-// dashboard for gig
-router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
-
-// upload documents route
-router.post(
-  "/upload-documents",
-  verifyToken,
-  authorizeRoles("gig"),
-  upload.fields([{ name: "fileUrl", maxCount: 1 }]),
-  uploadDocuments
-);
-
-// upload kyc video route
-router.post(
-  "/kyc/video",
-  verifyToken,
-  authorizeRoles("gig"),
-  upload.fields([{ name: "videoUrl", maxCount: 1 }]),
-  uploadKycVideo
-);
-
-// simulate payout route for testing
-router.post("/wallet/create", verifyToken, authorizeRoles("gig"), createWallet);
-
-// Aadhaar verification route
-router.post(
-  "/aadhaar/verify",
-  verifyToken,
-  authorizeRoles("gig"),
-  verifyAadhaar
-);
+// 📝 Feedback
+router.post("/feedback/:eventId", verifyToken, authorizeRoles("gig"), submitFeedback);
 
 export default router;

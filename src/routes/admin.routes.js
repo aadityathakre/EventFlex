@@ -8,21 +8,61 @@ import {
   rejectKYC,
   getUserDocuments,
   verifyESignature,
+  createBadge,
+  getDisputes,
+  resolveDispute,
+  getAuditLogs,
+  broadcastMessage,
+  notifyUser,
+  getNotifications,
+  getUserAnalytics,
+  getEventAnalytics,
+  getPaymentAnalytics,
+  getLeaderboard,
 } from "../controllers/admin.controller.js";
-import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
+
+import {
+  refreshAdminAccessToken,
+  logoutAdmin,
+} from "../controllers/auth.admin.controller.js";
+
+import { verifyAdminToken } from "../middlewares/admin.middleware.js";
 
 const router = express.Router();
 
 // 🔐 Auth & Access Control
 router.post("/login", adminLogin);
-router.get("/roles", verifyToken, authorizeRoles("admin"), getAllRoles);
-router.put("/ban-user/:userid", verifyToken, authorizeRoles("admin"), banUser);
+router.post("/refresh-token", refreshAdminAccessToken);
+router.post("/logout", verifyAdminToken, logoutAdmin);
+
+// 🧑‍💼 Role & User Management
+router.get("/roles", verifyAdminToken, getAllRoles);
+router.put("/ban-user/:userid", verifyAdminToken, banUser);
 
 // ✅ Verification & Compliance
-router.get("/kyc/pending", verifyToken, authorizeRoles("admin"), getPendingKYC);
-router.get("/kyc/approve/:userid", verifyToken, authorizeRoles("admin"), approveKYC);
-router.post("/kyc/reject/:userid", verifyToken, authorizeRoles("admin"), rejectKYC);
-router.get("/documents/:userid", verifyToken, authorizeRoles("admin"), getUserDocuments);
-router.get("/e-signature/verify/:userid", verifyToken, authorizeRoles("admin"), verifyESignature);
+router.get("/kyc/pending", verifyAdminToken, getPendingKYC);
+router.get("/kyc/approve/:userid", verifyAdminToken, approveKYC);
+router.post("/kyc/reject/:userid", verifyAdminToken, rejectKYC);
+router.get("/documents/:userid", verifyAdminToken, getUserDocuments);
+router.get("/e-signature/verify/:userid", verifyAdminToken, verifyESignature);
+
+// 🏅 Badge
+router.post("/badges/create", verifyAdminToken, createBadge);
+
+// ⚖️ Disputes & Audit
+router.get("/disputes", verifyAdminToken, getDisputes);
+router.post("/disputes/resolve/:id", verifyAdminToken, resolveDispute);
+router.get("/audit-logs", verifyAdminToken, getAuditLogs);
+
+// 📢 Notifications
+router.post("/broadcast", verifyAdminToken, broadcastMessage);
+router.post("/notify/:userid", verifyAdminToken, notifyUser);
+router.get("/notifications", verifyAdminToken, getNotifications);
+
+// 📊 Analytics
+router.get("/analytics/users", verifyAdminToken, getUserAnalytics);
+router.get("/analytics/events", verifyAdminToken, getEventAnalytics);
+router.get("/analytics/payments", verifyAdminToken, getPaymentAnalytics);
+router.get("/leaderboard", verifyAdminToken, getLeaderboard);
 
 export default router;

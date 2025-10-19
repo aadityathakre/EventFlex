@@ -39,5 +39,11 @@ import hostRoutes from "./routes/host.routes.js";
 app.use("api/v1/host", hostRoutes);
 
 
+//admin router
+import adminRoutes from "./routes/admin.routes.js";
+app.use("api/v1/aadmin", adminRoutes);
+
+
+
 //export
 export { app };
