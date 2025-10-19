@@ -5,18 +5,39 @@ import {
   uploadHostDocs,
   submitESignature,
   verifyAadhaarSandbox,
-} from "../controllers/host.auth.controller.js";
-import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
-
+} from "../controllers/host.controller.js";
 import {
   createEvent,
   editEvent,
   getEventDetails,
   getHostEvents,
   completeEvent,
-} from "../controllers/host.event.controller.js";
-import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
+} from "../controllers/host.controller.js";
 
+import {
+  inviteOrganizer,
+  approveOrganizer,
+  getAssignedOrganizers,
+  startChatWithOrganizer,
+} from "../controllers/host.controller.js";
+
+import {
+  depositToEscrow,
+  getEscrowStatus,
+  verifyAttendance,
+  getWalletBalance,
+} from "../controllers/host.controller.js";
+
+import { getHostDashboard } from "../controllers/host.controller.js";
+
+import {
+  getLeaderboard,
+  getEventReviews,
+} from "../controllers/host.controller.js";
+
+import { getHostProfile } from "../controllers/host.controller.js";
+
+import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -42,7 +63,7 @@ router.post(
   verifyAadhaarSandbox
 );
 
-//create events edit get details completed events routes 
+//create events edit get details completed events routes
 router.post("/events/create", verifyToken, authorizeRoles("host"), createEvent);
 router.put("/events/:id/edit", verifyToken, authorizeRoles("host"), editEvent);
 router.get("/events/:id", verifyToken, authorizeRoles("host"), getEventDetails);
@@ -53,5 +74,68 @@ router.post(
   authorizeRoles("host"),
   completeEvent
 );
+
+//organizer related routes
+router.post(
+  "/invite-organizer",
+  verifyToken,
+  authorizeRoles("host"),
+  inviteOrganizer
+);
+router.post(
+  "/approve-organizer/:id",
+  verifyToken,
+  authorizeRoles("host"),
+  approveOrganizer
+);
+router.get(
+  "/organizers",
+  verifyToken,
+  authorizeRoles("host"),
+  getAssignedOrganizers
+);
+router.post(
+  "/chat/:organizerId",
+  verifyToken,
+  authorizeRoles("host"),
+  startChatWithOrganizer
+);
+
+// 🔹 Payments & Escrow
+router.post(
+  "/payment/deposit",
+  verifyToken,
+  authorizeRoles("host"),
+  depositToEscrow
+);
+router.get(
+  "/payment/status/:eventId",
+  verifyToken,
+  authorizeRoles("host"),
+  getEscrowStatus
+);
+router.post(
+  "/verify-attendance/:eventId",
+  verifyToken,
+  authorizeRoles("host"),
+  verifyAttendance
+);
+router.get(
+  "/wallet/balance",
+  verifyToken,
+  authorizeRoles("host"),
+  getWalletBalance
+);
+
+// 🔹 Dashboard & Reputation
+router.get("/dashboard", verifyToken, authorizeRoles("host"), getHostDashboard);
+router.get("/leaderboard", verifyToken, authorizeRoles("host"), getLeaderboard);
+router.get(
+  "/reviews/:eventId",
+  verifyToken,
+  authorizeRoles("host"),
+  getEventReviews
+);
+router.get("/profile", verifyToken, authorizeRoles("host"), getHostProfile);
 
 export default router;

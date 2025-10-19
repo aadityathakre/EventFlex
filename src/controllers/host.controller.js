@@ -6,6 +6,16 @@ import { loginUser } from "./loginUser.controller.js";
 import UserDocument from "../models/UserDocument.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import Event from "../models/Event.model.js";
+import OrganizerPool from "../models/OrganizerPool.model.js";
+import Conversation from "../models/Conversation.model.js";
+import Message from "../models/Message.model.js";
+import EscrowContract from "../models/EscrowContract.model.js";
+import Payment from "../models/Payment.model.js";
+import UserWallet from "../models/UserWallet.model.js";
+import RatingReview from "../models/RatingReview.model.js";
+import Feedback from "../models/Feedback.model.js";
+import UserBadge from "../models/UserBadge.model.js";
+import Badge from "../models/Badge.model.js";
 
 // 1. Register Host
 export const registerHost = asyncHandler(async (req, res, next) => {
@@ -195,4 +205,220 @@ export const completeEvent = asyncHandler(async (req, res) => {
   await event.save();
 
   return res.status(200).json(new ApiResponse(200, event, "Event marked as completed"));
+});
+
+
+// 11. Invite Organizer to Event
+export const inviteOrganizer = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { organizerId, eventId, pool_name, location, max_capacity, required_skills, pay_range } = req.body;
+
+  if (!organizerId || !eventId || !pool_name || !location?.coordinates || !max_capacity) {
+    throw new ApiError(400, "Missing required fields");
+  }
+
+  const pool = await OrganizerPool.create({
+    organizer: organizerId,
+    event: eventId,
+    location: {
+      type: "Point",
+      coordinates: location.coordinates,
+    },
+    pool_name,
+    max_capacity,
+    required_skills,
+    pay_range,
+    status: "open",
+  });
+
+  return res.status(201).json(new ApiResponse(201, pool, "Organizer invited to event"));
+});
+
+// 12. Approve Organizer for Event
+export const approveOrganizer = asyncHandler(async (req, res) => {
+  const poolId = req.params.id;
+
+  const pool = await OrganizerPool.findById(poolId);
+  if (!pool) throw new ApiError(404, "Organizer pool not found");
+
+  pool.status = "active";
+  await pool.save();
+
+  return res.status(200).json(new ApiResponse(200, pool, "Organizer approved"));
+});
+
+// 13. View Assigned Organizers
+export const getAssignedOrganizers = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  const pools = await OrganizerPool.find()
+    .populate("organizer event")
+    .sort({ createdAt: -1 });
+
+  const filtered = pools.filter(pool => pool.event?.host?.toString() === hostId.toString());
+
+  return res.status(200).json(new ApiResponse(200, filtered, "Assigned organizers fetched"));
+});
+
+// 14. Start In-App Chat with Organizer
+export const startChatWithOrganizer = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const organizerId = req.params.organizerId;
+
+  let conversation = await Conversation.findOne({
+    participants: { $all: [hostId, organizerId] },
+  });
+
+  if (!conversation) {
+    conversation = await Conversation.create({
+      participants: [hostId, organizerId],
+    });
+  }
+
+  const welcome = await Message.create({
+    conversation: conversation._id,
+    sender: hostId,
+    message_text: "Welcome to the event coordination chat!",
+  });
+
+  return res.status(201).json(new ApiResponse(201, { conversation, welcome }, "Chat started"));
+});
+
+// 🔹 15. Deposit to Escrow
+export const depositToEscrow = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const {
+    eventId,
+    organizerId,
+    total_amount,
+    organizer_percentage,
+    gigs_percentage,
+    payment_method,
+    upi_transaction_id,
+  } = req.body;
+
+  if (!eventId || !organizerId || !total_amount || !organizer_percentage || !gigs_percentage || !payment_method) {
+    throw new ApiError(400, "Missing required deposit fields");
+  }
+
+  const escrow = await EscrowContract.create({
+    event: eventId,
+    host: hostId,
+    organizer: organizerId,
+    total_amount,
+    organizer_percentage,
+    gigs_percentage,
+    status: "funded",
+  });
+
+  const payment = await Payment.create({
+    escrow: escrow._id,
+    payer: hostId,
+    payee: organizerId,
+    amount: total_amount,
+    payment_method,
+    upi_transaction_id,
+    status: "completed",
+  });
+
+  return res.status(201).json(new ApiResponse(201, { escrow, payment }, "Escrow funded and payment logged"));
+});
+
+// 🔹 16. View Escrow Status
+export const getEscrowStatus = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { eventId } = req.params;
+
+  const escrow = await EscrowContract.findOne({ event: eventId, host: hostId }).populate("organizer");
+
+  if (!escrow) throw new ApiError(404, "No escrow contract found for this event");
+
+  return res.status(200).json(new ApiResponse(200, escrow, "Escrow status fetched"));
+});
+
+// 🔹 17. Verify Attendance
+export const verifyAttendance = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { eventId } = req.params;
+
+  const escrow = await EscrowContract.findOne({ event: eventId, host: hostId });
+
+  if (!escrow) throw new ApiError(404, "Escrow contract not found");
+  if (escrow.status === "released") throw new ApiError(400, "Escrow already released");
+
+  escrow.status = "released";
+  await escrow.save();
+
+  return res.status(200).json(new ApiResponse(200, escrow, "Attendance verified, escrow released"));
+});
+
+// 🔹 18. Wallet Balance
+export const getWalletBalance = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  let wallet = await UserWallet.findOne({ user: hostId });
+
+  if (!wallet) {
+    wallet = await UserWallet.create({
+      user: hostId,
+      balance_inr: mongoose.Types.Decimal128.fromString("0.00"),
+    });
+  }
+
+  return res.status(200).json(new ApiResponse(200, wallet, "Wallet balance fetched"));
+});
+
+// 🔹 19. Host Dashboard
+export const getHostDashboard = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  const events = await Event.find({ host: hostId }).sort({ createdAt: -1 });
+  const escrows = await EscrowContract.find({ host: hostId }).populate("event organizer");
+  const payments = await Payment.find({ payer: hostId }).populate("escrow payee");
+
+  return res.status(200).json(new ApiResponse(200, { events, escrows, payments }, "Host dashboard data fetched"));
+});
+
+// 🔹 20. Leaderboard
+export const getLeaderboard = asyncHandler(async (req, res) => {
+  const topBadges = await UserBadge.find().populate("user badge").sort({ createdAt: -1 });
+
+  const leaderboard = topBadges
+    .filter(entry => ["organizer", "gig"].includes(entry.user.role))
+    .map(entry => ({
+      userId: entry.user._id,
+      name: entry.user.name,
+      role: entry.user.role,
+      badge: entry.badge.badge_name,
+      min_events: entry.badge.min_events,
+      kyc_required: entry.badge.kyc_required,
+    }));
+
+  return res.status(200).json(new ApiResponse(200, leaderboard, "Leaderboard fetched"));
+});
+
+// 🔹 21. Event Reviews
+export const getEventReviews = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { eventId } = req.params;
+
+  const ratingReviews = await RatingReview.find({
+    event: eventId,
+    review_type: "host_to_organizer",
+  }).populate("reviewer reviewee").sort({ createdAt: -1 });
+
+  const feedbacks = await Feedback.find({ event: eventId }).populate("gig").sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, { ratingReviews, feedbacks }, "Event reviews fetched"));
+});
+
+// 🔹22. Host Profile
+export const getHostProfile = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  const user = await User.findById(hostId).select("-password");
+  const documents = await UserDocument.find({ user: hostId });
+  const kyc = await KYCVerification.findOne({ user: hostId });
+
+  return res.status(200).json(new ApiResponse(200, { user, documents, kyc }, "Host profile fetched"));
 });
