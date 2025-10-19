@@ -63,7 +63,10 @@ import {
 } from "../controllers/gig.controller.js";
 
 // import for wallet creation
-import { createWallet , getRecommendedEvents } from "../controllers/gig.controller.js";
+import {
+  createWallet,
+  getRecommendedEvents,
+} from "../controllers/gig.controller.js";
 
 // import for authentication and authorization
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
@@ -191,9 +194,13 @@ router.get(
 );
 
 //recomended events
-router.get("/recommended-events", verifyToken,
-  
-  authorizeRoles("gig"), getRecommendedEvents );
+router.get(
+  "/recommended-events",
+  verifyToken,
+
+  authorizeRoles("gig"),
+  getRecommendedEvents
+);
 
 // dashboard for gig
 router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
@@ -212,7 +219,7 @@ router.post(
   "/kyc/video",
   verifyToken,
   authorizeRoles("gig"),
-   upload.fields([{ name: "videoUrl", maxCount: 1 }]),
+  upload.fields([{ name: "videoUrl", maxCount: 1 }]),
   uploadKycVideo
 );
 

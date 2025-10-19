@@ -19,15 +19,25 @@ app.use(cookieParser());
 
 //registration and login route
 import userRoutes from "./routes/user.routes.js";
-app.use("/api/v1/users", userRoutes); 
-
-//gig route
-import gigRoutes from "./routes/gig.routes.js";
-app.use("/api/v1/gigs", gigRoutes);
+app.use("/api/v1/users", userRoutes);
 
 // auth route
 import authRoutes from "./routes/auth.routes.js";
 app.use("/api/v1/auth", authRoutes);
 
+//gig route
+import gigRoutes from "./routes/gig.routes.js";
+app.use("/api/v1/gigs", gigRoutes);
+
+//organizer route
+import orgRoutes from "./routes/auth.routes.js";
+app.use("api/v1/organizer", orgRoutes);
+
+
+//host route
+import hostRoutes from "./routes/host.routes.js";
+app.use("api/v1/host", hostRoutes);
+
+
 //export
-export {app};
+export { app };

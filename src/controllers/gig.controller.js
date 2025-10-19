@@ -111,7 +111,7 @@ const getNearbyEvents = asyncHandler(async (req, res) => {
       },
     },
     status: "published",
-  }).select("title start_date end_date location budget");
+  })
 
   return res
     .status(200)
