@@ -1,7 +1,6 @@
 import express from "express";
 import {
   adminRegister,
-  adminLogin,
   getAllRoles,
   banUser,
   getPendingKYC,
@@ -21,21 +20,12 @@ import {
   getPaymentAnalytics,
   getLeaderboard,
 } from "../controllers/admin.controller.js";
-
-import {
-  refreshAdminAccessToken,
-  logoutAdmin,
-} from "../controllers/auth.admin.controller.js";
-
 import { verifyAdminToken } from "../middlewares/admin.middleware.js";
 
 const router = express.Router();
 
 // 🔐 Auth & Access Control
 router.post("/register", adminRegister);
-router.post("/login", adminLogin);
-router.post("/refresh-token", refreshAdminAccessToken);
-router.post("/logout", verifyAdminToken, logoutAdmin);
 
 // 🧑‍💼 Role & User Management
 router.get("/roles", verifyAdminToken, getAllRoles);

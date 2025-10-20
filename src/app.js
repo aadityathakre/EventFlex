@@ -21,22 +21,27 @@ app.use(cookieParser());
 import userRoutes from "./routes/user.routes.js";
 app.use("/api/v1/users", userRoutes);
 
-// auth route
-import authRoutes from "./routes/auth.routes.js";
-app.use("/api/v1/auth", authRoutes);
+// users auth route
+import authRoutes from "./routes/users.auth.routes.js";
+app.use("/api/v1/auth/users", authRoutes);
 
 //gig route
 import gigRoutes from "./routes/gig.routes.js";
 app.use("/api/v1/gigs", gigRoutes);
 
 //organizer route
-import orgRoutes from "./routes/auth.routes.js";
+import orgRoutes from "./routes/users.auth.routes.js";
 app.use("/api/v1/organizer", orgRoutes);
 
 
 //host route
 import hostRoutes from "./routes/host.routes.js";
 app.use("/api/v1/host", hostRoutes);
+
+
+// admin auth route
+import adminAuthRoutes from "./routes/admin.auth.routes.js";
+app.use("/api/v1/auth/admin", adminAuthRoutes);
 
 
 //admin router

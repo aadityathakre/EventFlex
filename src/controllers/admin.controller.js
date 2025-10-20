@@ -1,5 +1,4 @@
 import {asyncHandler} from "../utils/asyncHandler.js";
-import jwt from "jsonwebtoken";
 import Admin from "../models/Admin.model.js";
 import User from "../models/User.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
@@ -15,7 +14,7 @@ import Payment from "../models/Payment.model.js";
 import Event from "../models/Event.model.js";
 import WellnessInteraction from "../models/WellnessInteraction.model.js";
 
-// 🔐 Admin Registration
+// 1. 🔐 Admin Registration
 export const adminRegister = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -54,47 +53,6 @@ export const adminRegister = asyncHandler(async (req, res) => {
         201,
         { admin: registeredAdmin, accessToken, refreshToken },
         "Admin registered successfully"
-      )
-    );
-});
-
-// 1. 🔐 Admin Login (uses Admin schema)
-export const adminLogin = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    throw new ApiError(400, "Email and password are required");
-  }
-
-  const admin = await Admin.findOne({ email });
-  if (!admin || !(await admin.isPasswordCorrect(password))) {
-    throw new ApiError(401, "Invalid admin credentials");
-  }
-
-  const accessToken = admin.generateAccessToken();
-  const refreshToken = admin.generateRefreshToken();
-
-  admin.refreshToken = refreshToken;
-  admin.last_action_type = "login";
-  admin.last_action_at = new Date();
-  await admin.save({ validateBeforeSave: false });
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-
-  const loggedInAdmin = await Admin.findById(admin._id).select("-password -refreshToken");
-
-  return res
-    .status(200)
-    .cookie("refreshToken", refreshToken, options)
-    .cookie("accessToken", accessToken, options)
-    .json(
-      new ApiResponse(
-        200,
-        { admin: loggedInAdmin, accessToken, refreshToken },
-        "Admin login successful"
       )
     );
 });

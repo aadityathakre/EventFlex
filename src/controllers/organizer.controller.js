@@ -11,7 +11,6 @@ import Rating from "../models/Rating.model.js";
 import Notification from "../models/Notification.model.js";
 import Dispute from "../models/Dispute.model.js";
 import User from "../models/User.model.js";
-import jwt from "jsonwebtoken";
 
 // 1. Register Organizer
 export const registerOrganizer = asyncHandler(async (req, res) => {

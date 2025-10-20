@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+// Generate Access and Refresh Tokens for Admin
  const generateAccessAndRefreshTokensForAdmin = async (adminId) => {
   try {
     const admin = await Admin.findById(adminId);
@@ -18,6 +19,47 @@ import { ApiResponse } from "../utils/ApiResponse.js";
     throw new ApiError(500, "Error generating admin tokens");
   }
 };
+
+// 🚪 Admin Login
+export const adminLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ApiError(400, "Email and password are required");
+  }
+
+  const admin = await Admin.findOne({ email });
+  if (!admin || !(await admin.isPasswordCorrect(password))) {
+    throw new ApiError(401, "Invalid admin credentials");
+  }
+
+  const accessToken = admin.generateAccessToken();
+  const refreshToken = admin.generateRefreshToken();
+
+  admin.refreshToken = refreshToken;
+  admin.last_action_type = "login";
+  admin.last_action_at = new Date();
+  await admin.save({ validateBeforeSave: false });
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  const loggedInAdmin = await Admin.findById(admin._id).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { admin: loggedInAdmin, accessToken, refreshToken },
+        "Admin login successful"
+      )
+    );
+});
 
 // 🔁 Refresh Admin Access Token
 export const refreshAdminAccessToken = asyncHandler(async (req, res) => {

@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { registerUser } from "./user.controller.js";
-import { loginUser } from "./loginUser.controller.js";
+import { loginUser } from "./users.auth.controller.js";
 import UserDocument from "../models/UserDocument.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import Event from "../models/Event.model.js";
