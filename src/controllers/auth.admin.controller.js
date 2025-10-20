@@ -30,12 +30,16 @@ export const refreshAdminAccessToken = asyncHandler(async (req, res) => {
     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
     const admin = await Admin.findById(decodedToken?._id);
 
-    if (!admin || incomingRefreshToken !== admin.refreshToken) {
-      throw new ApiError(401, "Invalid or expired refresh token");
+    if (!admin) {
+      throw new ApiError(401, "Admin not found");
+    }
+
+    if ( incomingRefreshToken !== admin?.refreshToken) {
+      throw new ApiError(401, "Invalid or .... expired refresh token");
     }
 
     const options = { httpOnly: true, secure: true };
-    const { accessToken, refreshToken: newRefreshToken } =
+    const { accessToken, newRefreshToken } =
       await generateAccessAndRefreshTokensForAdmin(admin._id);
 
     return res
@@ -51,8 +55,8 @@ export const refreshAdminAccessToken = asyncHandler(async (req, res) => {
 // 🚪 Logout Admin
 export const logoutAdmin = asyncHandler(async (req, res) => {
   await Admin.findByIdAndUpdate(
-    req.user._id,
-    { $set: { refreshToken: undefined } },
+    req.admin._id,
+    { $set: { refreshToken: "" } },
     { new: true }
   );
 
@@ -62,5 +66,5 @@ export const logoutAdmin = asyncHandler(async (req, res) => {
     .status(200)
     .clearCookie("accessToken", options)
     .clearCookie("refreshToken", options)
-    .json(new ApiResponse(200, {}, "Admin logged out"));
+    .json(new ApiResponse(200, "Admin logged out successfully!!"));
 });

@@ -23,7 +23,6 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       required: [true, "Password is required"],
       minLength: 4,
-      maxLength: 18,
     },
 
     role: {

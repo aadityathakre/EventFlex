@@ -15,8 +15,50 @@ import Payment from "../models/Payment.model.js";
 import Event from "../models/Event.model.js";
 import WellnessInteraction from "../models/WellnessInteraction.model.js";
 
-// 1. 🔐 Admin Login (uses Admin schema)
+// 🔐 Admin Registration
+export const adminRegister = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
+  if (!email || !password) {
+    throw new ApiError(400, "Email and password are required");
+  }
+
+  const existingAdmin = await Admin.findOne({ email });
+  if (existingAdmin) {
+    throw new ApiError(409, "Admin already exists with this email");
+  }
+
+  const newAdmin = await Admin.create({ email, password });
+
+  const accessToken = newAdmin.generateAccessToken();
+  const refreshToken = newAdmin.generateRefreshToken();
+
+  newAdmin.refreshToken = refreshToken;
+  newAdmin.last_action_type = "register";
+  newAdmin.last_action_at = new Date();
+  await newAdmin.save({ validateBeforeSave: false });
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  const registeredAdmin = await Admin.findById(newAdmin._id).select("-password -refreshToken");
+
+  return res
+    .status(201)
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .json(
+      new ApiResponse(
+        201,
+        { admin: registeredAdmin, accessToken, refreshToken },
+        "Admin registered successfully"
+      )
+    );
+});
+
+// 1. 🔐 Admin Login (uses Admin schema)
 export const adminLogin = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -25,7 +67,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
   }
 
   const admin = await Admin.findOne({ email });
-  if (!admin || !(await Admin.isPasswordCorrect(password))) {
+  if (!admin || !(await admin.isPasswordCorrect(password))) {
     throw new ApiError(401, "Invalid admin credentials");
   }
 
@@ -116,7 +158,7 @@ export const getUserDocuments = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, docs, "User documents fetched"));
 });
 
-// 8. ✍️ Verify E-Signature
+// 8. ✍️ Verify E-Signature  (upcoming feature)
 export const verifyESignature = asyncHandler(async (req, res) => {
   const { userid } = req.params;
 

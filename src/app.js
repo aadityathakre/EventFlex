@@ -31,17 +31,17 @@ app.use("/api/v1/gigs", gigRoutes);
 
 //organizer route
 import orgRoutes from "./routes/auth.routes.js";
-app.use("api/v1/organizer", orgRoutes);
+app.use("/api/v1/organizer", orgRoutes);
 
 
 //host route
 import hostRoutes from "./routes/host.routes.js";
-app.use("api/v1/host", hostRoutes);
+app.use("/api/v1/host", hostRoutes);
 
 
 //admin router
 import adminRoutes from "./routes/admin.routes.js";
-app.use("api/v1/aadmin", adminRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 
 

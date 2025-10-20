@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  adminRegister,
   adminLogin,
   getAllRoles,
   banUser,
@@ -31,6 +32,7 @@ import { verifyAdminToken } from "../middlewares/admin.middleware.js";
 const router = express.Router();
 
 // 🔐 Auth & Access Control
+router.post("/register", adminRegister);
 router.post("/login", adminLogin);
 router.post("/refresh-token", refreshAdminAccessToken);
 router.post("/logout", verifyAdminToken, logoutAdmin);
@@ -42,7 +44,7 @@ router.put("/ban-user/:userid", verifyAdminToken, banUser);
 // ✅ Verification & Compliance
 router.get("/kyc/pending", verifyAdminToken, getPendingKYC);
 router.get("/kyc/approve/:userid", verifyAdminToken, approveKYC);
-router.post("/kyc/reject/:userid", verifyAdminToken, rejectKYC);
+router.get("/kyc/reject/:userid", verifyAdminToken, rejectKYC);
 router.get("/documents/:userid", verifyAdminToken, getUserDocuments);
 router.get("/e-signature/verify/:userid", verifyAdminToken, verifyESignature);
 
