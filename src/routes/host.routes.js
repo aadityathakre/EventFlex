@@ -28,7 +28,8 @@ import {
   // 📊 Dashboard & Reputation
   getHostDashboard,
   getLeaderboard,
-  getEventReviews,
+  createRatingReview,
+  createFeedback,
   getHostProfile,
 } from "../controllers/host.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -56,7 +57,6 @@ router.post("/chat/:organizerId", verifyToken, authorizeRoles("host"), startChat
 
 //
 // 💰 Payments & Escrow
-//
 router.post("/payment/deposit", verifyToken, authorizeRoles("host"), depositToEscrow);
 router.get("/payment/status/:eventId", verifyToken, authorizeRoles("host"), getEscrowStatus);
 router.post("/verify-attendance/:eventId", verifyToken, authorizeRoles("host"), verifyAttendance);
@@ -67,7 +67,8 @@ router.get("/wallet/balance", verifyToken, authorizeRoles("host"), getWalletBala
 //
 router.get("/dashboard", verifyToken, authorizeRoles("host"), getHostDashboard);
 router.get("/leaderboard", verifyToken, authorizeRoles("host"), getLeaderboard);
-router.get("/reviews/:eventId", verifyToken, authorizeRoles("host"), getEventReviews);
+router.post("/reviews/rating", verifyToken, authorizeRoles("host"), createRatingReview); // Host
+router.post("/reviews/feedback", verifyToken, authorizeRoles("host"), createFeedback);   // Gig
 router.get("/profile", verifyToken, authorizeRoles("host"), getHostProfile);
 
 export default router;
