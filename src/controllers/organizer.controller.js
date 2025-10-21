@@ -4,6 +4,9 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import Organizer from "../models/User.model.js";
 import Pool from "../models/Pool.model.js";
 import Event from "../models/Event.model.js";
+import Conversation from "../models/Conversation.model.js";
+import Message from "../models/Message.model.js";
+import User from "../models/User.model.js";
 import EventAttendance from "../models/EventAttendance.model.js";
 import UserWallet from "../models/UserWallet.model.js";
 import Escrow from "../models/EscrowContract.model.js";
@@ -12,6 +15,7 @@ import Notification from "../models/Notification.model.js";
 import Dispute from "../models/Dispute.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import UserDocument from "../models/UserDocument.model.js";
+import mongoose from "mongoose";
 
 // 1. Upload Organizer Documents
 export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
@@ -142,11 +146,37 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
 
 // 7. Chat with Gig (Stub)
 export const chatWithGig = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
   const { gigId } = req.params;
-  // Placeholder for messaging logic
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { gigId }, "Chat initiated"));
+  const { eventId, poolId, message_text } = req.body;
+
+  if (!eventId || !poolId || !message_text) {
+    throw new ApiError(400, "Missing required chat fields");
+  }
+
+  let conversation = await Conversation.findOne({
+    event: eventId,
+    pool: poolId,
+    participants: { $all: [organizerId, gigId] },
+  });
+
+  if (!conversation) {
+    conversation = await Conversation.create({
+      participants: [organizerId, gigId],
+      event: eventId,
+      pool: poolId,
+    });
+  }
+
+  const message = await Message.create({
+    conversation: conversation._id,
+    sender: organizerId,
+    message_text,
+  });
+
+  return res.status(201).json(
+    new ApiResponse(201, { conversation, message }, "Message sent to gig")
+  );
 });
 
 // 8. Create Event
@@ -203,6 +233,12 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
     .populate("gig", "name avatar")
     .select("-__v");
 
+  if (!attendance || attendance.length === 0) {
+    return res.status(200).json(
+      new ApiResponse(200, [], "No attendance records found for this event")
+    );
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, attendance, "Live attendance data"));
@@ -229,9 +265,18 @@ export const markEventComplete = asyncHandler(async (req, res) => {
 // 13. View Wallet
 export const getWallet = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const wallet = await UserWallet.findOne({ user: organizerId });
 
-  if (!wallet) throw new ApiError(404, "Wallet not found");
+  let wallet = await UserWallet.findOne({ user: organizerId });
+
+  // 🔧 Auto-create wallet if not found
+  if (!wallet) {
+    wallet = await UserWallet.create({
+      user: organizerId,
+      upi_id: "aditya233", // or generate dynamically
+      balance_inr: mongoose.Types.Decimal128.fromString("25000.00"),
+    });
+  }
+  
 
   return res.status(200).json(
     new ApiResponse(200, {
@@ -307,6 +352,7 @@ export const getBadges = asyncHandler(async (req, res) => {
   if (eventsCount >= 50) badge = "Elite";
   else if (eventsCount >= 20) badge = "Pro";
   else if (eventsCount >= 5) badge = "Rising Star";
+  else badge = "Beginner";
 
   return res
     .status(200)
@@ -324,7 +370,7 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, organizer, "Profile fetched"));
 });
 
-// 20. Certificates
+// 20. Certificates (this feature will come soon)
 export const getCertificates = asyncHandler(async (req, res) => {
   // Placeholder for blockchain certificate logic
   return res.status(200).json(new ApiResponse(200, [], "Certificates fetched"));
@@ -343,6 +389,9 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updated = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
 
+  if(!updated) {
+    return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
+  }
   return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
 });
 

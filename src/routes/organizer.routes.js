@@ -55,7 +55,7 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 // 👥 Pool & Team Management
 //
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
-router.put("/pools/:id/manage", verifyToken, authorizeRoles("organizer"), managePool);
+router.put("/pools/manage/:id", verifyToken, authorizeRoles("organizer"), managePool);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 
