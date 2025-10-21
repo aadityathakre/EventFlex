@@ -33,7 +33,7 @@ const EventSchema = new mongoose.Schema(
     },
     event_type: {
       type: String,
-      enum: ["function", "corporate", "festival"],
+      enum: ["function", "corporate", "festival", "exhibition"],
       required: true,
       default: "function",
     },
@@ -51,7 +51,6 @@ const EventSchema = new mongoose.Schema(
       type: {
         type: String,
         enum: ["Point"],
-        required: true,
         default: "Point",
       },
       coordinates: {

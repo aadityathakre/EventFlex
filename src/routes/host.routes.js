@@ -2,8 +2,6 @@ import express from "express";
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 import {
   // 🔐 Auth & Verification
-  registerHost,
-  loginHost,
   uploadHostDocs,
   submitESignature,
   verifyAadhaarSandbox,
@@ -33,30 +31,24 @@ import {
   getEventReviews,
   getHostProfile,
 } from "../controllers/host.controller.js";
-
+import { upload } from "../middlewares/multer.middleware.js";
 const router = express.Router();
 
-//
-// 🔐 Auth & Verification
-//
-router.post("/register", registerHost);
-router.post("/login", loginHost);
-router.post("/upload-docs", verifyToken, authorizeRoles("host"), uploadHostDocs);
-router.post("/e-signature", verifyToken, authorizeRoles("host"), submitESignature);
+// documentation routes
+router.post("/upload-docs", verifyToken, authorizeRoles("host"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadHostDocs);
+router.post("/e-signature", verifyToken, authorizeRoles("host"), upload.fields([{ name: "fileUrl", maxCount: 1 }]),submitESignature);
 router.post("/aadhaar/verify", verifyToken, authorizeRoles("host"), verifyAadhaarSandbox);
 
 //
 // 📅 Events
-//
 router.post("/events/create", verifyToken, authorizeRoles("host"), createEvent);
-router.put("/events/:id/edit", verifyToken, authorizeRoles("host"), editEvent);
+router.put("/events/edit/:id", verifyToken, authorizeRoles("host"), editEvent);
 router.get("/events/:id", verifyToken, authorizeRoles("host"), getEventDetails);
-router.get("/hosts/events", verifyToken, authorizeRoles("host"), getHostEvents);
-router.post("/events/complete/:id", verifyToken, authorizeRoles("host"), completeEvent);
+router.get("/events", verifyToken, authorizeRoles("host"), getHostEvents);
+router.put("/events/complete/:id", verifyToken, authorizeRoles("host"), completeEvent);
 
 //
 // 🧑‍🤝‍🧑 Organizer Management
-//
 router.post("/invite-organizer", verifyToken, authorizeRoles("host"), inviteOrganizer);
 router.post("/approve-organizer/:id", verifyToken, authorizeRoles("host"), approveOrganizer);
 router.get("/organizers", verifyToken, authorizeRoles("host"), getAssignedOrganizers);

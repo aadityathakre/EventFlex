@@ -16,67 +16,57 @@ import RatingReview from "../models/RatingReview.model.js";
 import Feedback from "../models/Feedback.model.js";
 import UserBadge from "../models/UserBadge.model.js";
 import Badge from "../models/Badge.model.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import mongoose from "mongoose";
 
-// 1. Register Host
-export const registerHost = asyncHandler(async (req, res, next) => {
-  req.body.role = "host";
-  return registerUser(req, res, next);
-});
-
-// 2. Login Host
-export const loginHost = asyncHandler(async (req, res, next) => {
-  req.body.expectedRole = "host";
-  return loginUser(req, res, next);
-});
-
-// 3. Upload KYC Documents
+// 1. Upload KYC Documents
 export const uploadHostDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
   const userId = req.user._id;
-  const { documents } = req.body;
 
-  if (!Array.isArray(documents) || documents.length === 0) {
-    throw new ApiError(400, "Documents array is required");
+  if (!type || !localFilePath) {
+    throw new ApiError(400, "Document type and file is required");
   }
 
-  const allowedTypes = ["aadhaar", "pan", "selfie"];
-  const uploadedDocs = [];
-
-  for (const doc of documents) {
-    const { type, fileUrl } = doc;
-
-    if (!allowedTypes.includes(type) || !fileUrl) {
-      throw new ApiError(400, `Invalid document type or missing fileUrl`);
-    }
-
-    const newDoc = await UserDocument.create({
-      user: userId,
-      type,
-      fileUrl,
-    });
-
-    uploadedDocs.push(newDoc);
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
   }
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, uploadedDocs, "Documents uploaded successfully"));
+  const doc = await UserDocument.create({
+    user: userId,
+    type,
+    fileUrl: cloudinaryRes.url,
+  });
+
+  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
-// 4. Submit E-Signature
+
+// 2. Submit E-Signature
 export const submitESignature = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { fileUrl } = req.body;
+   const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
 
-  if (!fileUrl) {
-    throw new ApiError(400, "Signature file URL is required");
+  if (!localFilePath) {
+    throw new ApiError(400, "Signature file is required");
   }
+
+  
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
 
   const existing = await UserDocument.findOne({ user: userId, type: "signature" });
 
   let signatureDoc;
 
   if (existing) {
-    existing.fileUrl = fileUrl;
+    existing.fileUrl = cloudinaryRes.url;
     existing.status = "pending";
     existing.uploadedAt = new Date();
     signatureDoc = await existing.save();
@@ -84,7 +74,7 @@ export const submitESignature = asyncHandler(async (req, res) => {
     signatureDoc = await UserDocument.create({
       user: userId,
       type: "signature",
-      fileUrl,
+      fileUrl: cloudinaryRes.url
     });
   }
 
@@ -93,7 +83,7 @@ export const submitESignature = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, signatureDoc, "E-signature submitted"));
 });
 
-// 5. Aadhaar Sandbox Verification
+// 3. Aadhaar Sandbox Verification   (this feature will come soon)
 export const verifyAadhaarSandbox = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { aadhaar_number } = req.body;
@@ -127,7 +117,7 @@ export const verifyAadhaarSandbox = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, verification, "Aadhaar verified (sandbox)"));
 });
 
-// 6. Create Event
+// 4. Create Event
 export const createEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const {
@@ -161,7 +151,7 @@ export const createEvent = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, event, "Event created successfully"));
 });
 
-// 7. Edit Event
+// 5. Edit Event
 export const editEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const eventId = req.params.id;
@@ -175,7 +165,7 @@ export const editEvent = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, event, "Event updated"));
 });
 
-// 8. View Event Details
+// 6. View Event Details
 export const getEventDetails = asyncHandler(async (req, res) => {
   const eventId = req.params.id;
   const event = await Event.findById(eventId).populate("host organizer gigs");
@@ -185,7 +175,7 @@ export const getEventDetails = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, event, "Event details fetched"));
 });
 
-// 9. View All Host Events
+// 7. View All Host Events
 export const getHostEvents = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const events = await Event.find({ host: hostId }).sort({ createdAt: -1 });
@@ -193,7 +183,7 @@ export const getHostEvents = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, events, "Host events fetched"));
 });
 
-// 10. Mark Event as Completed
+// 8. Mark Event as Completed
 export const completeEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const eventId = req.params.id;
@@ -208,7 +198,7 @@ export const completeEvent = asyncHandler(async (req, res) => {
 });
 
 
-// 11. Invite Organizer to Event
+// 9. Invite Organizer to Event
 export const inviteOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { organizerId, eventId, pool_name, location, max_capacity, required_skills, pay_range } = req.body;
@@ -234,11 +224,11 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, pool, "Organizer invited to event"));
 });
 
-// 12. Approve Organizer for Event
+// 10. Approve Organizer for Event
 export const approveOrganizer = asyncHandler(async (req, res) => {
-  const poolId = req.params.id;
+  const orgPoolId = req.params.id;
 
-  const pool = await OrganizerPool.findById(poolId);
+  const pool = await OrganizerPool.findById(orgPoolId);
   if (!pool) throw new ApiError(404, "Organizer pool not found");
 
   pool.status = "active";
@@ -247,7 +237,7 @@ export const approveOrganizer = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, pool, "Organizer approved"));
 });
 
-// 13. View Assigned Organizers
+// 11. View Assigned Organizers
 export const getAssignedOrganizers = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 
@@ -260,10 +250,10 @@ export const getAssignedOrganizers = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, filtered, "Assigned organizers fetched"));
 });
 
-// 14. Start In-App Chat with Organizer
+// 12. Start In-App Chat with Organizer
 export const startChatWithOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
-  const organizerId = req.params.organizerId;
+  const organizerId = req.params;
 
   let conversation = await Conversation.findOne({
     participants: { $all: [hostId, organizerId] },
@@ -284,7 +274,7 @@ export const startChatWithOrganizer = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, { conversation, welcome }, "Chat started"));
 });
 
-// 🔹 15. Deposit to Escrow
+// 🔹 13. Deposit to Escrow
 export const depositToEscrow = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const {
@@ -324,7 +314,7 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, { escrow, payment }, "Escrow funded and payment logged"));
 });
 
-// 🔹 16. View Escrow Status
+// 🔹 14. View Escrow Status
 export const getEscrowStatus = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { eventId } = req.params;
@@ -336,7 +326,7 @@ export const getEscrowStatus = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, escrow, "Escrow status fetched"));
 });
 
-// 🔹 17. Verify Attendance
+// 🔹 15. Verify Attendance
 export const verifyAttendance = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { eventId } = req.params;
@@ -352,7 +342,7 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, escrow, "Attendance verified, escrow released"));
 });
 
-// 🔹 18. Wallet Balance
+// 🔹 16. Wallet Balance
 export const getWalletBalance = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 
@@ -368,7 +358,7 @@ export const getWalletBalance = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, wallet, "Wallet balance fetched"));
 });
 
-// 🔹 19. Host Dashboard
+// 🔹 17. Host Dashboard
 export const getHostDashboard = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 
@@ -379,7 +369,7 @@ export const getHostDashboard = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { events, escrows, payments }, "Host dashboard data fetched"));
 });
 
-// 🔹 20. Leaderboard
+// 🔹 18. Leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
   const topBadges = await UserBadge.find().populate("user badge").sort({ createdAt: -1 });
 
@@ -397,7 +387,7 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, leaderboard, "Leaderboard fetched"));
 });
 
-// 🔹 21. Event Reviews
+// 🔹 19. Event Reviews
 export const getEventReviews = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { eventId } = req.params;
@@ -412,7 +402,7 @@ export const getEventReviews = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { ratingReviews, feedbacks }, "Event reviews fetched"));
 });
 
-// 🔹22. Host Profile
+// 🔹20. Host Profile
 export const getHostProfile = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 

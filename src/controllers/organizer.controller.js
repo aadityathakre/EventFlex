@@ -1,4 +1,4 @@
-import asyncHandler from "../utils/asyncHandler.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import Organizer from "../models/User.model.js";
@@ -6,103 +6,75 @@ import Pool from "../models/Pool.model.js";
 import Event from "../models/Event.model.js";
 import EventAttendance from "../models/EventAttendance.model.js";
 import UserWallet from "../models/UserWallet.model.js";
-import Escrow from "../models/Escrow.model.js";
-import Rating from "../models/Rating.model.js";
+import Escrow from "../models/EscrowContract.model.js";
+import Rating from "../models/RatingReview.model.js";
 import Notification from "../models/Notification.model.js";
 import Dispute from "../models/Dispute.model.js";
-import User from "../models/User.model.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import UserDocument from "../models/UserDocument.model.js";
 
-// 1. Register Organizer
-export const registerOrganizer = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+// 1. Upload Organizer Documents
+export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+  const userId = req.user._id;
 
-  const existing = await Organizer.findOne({ email });
-  if (existing) throw new ApiError(409, "Organizer already exists");
+  if (!type || !localFilePath) {
+    throw new ApiError(400, "Document type and file is required");
+  }
 
-  const organizer = await Organizer.create({
-    name,
-    email,
-    password,
-    role: "organizer",
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  const doc = await UserDocument.create({
+    user: userId,
+    type:type,
+    fileUrl: cloudinaryRes.url,
   });
+
+  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+});
+
+// 2. Submit E-Signature
+export const submitESignature = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+
+  if (!localFilePath) throw new ApiError(400, "No signature uploaded");
+
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+const existing = await UserDocument.findOne({ user: organizerId, type: "signature" });
+
+  let signatureDoc;
+
+  if (existing) {
+    existing.fileUrl = cloudinaryRes.url;
+    existing.status = "pending";
+    existing.uploadedAt = new Date();
+    signatureDoc = await existing.save();
+  } else {
+    signatureDoc = await UserDocument.create({
+      user: organizerId,
+      type: "signature",
+      fileUrl:cloudinaryRes.url
+    });
+  }
 
   return res
     .status(201)
-    .json(new ApiResponse(201, organizer, "Organizer registered"));
+    .json(new ApiResponse(201, signatureDoc, "E-signature submitted"));
 });
 
-// 2. Login Organizer
-export const loginOrganizer = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    throw new ApiError(400, "Email and password are required");
-  }
-
-  const user = await User.findOne({ email });
-  if (!user || !(await user.isPasswordCorrect(password))) {
-    throw new ApiError(401, "Invalid credentials");
-  }
-
-  const accessToken = user.generateAccessToken();
-  const refreshToken = user.generateRefreshToken();
-
-  user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  }
-
-  const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
-  return res.status(200)
-  .cookie("refreshToken", refreshToken, options)
-  .cookie("accessToken", accessToken, options)
-  .json(
-    new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "Login successful")
-  );
-});
-
-// 3. Upload Organizer Documents
-export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-  const filePath = req.files?.doc?.[0]?.path;
-
-  if (!filePath) throw new ApiError(400, "No document uploaded");
-
-  const organizer = await Organizer.findByIdAndUpdate(
-    organizerId,
-    { $push: { organizerDocs: filePath } },
-    { new: true }
-  );
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, organizer, "Document uploaded"));
-});
-
-// 4. Submit E-Signature
-export const submitESignature = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-  const signaturePath = req.file?.path;
-
-  if (!signaturePath) throw new ApiError(400, "No signature uploaded");
-
-  const organizer = await Organizer.findByIdAndUpdate(
-    organizerId,
-    { eSignature: signaturePath },
-    { new: true }
-  );
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, organizer, "E-signature submitted"));
-});
-
-// 5. Aadhaar Verification (Sandbox)
+// 3. Aadhaar Verification (Sandbox)  (this feature will come soon)
 export const verifyAadhaar = asyncHandler(async (req, res) => {
   const { aadhaarNumber, otp } = req.body;
   const organizerId = req.user._id;
@@ -125,7 +97,7 @@ export const verifyAadhaar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, organizer, "Aadhaar verified"));
 });
 
-// 6. Create Pool
+// 4. Create Pool
 export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { name, description } = req.body;
@@ -138,10 +110,10 @@ export const createPool = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(201, pool, "Pool created successfully"));
+    .json(new ApiResponse(201, pool, "Pool created successfully !"));
 });
 
-// 7. Manage Pool (Add/Remove Gigs)
+// 5. Manage Pool (Add/Remove Gigs)
 export const managePool = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { gigs } = req.body;
@@ -153,7 +125,7 @@ export const managePool = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, pool, "Pool updated"));
 });
 
-// 8. View Pool Details
+// 6. View Pool Details
 export const getPoolDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -168,7 +140,7 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, pool, "Pool details fetched"));
 });
 
-// 9. Chat with Gig (Stub)
+// 7. Chat with Gig (Stub)
 export const chatWithGig = asyncHandler(async (req, res) => {
   const { gigId } = req.params;
   // Placeholder for messaging logic
@@ -177,7 +149,7 @@ export const chatWithGig = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { gigId }, "Chat initiated"));
 });
 
-// 10. Create Event
+// 8. Create Event
 export const createEvent = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { title, date, location, description, budget } = req.body;
@@ -196,7 +168,7 @@ export const createEvent = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, event, "Event created successfully"));
 });
 
-// 11. Edit Event
+// 9. Edit Event
 export const editEvent = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
@@ -207,7 +179,7 @@ export const editEvent = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, event, "Event updated"));
 });
 
-// 12. View Event Details
+// 10. View Event Details
 export const getEventDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -223,7 +195,7 @@ export const getEventDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event details fetched"));
 });
 
-// 13. Live Event Tracking
+// 11. Live Event Tracking
 export const getLiveEventTracking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -236,7 +208,7 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, attendance, "Live attendance data"));
 });
 
-// 14. Mark Event Complete
+// 12. Mark Event Complete
 export const markEventComplete = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -254,7 +226,7 @@ export const markEventComplete = asyncHandler(async (req, res) => {
 });
 
 
-// 15. View Wallet
+// 13. View Wallet
 export const getWallet = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const wallet = await UserWallet.findOne({ user: organizerId });
@@ -269,7 +241,7 @@ export const getWallet = asyncHandler(async (req, res) => {
   );
 });
 
-// 16. Withdraw Funds
+// 14. Withdraw Funds
 export const withdrawFunds = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { amount, upi_id } = req.body;
@@ -287,7 +259,7 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
 });
 
 
-// 17. Payment History
+// 15. Payment History
 export const getPaymentHistory = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const payments = await Escrow.find({ organizer: organizerId }).select("-__v");
@@ -297,7 +269,7 @@ export const getPaymentHistory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, payments, "Payment history fetched"));
 });
 
-// 18. Simulate Payout
+// 16. Simulate Payout
 export const simulatePayout = asyncHandler(async (req, res) => {
   const { escrowId } = req.params;
   const escrow = await Escrow.findById(escrowId);
@@ -312,7 +284,7 @@ export const simulatePayout = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, escrow, "Payout simulated"));
 });
 
-// 19. Leaderboard
+// 17. Leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
   const topOrganizers = await Rating.aggregate([
     { $match: { role: "organizer" } },
@@ -326,7 +298,7 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, topOrganizers, "Leaderboard fetched"));
 });
 
-// 20. Badges
+// 18. Badges
 export const getBadges = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const eventsCount = await Event.countDocuments({ organizer: organizerId });
@@ -341,7 +313,7 @@ export const getBadges = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { badge }, "Badge status fetched"));
 });
 
-// 21. Organizer Profile
+// 19. Organizer Profile
 export const getOrganizerProfile = asyncHandler(async (req, res) => {
   const organizer = await Organizer.findById(req.user._id).select(
     "-password -__v"
@@ -352,13 +324,13 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, organizer, "Profile fetched"));
 });
 
-// 22. Certificates
+// 20. Certificates
 export const getCertificates = asyncHandler(async (req, res) => {
   // Placeholder for blockchain certificate logic
   return res.status(200).json(new ApiResponse(200, [], "Certificates fetched"));
 });
 
-// 23. Get Notifications
+// 21. Get Notifications
 export const getNotifications = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const notifications = await Notification.find({ user: organizerId }).sort({ createdAt: -1 });
@@ -366,7 +338,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, notifications, "Notifications fetched"));
 });
 
-// 24. Mark Notification as Read
+// 22. Mark Notification as Read
 export const markNotificationRead = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updated = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
@@ -375,7 +347,7 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
 });
 
 
-// 25. Raise Dispute
+// 23. Raise Dispute
 export const raiseDispute = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { eventId } = req.params;
@@ -390,7 +362,7 @@ export const raiseDispute = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
 });
 
-// 26. View Disputes
+// 24. View Disputes
 export const getDisputes = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
 
@@ -400,7 +372,7 @@ export const getDisputes = asyncHandler(async (req, res) => {
 });
 
 
-// 27. Get Organizer Wellness Score
+// 25. Get Organizer Wellness Score
 export const getWellnessScore = asyncHandler(async (req, res) => {
   const organizer = await User.findById(req.user._id);
 
@@ -409,7 +381,7 @@ export const getWellnessScore = asyncHandler(async (req, res) => {
   }, "Wellness score fetched"));
 });
 
-// 28. Predict No-show Risk for Gig
+// 26. Predict No-show Risk for Gig
 export const getNoShowRisk = asyncHandler(async (req, res) => {
   const { gigId } = req.params;
   const gig = await User.findById(gigId);

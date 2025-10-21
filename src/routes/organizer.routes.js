@@ -1,10 +1,7 @@
 import express from "express";
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
-import { upload } from "../middlewares/fileUpload.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 import {
-  // 🔐 Auth & Verification
-  registerOrganizer,
-  loginOrganizer,
   uploadOrganizerDocs,
   submitESignature,
   verifyAadhaar,
@@ -49,13 +46,9 @@ import {
 
 const router = express.Router();
 
-//
-// 🔐 Auth & Verification
-//
-router.post("/register", registerOrganizer);
-router.post("/login", loginOrganizer);
-router.post("/upload-docs", verifyToken, authorizeRoles("organizer"), upload.single("document"), uploadOrganizerDocs);
-router.post("/e-signature", verifyToken, authorizeRoles("organizer"), upload.single("signature"), submitESignature);
+// 📄 Document & E-Signature Management
+router.post("/upload-docs", verifyToken, authorizeRoles("organizer"),upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
+router.post("/e-signature", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), submitESignature);
 router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyAadhaar);
 
 //

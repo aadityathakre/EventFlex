@@ -8,14 +8,13 @@ const app = express();
 app.use(express.static("public"));
 app.use(express.json({ limit: "32kb" }));
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
-
+app.use(cookieParser());
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true,
   })
 );
-app.use(cookieParser());
 
 //registration and login route
 import userRoutes from "./routes/user.routes.js";
@@ -30,19 +29,16 @@ import gigRoutes from "./routes/gig.routes.js";
 app.use("/api/v1/gigs", gigRoutes);
 
 //organizer route
-import orgRoutes from "./routes/users.auth.routes.js";
+import orgRoutes from "./routes/organizer.routes.js";
 app.use("/api/v1/organizer", orgRoutes);
-
 
 //host route
 import hostRoutes from "./routes/host.routes.js";
 app.use("/api/v1/host", hostRoutes);
 
-
 // admin auth route
 import adminAuthRoutes from "./routes/admin.auth.routes.js";
 app.use("/api/v1/auth/admin", adminAuthRoutes);
-
 
 //admin router
 import adminRoutes from "./routes/admin.routes.js";

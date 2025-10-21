@@ -12,7 +12,6 @@ const ConversationSchema = new mongoose.Schema(
       type: Schema.Types.ObjectId,
       ref: "OrganizerPool",
       required: true,
-      index: true,
     },
     event: {
       type: Schema.Types.ObjectId,
