@@ -3,6 +3,7 @@ import {
   adminRegister,
   getAllRoles,
   banUser,
+  unbanUser,
   getPendingKYC,
   approveKYC,
   rejectKYC,
@@ -30,11 +31,12 @@ router.post("/register", adminRegister);
 // 🧑‍💼 Role & User Management
 router.get("/roles", verifyAdminToken, getAllRoles);
 router.put("/ban-user/:userid", verifyAdminToken, banUser);
+router.put("/unban-user/:userid", verifyAdminToken, unbanUser);
 
 // ✅ Verification & Compliance
 router.get("/kyc/pending", verifyAdminToken, getPendingKYC);
-router.get("/kyc/approve/:userid", verifyAdminToken, approveKYC);
-router.get("/kyc/reject/:userid", verifyAdminToken, rejectKYC);
+router.post("/kyc/approve/:userid", verifyAdminToken, approveKYC);
+router.post("/kyc/reject/:userid", verifyAdminToken, rejectKYC);
 router.get("/documents/:userid", verifyAdminToken, getUserDocuments);
 router.get("/e-signature/verify/:userid", verifyAdminToken, verifyESignature);
 

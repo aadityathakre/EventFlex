@@ -140,18 +140,55 @@ export const createEvent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required event fields");
   }
 
+  // Validate dates
+  const startDate = new Date(start_date);
+  const endDate = new Date(end_date);
+  const now = new Date();
+
+  if (startDate <= now) {
+    throw new ApiError(400, "Event start date must be in the future");
+  }
+
+  if (endDate <= startDate) {
+    throw new ApiError(400, "Event end date must be after start date");
+  }
+
+  // Validate budget
+  const budgetAmount = parseFloat(budget);
+  if (isNaN(budgetAmount) || budgetAmount <= 0) {
+    throw new ApiError(400, "Budget must be a positive number");
+  }
+
+  // Validate coordinates
+  if (!Array.isArray(location.coordinates) || location.coordinates.length !== 2) {
+    throw new ApiError(400, "Location coordinates must be [longitude, latitude]");
+  }
+  
+  const [longitude, latitude] = location.coordinates;
+  if (typeof longitude !== 'number' || typeof latitude !== 'number') {
+    throw new ApiError(400, "Coordinates must be numbers");
+  }
+  
+  if (longitude < -180 || longitude > 180) {
+    throw new ApiError(400, "Longitude must be between -180 and 180");
+  }
+  
+  if (latitude < -90 || latitude > 90) {
+    throw new ApiError(400, "Latitude must be between -90 and 90");
+  }
+
   const event = await Event.create({
     host: hostId,
     title,
     description,
     event_type,
-    start_date,
-    end_date,
+    start_date: startDate,
+    end_date: endDate,
     location: {
       type: "Point",
       coordinates: location.coordinates,
     },
-    budget,
+    budget: mongoose.Types.Decimal128.fromString(budgetAmount.toString()),
   });
 
   return res

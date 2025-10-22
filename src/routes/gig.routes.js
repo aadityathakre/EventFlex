@@ -123,8 +123,8 @@ router.put("/profile", verifyToken, authorizeRoles("gig"), updateProfile);
 router.put(
   "/profile-image",
   verifyToken,
-  upload.fields([{ name: "avatar", maxCount: 1 }]),
   authorizeRoles("gig"),
+  upload.fields([{ name: "avatar", maxCount: 1 }]),
   updateProfileImage
 );
 router.delete(

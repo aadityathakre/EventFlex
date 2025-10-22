@@ -1,6 +1,7 @@
 import { mongoose, Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { softDelete } from "../middlewares/softDelete.middleware.js";
 
 const UserSchema = new mongoose.Schema(
   {
@@ -15,13 +16,13 @@ const UserSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: true,
+      unique: true,
       trim: true,
     },
     password: {
       type: String,
-      unique: true,
       required: [true, "Password is required"],
-      minLength: 4,
+      minLength: 5,
     },
 
     role: {
@@ -44,11 +45,6 @@ const UserSchema = new mongoose.Schema(
       index: true,
     },
 
-    wallet_address: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     wallet: {
       address: { type: String },
       privateKey: { type: String, select: false },
@@ -63,6 +59,7 @@ const UserSchema = new mongoose.Schema(
     universal_role_id: {
       type: String,
       required: true,
+      unique: true,
       minLength: 4,
       maxLength: 18,
     },
@@ -91,6 +88,16 @@ const UserSchema = new mongoose.Schema(
     refreshToken: {
       type: String,
       default: "",
+    },
+
+    isBanned: {
+      type: Boolean,
+      default: false,
+    },
+
+    digital_signature: {
+      type: String,
+      trim: true,
     },
   },
   { timestamps: { createdAt: true, updatedAt: true } }
@@ -125,6 +132,15 @@ UserSchema.methods.generateRefreshToken = function () {
     expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
   });
 };
+
+// Add compound indexes for common queries
+UserSchema.index({ role: 1, isVerified: 1 });
+UserSchema.index({ email: 1, role: 1 });
+UserSchema.index({ phone: 1, role: 1 });
+UserSchema.index({ universal_role_id: 1, role: 1 });
+
+// Apply soft delete middleware
+softDelete(UserSchema);
 
 const User = mongoose.model("User", UserSchema);
 export default User;

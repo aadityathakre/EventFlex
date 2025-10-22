@@ -20,6 +20,7 @@ const MessageSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxLength: 1000,
     },
   },
   { timestamps: { createdAt: true, updatedAt: true } }

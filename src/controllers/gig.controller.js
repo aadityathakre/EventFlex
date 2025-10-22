@@ -56,6 +56,25 @@ const checkIn = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Event not found");
   }
 
+  // Validate that gig is assigned to this event
+  if (!event.gigs.includes(gigId)) {
+    throw new ApiError(403, "You are not assigned to this event");
+  }
+
+  // Validate event status
+  if (event.status !== "in_progress") {
+    throw new ApiError(400, "Event is not in progress. Cannot check in.");
+  }
+
+  // Validate event date
+  const now = new Date();
+  if (now < event.start_date) {
+    throw new ApiError(400, "Event has not started yet");
+  }
+  if (now > event.end_date) {
+    throw new ApiError(400, "Event has already ended");
+  }
+
   const alreadyCheckedIn = await EventAttendance.findOne({
     gig: gigId,
     event: eventId,
@@ -64,7 +83,7 @@ const checkIn = asyncHandler(async (req, res) => {
   if (alreadyCheckedIn) {
     return res
     .status(200)
-    .json(new ApiResponse(201, alreadyCheckedIn, "User Already checked in"));
+    .json(new ApiResponse(200, alreadyCheckedIn, "User Already checked in"));
   }
 
   const attendance = await EventAttendance.create({
@@ -254,16 +273,6 @@ const withdraw = asyncHandler(async (req, res) => {
 // 9. View payment history
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
-  const escrowId = "68f07d7c2620923b5bf1f50b";
-  const payerId = "652abc123def4567890aaaab";
-  await Payment.create({
-    escrow: escrowId,
-    payer: payerId,
-    payee: gigId,
-    amount: mongoose.Types.Decimal128.fromString("1500.00"),
-    payment_method: "upi",
-    upi_transaction_id: "TXN1234567890",
-  });
 
   const payments = await Payment.find({ payee: gigId })
     .populate("escrow", "event total_amount status")

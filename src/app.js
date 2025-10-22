@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { sanitizeInput, rateLimit } from "./middlewares/sanitize.middleware.js";
 
 const app = express();
 
@@ -15,6 +16,10 @@ app.use(
     credentials: true,
   })
 );
+
+// Security middlewares
+app.use(sanitizeInput);
+app.use(rateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
 
 //registration and login route
 import userRoutes from "./routes/user.routes.js";
@@ -45,6 +50,15 @@ import adminRoutes from "./routes/admin.routes.js";
 app.use("/api/v1/admin", adminRoutes);
 
 
+
+// Error handling middleware (must be last)
+import { errorHandler, notFound } from "./middlewares/errorHandler.middleware.js";
+
+// 404 handler for undefined routes
+app.use("*", notFound);
+
+// Global error handler
+app.use(errorHandler);
 
 //export
 export { app };

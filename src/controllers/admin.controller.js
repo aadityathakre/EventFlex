@@ -70,10 +70,31 @@ export const banUser = asyncHandler(async (req, res) => {
   const user = await User.findById(userid);
   if (!user) throw new ApiError(404, "User not found");
 
+  if (user.isBanned) {
+    throw new ApiError(400, "User is already banned");
+  }
+
   user.isBanned = true;
   await user.save();
 
   return res.status(200).json(new ApiResponse(200, user, "User access restricted"));
+});
+
+// 3.1. 🔐 Unban User
+export const unbanUser = asyncHandler(async (req, res) => {
+  const { userid } = req.params;
+
+  const user = await User.findById(userid);
+  if (!user) throw new ApiError(404, "User not found");
+
+  if (!user.isBanned) {
+    throw new ApiError(400, "User is not banned");
+  }
+
+  user.isBanned = false;
+  await user.save();
+
+  return res.status(200).json(new ApiResponse(200, user, "User access restored"));
 });
 
 // 4. ✅ View Pending KYC
@@ -217,12 +238,17 @@ export const getEventAnalytics = asyncHandler(async (req, res) => {
 // 18.📊 Analytics: Payments
 export const getPaymentAnalytics = asyncHandler(async (req, res) => {
   const totalPayments = await Payment.countDocuments();
-  const totalAmount = await Payment.aggregate([
-    { $group: { _id: null, total: { $sum: "$amount" } } },
-  ]);
+  
+  // Get all payments and calculate total manually to handle Decimal128
+  const payments = await Payment.find().select("amount");
+  const totalAmount = payments.reduce((sum, payment) => {
+    const amount = parseFloat(payment.amount?.toString() || "0");
+    return sum + amount;
+  }, 0);
+  
   return res.status(200).json(new ApiResponse(200, {
     totalPayments,
-    totalAmount: totalAmount[0]?.total?.toString() || "0",
+    totalAmount: totalAmount.toFixed(2),
   }, "Payment analytics"));
 });
 

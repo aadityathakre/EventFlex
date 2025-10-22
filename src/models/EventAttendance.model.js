@@ -19,7 +19,7 @@ const EventAttendanceSchema = new mongoose.Schema(
     },
     check_in_time: {
       type: Date,
-    
+      required: true,
     },
     check_out_time: {
       type: Date,

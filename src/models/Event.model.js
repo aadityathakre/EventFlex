@@ -1,5 +1,6 @@
 import { mongoose, Schema } from "mongoose";
 import User from "./User.model.js";
+import { softDelete } from "../middlewares/softDelete.middleware.js";
 
 const EventSchema = new mongoose.Schema(
   {
@@ -40,12 +41,10 @@ const EventSchema = new mongoose.Schema(
     start_date: {
       type: Date,
       required: true,
-      default: Date,
     },
     end_date: {
       type: Date,
       required: true,
-      default: Date,
     },
     location: {
       type: {
@@ -63,7 +62,6 @@ const EventSchema = new mongoose.Schema(
     budget: {
       type: mongoose.Types.Decimal128,
       required: true,
-      default: 10000,
     },
 
     // 5. Status
@@ -72,7 +70,6 @@ const EventSchema = new mongoose.Schema(
       enum: ["published", "in_progress", "completed"],
       default: "published",
       required: true,
-      default: "published",
     },
 
     // 6. Gigs assigned (new)
@@ -86,6 +83,47 @@ const EventSchema = new mongoose.Schema(
   { timestamps: { createdAt: true, updatedAt: true } }
 );
 EventSchema.index({ location: "2dsphere" });
+
+// Add pre-save middleware for status transitions
+EventSchema.pre('save', function(next) {
+  const now = new Date();
+  
+  // Auto-transition to in_progress when event starts
+  if (this.status === 'published' && this.start_date <= now && this.end_date > now) {
+    this.status = 'in_progress';
+  }
+  
+  // Auto-transition to completed when event ends
+  if (this.status === 'in_progress' && this.end_date <= now) {
+    this.status = 'completed';
+  }
+  
+  next();
+});
+
+// Add validation for status transitions
+EventSchema.pre('findOneAndUpdate', function(next) {
+  const update = this.getUpdate();
+  
+  if (update.status) {
+    const validTransitions = {
+      'published': ['in_progress'],
+      'in_progress': ['completed'],
+      'completed': [] // No transitions from completed
+    };
+    
+    const currentStatus = this.getQuery().status || 'published';
+    if (!validTransitions[currentStatus]?.includes(update.status)) {
+      return next(new Error(`Invalid status transition from ${currentStatus} to ${update.status}`));
+    }
+  }
+  
+  next();
+});
+
+// Apply soft delete middleware
+softDelete(EventSchema);
+
 const Event = mongoose.model("Event", EventSchema);
 
 export default Event;

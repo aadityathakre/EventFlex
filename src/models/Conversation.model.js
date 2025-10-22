@@ -4,10 +4,11 @@ import Event from "./Event.model.js";
 
 const ConversationSchema = new mongoose.Schema(
   {
-    participants: {
-      type: Schema.Types.Mixed, // Accepts JSON array or object
+    participants: [{
+      type: Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-    },
+    }],
     pool: {
       type: Schema.Types.ObjectId,
       ref: "OrganizerPool",
