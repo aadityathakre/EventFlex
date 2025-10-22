@@ -55,7 +55,11 @@ app.use("/api/v1/admin", adminRoutes);
 import { errorHandler, notFound } from "./middlewares/errorHandler.middleware.js";
 
 // 404 handler for undefined routes
-app.use("*", notFound);
+app.use((req, res, next) => {
+  const error = new Error(`Route ${req.originalUrl} not found`);
+  error.statusCode = 404;
+  next(error);
+});
 
 // Global error handler
 app.use(errorHandler);
