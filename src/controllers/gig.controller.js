@@ -32,13 +32,15 @@ import { ObjectId } from "mongodb";
 
 // 1. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
-  const gigObjectId = new mongoose.Types.ObjectId(req.user._id); // ✅ use 'new'
+  const gigObjectId = req.user._id; 
 
+  console.log("Gig ObjectId:", gigObjectId);
   const events = await Event.find({ gigs: gigObjectId }).select("-__v");
 
   if (!events || events.length === 0) {
-    console.log("No events found for gig:", gigObjectId);
-    throw new ApiError(404, "No accepted events found");
+   return res
+    .status(200)
+    .json(new ApiResponse(200, [], "No accepted events found"));
   }
 
   return res
@@ -58,7 +60,9 @@ const checkIn = asyncHandler(async (req, res) => {
 
   // Validate that gig is assigned to this event
   if (!event.gigs.includes(gigId)) {
-    throw new ApiError(403, "You are not assigned to this event");
+   return res
+    .status(403)
+    .json(new ApiResponse(403, null, "Gig not assigned to this event"));
   }
 
   // Validate event status

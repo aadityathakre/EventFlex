@@ -78,6 +78,7 @@ router.get(
   getOrganizerPools
 );
 router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
+
 router.get(
   "/recommended-events",
   verifyToken,

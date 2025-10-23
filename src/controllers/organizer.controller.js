@@ -182,15 +182,25 @@ export const chatWithGig = asyncHandler(async (req, res) => {
 // 8. Create Event
 export const createEvent = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const { title, date, location, description, budget } = req.body;
+  const {
+    title,
+    description,
+    event_type,
+    start_date,
+    end_date,
+    location,
+    budget
+  } = req.body;
 
   const event = await Event.create({
     title,
-    date,
-    location,
     description,
-    budget,
-    organizer: organizerId,
+    event_type,
+    start_date: new Date(start_date),
+    end_date: new Date(end_date),
+    location,
+    budget: mongoose.Types.Decimal128.fromString(budget.toString()),
+    organizer: organizerId
   });
 
   return res
@@ -319,7 +329,7 @@ export const simulatePayout = asyncHandler(async (req, res) => {
   const { escrowId } = req.params;
   const escrow = await Escrow.findById(escrowId);
 
-  if (!escrow || escrow.status !== "ready") {
+  if (!escrow || escrow.status !== "in_progress") {
     throw new ApiError(400, "Escrow not ready for payout");
   }
 
@@ -332,8 +342,8 @@ export const simulatePayout = asyncHandler(async (req, res) => {
 // 17. Leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
   const topOrganizers = await Rating.aggregate([
-    { $match: { role: "organizer" } },
-    { $group: { _id: "$user", avgRating: { $avg: "$rating" } } },
+    { $match: { review_type: "host_to_organizer" } },
+    { $group: { _id: req.user._id, avgRating: { $avg: "$rating" } } },
     { $sort: { avgRating: -1 } },
     { $limit: 10 },
   ]);

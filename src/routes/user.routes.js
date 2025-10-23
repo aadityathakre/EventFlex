@@ -1,5 +1,5 @@
 import express from "express";
-import { registerUser, softDeleteUser, restoreUser } from "../controllers/user.controller.js";
+import { registerUser} from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -12,20 +12,5 @@ router.post(
   registerUser
 );
 
-// Soft delete user (admin only)
-router.delete(
-  "/soft-delete/:userId",
-  verifyToken,
-  authorizeRoles("admin"),
-  softDeleteUser
-);
-
-// Restore user (admin only)
-router.put(
-  "/restore/:userId",
-  verifyToken,
-  authorizeRoles("admin"),
-  restoreUser
-);
 
 export default router;

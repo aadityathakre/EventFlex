@@ -22,6 +22,11 @@ import {
   getLeaderboard,
 } from "../controllers/admin.controller.js";
 import { verifyAdminToken } from "../middlewares/admin.middleware.js";
+import { authorizeRoles } from "../middlewares/auth.middleware.js";
+import {
+  softDeleteUser,
+  restoreUser,
+} from "../controllers/user.controller.js";
 
 const router = express.Router();
 
@@ -32,6 +37,21 @@ router.post("/register", adminRegister);
 router.get("/roles", verifyAdminToken, getAllRoles);
 router.put("/ban-user/:userid", verifyAdminToken, banUser);
 router.put("/unban-user/:userid", verifyAdminToken, unbanUser);
+
+// Soft delete user (admin only)
+router.delete(
+  "/soft-delete/:userId",
+  verifyAdminToken,
+  authorizeRoles("admin"),
+  softDeleteUser
+);
+// Restore user (admin only)
+router.put(
+  "/restore/:userId",
+  verifyAdminToken,
+  authorizeRoles("admin"),
+  restoreUser
+);
 
 // ✅ Verification & Compliance
 router.get("/kyc/pending", verifyAdminToken, getPendingKYC);

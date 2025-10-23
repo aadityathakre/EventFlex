@@ -323,16 +323,23 @@ export const getAssignedOrganizers = asyncHandler(async (req, res) => {
 // 12. Start In-App Chat with Organizer
 export const startChatWithOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
-  const organizerId = req.params;
+  const { organizerId, eventId, poolId } = req.body;
 
-  let conversation;
-  conversation = await Conversation.findOne({
+  if (!organizerId || !eventId || !poolId) {
+    throw new ApiError(400, "Missing required fields: organizerId, eventId, poolId");
+  }
+
+  let conversation = await Conversation.findOne({
     participants: { $all: [hostId, organizerId] },
+    event: eventId,
+    pool: poolId,
   });
 
   if (!conversation) {
-    conversation=await Conversation.create({
+    conversation = await Conversation.create({
       participants: [hostId, organizerId],
+      event: eventId,
+      pool: poolId,
     });
   }
 

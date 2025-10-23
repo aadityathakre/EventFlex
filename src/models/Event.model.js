@@ -34,7 +34,18 @@ const EventSchema = new mongoose.Schema(
     },
     event_type: {
       type: String,
-      enum: ["function", "corporate", "festival", "exhibition"],
+      enum: [
+        "function",
+        "corporate",
+        "festival",
+        "exhibition",
+        "hackathon",
+        "workshop",
+        "webinar",
+        "networking",
+        "fundraiser",
+        "retreat",
+      ],
       required: true,
       default: "function",
     },
@@ -85,39 +96,47 @@ const EventSchema = new mongoose.Schema(
 EventSchema.index({ location: "2dsphere" });
 
 // Add pre-save middleware for status transitions
-EventSchema.pre('save', function(next) {
+EventSchema.pre("save", function (next) {
   const now = new Date();
-  
+
   // Auto-transition to in_progress when event starts
-  if (this.status === 'published' && this.start_date <= now && this.end_date > now) {
-    this.status = 'in_progress';
+  if (
+    this.status === "published" &&
+    this.start_date <= now &&
+    this.end_date > now
+  ) {
+    this.status = "in_progress";
   }
-  
+
   // Auto-transition to completed when event ends
-  if (this.status === 'in_progress' && this.end_date <= now) {
-    this.status = 'completed';
+  if (this.status === "in_progress" && this.end_date <= now) {
+    this.status = "completed";
   }
-  
+
   next();
 });
 
 // Add validation for status transitions
-EventSchema.pre('findOneAndUpdate', function(next) {
+EventSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
-  
+
   if (update.status) {
     const validTransitions = {
-      'published': ['in_progress'],
-      'in_progress': ['completed'],
-      'completed': [] // No transitions from completed
+      published: ["in_progress"],
+      in_progress: ["completed"],
+      completed: [], // No transitions from completed
     };
-    
-    const currentStatus = this.getQuery().status || 'published';
+
+    const currentStatus = this.getQuery().status || "published";
     if (!validTransitions[currentStatus]?.includes(update.status)) {
-      return next(new Error(`Invalid status transition from ${currentStatus} to ${update.status}`));
+      return next(
+        new Error(
+          `Invalid status transition from ${currentStatus} to ${update.status}`
+        )
+      );
     }
   }
-  
+
   next();
 });
 

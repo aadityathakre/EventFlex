@@ -53,7 +53,7 @@ router.put("/events/complete/:id", verifyToken, authorizeRoles("host"), complete
 router.post("/invite-organizer", verifyToken, authorizeRoles("host"), inviteOrganizer);
 router.post("/approve-organizer/:id", verifyToken, authorizeRoles("host"), approveOrganizer);
 router.get("/organizers", verifyToken, authorizeRoles("host"), getAssignedOrganizers);
-router.post("/chat/:organizerId", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
+router.post("/chat", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
 
 //
 // 💰 Payments & Escrow
