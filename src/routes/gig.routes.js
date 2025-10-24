@@ -134,6 +134,7 @@ router.delete(
   authorizeRoles("gig"),
   deleteProfileImage
 );
+
 router.get("/badges", verifyToken, authorizeRoles("gig"), getBadges);
 router.get("/leaderboard", verifyToken, authorizeRoles("gig"), getLeaderboard);
 

@@ -279,8 +279,7 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
   const payments = await Payment.find({ payee: gigId })
-    .populate("escrow", "event total_amount status")
-    .select("amount payment_method processed_at upi_transaction_id escrow");
+    .populate("escrow", "event total_amount status");
 
   if (!payments || payments.length === 0) {
     throw new ApiError(404, "No payments found");
@@ -300,9 +299,7 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
 const getWellnessScore = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const score = await BehavioralAnalytics.findOne({ user: gigId }).select(
-    "no_show_risk_score last_calculated"
-  );
+  const score = await BehavioralAnalytics.findOne({ user: gigId });
   if (!score) {
     throw new ApiError(404, "No behavioral analytics found");
   }
@@ -334,12 +331,35 @@ const getReminders = asyncHandler(async (req, res) => {
 const getProfile = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const profile = await UserProfile.findOne({ user: gigId }).select("-__v");
+  // Fetch user core data
+  const user = await User.findById(gigId).lean();
+  if (!user) throw new ApiError(404, "User not found");
+
+  // Try to fetch profile
+  let profile = await UserProfile.findOne({ user: gigId});
+
+  // Auto-create blank profile if missing
   if (!profile) {
-    throw new ApiError(404, "Profile not found");
+    profile = await UserProfile.create({ user: gigId, profile_image_url: gigId.avatar, bank_details:gigId.wallet });
   }
 
-  return res.status(200).json(new ApiResponse(200, profile, "Profile fetched"));
+  // Merge and return
+  const mergedProfile = {
+    user: gigId,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    bio: profile.bio || "",
+    location: profile.location || {},
+    availability: profile.availability || {},
+    bank_details: profile.bank_details || {},
+    profile_image_url: profile.profile_image_url || "",
+    createdAt: profile.createdAt || user.createdAt,
+    updatedAt: profile.updatedAt || user.updatedAt,
+  };
+
+  return res.status(200).json(new ApiResponse(200, mergedProfile, "Profile fetched"));
 });
 
 // 13. Update profile

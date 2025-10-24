@@ -42,14 +42,12 @@ router.put("/unban-user/:userid", verifyAdminToken, unbanUser);
 router.delete(
   "/soft-delete/:userId",
   verifyAdminToken,
-  authorizeRoles("admin"),
   softDeleteUser
 );
 // Restore user (admin only)
 router.put(
   "/restore/:userId",
   verifyAdminToken,
-  authorizeRoles("admin"),
   restoreUser
 );
 
