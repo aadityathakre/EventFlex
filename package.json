@@ -1,0 +1,31 @@
+{
+  "name": "setup",
+  "version": "1.0.0",
+  "description": "professional setup ",
+  "license": "ISC",
+  "author": "Aditya",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^2.7.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "ethers": "^6.15.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.1",
+    "mongoose-aggregate-paginate-v2": "^1.0.41",
+    "multer": "^2.0.2",
+    "router": "^2.2.0"
+  }
+}
