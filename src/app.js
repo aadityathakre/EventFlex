@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 import { sanitizeInput, rateLimit } from "./middlewares/sanitize.middleware.js";
 
 const app = express();
@@ -12,7 +14,7 @@ app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN || true, // allow same-origin or configured origin
     credentials: true,
   })
 );
@@ -54,7 +56,23 @@ app.use("/api/v1/admin", adminRoutes);
 // Error handling middleware (must be last)
 import { errorHandler, notFound } from "./middlewares/errorHandler.middleware.js";
 
-// 404 handler for undefined routes
+// Serve frontend build (single-server setup)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDistPath = path.join(__dirname, "../frontend/dist");
+
+// Serve static assets from frontend build if present
+app.use(express.static(frontendDistPath));
+
+// SPA fallback: send index.html for non-API routes
+app.get(/^(?!\/api\/).*/, (req, res, next) => {
+  const indexHtmlPath = path.join(frontendDistPath, "index.html");
+  res.sendFile(indexHtmlPath, (err) => {
+    if (err) next();
+  });
+});
+
+// 404 handler for undefined routes (kept after SPA fallback)
 app.use((req, res, next) => {
   const error = new Error(`Route ${req.originalUrl} not found`);
   error.statusCode = 404;
