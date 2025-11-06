@@ -20,7 +20,7 @@ const GigPools = () => {
       const data = await gigService.getOrganizerPools();
       setPools(data.data || []);
     } catch (error) {
-      toast.error('Failed to load pools');
+      console.error('Failed to load pools', error);
     } finally {
       setLoading(false);
     }
@@ -28,7 +28,7 @@ const GigPools = () => {
 
   const handleJoinPool = async () => {
     if (!selectedPool || !proposedRate) {
-      toast.error('Please enter a proposed rate');
+      console.error('Please enter a proposed rate');
       return;
     }
 
@@ -43,7 +43,7 @@ const GigPools = () => {
       setProposedRate('');
       fetchPools();
     } catch (error) {
-      toast.error('Failed to join pool');
+      console.error('Failed to join pool', error);
     }
   };
 

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import toast from 'react-hot-toast';
 
 // Default to same-origin when served by Express; can be overridden via VITE_API_BASE_URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
@@ -63,14 +62,10 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Handle errors
+    // Handle errors by logging to console only (no user-facing toast)
     const message = error.response?.data?.message || error.message || 'An error occurred';
-    
-    // Don't show toast for 401 (handled above) or 404 (might be intentional)
-    if (error.response?.status !== 401 && error.response?.status !== 404) {
-      toast.error(message);
-    }
-
+    // eslint-disable-next-line no-console
+    console.error('API error:', { status: error.response?.status, message, url: originalRequest?.url });
     return Promise.reject(error);
   }
 );

@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { MapPin, Smartphone, Sparkles } from 'lucide-react';
+import useThemeStore from '../store/themeStore';
+import { MapPin, Smartphone, Sparkles, Sun, Moon } from 'lucide-react';
 
 const Home = () => {
   const { isAuthenticated, user } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   return (
     <div className="min-h-screen dark:bg-dark-bg bg-light-bg">
@@ -17,11 +19,23 @@ const Home = () => {
             <span className="text-xl font-bold dark:text-white text-gray-900">EventFlex</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/#hosts" className="dark:text-white text-gray-900 hover:text-teal">For Hosts</Link>
-            <Link to="/#organizers" className="dark:text-white text-gray-900 hover:text-teal">For Organizers</Link>
-            <Link to="/#gig-workers" className="dark:text-white text-gray-900 hover:text-teal">For Gig Workers</Link>
+            <Link to="/register?role=host" className="dark:text-white text-gray-900 hover:text-teal">Find organizer</Link>
+            <Link to="/register?role=organizer" className="dark:text-white text-gray-900 hover:text-teal">Organize event</Link>
+            <Link to="/register?role=gig" className="dark:text-white text-gray-900 hover:text-teal">Find work (Gig)</Link>
           </nav>
           <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              title="Toggle theme"
+              className="p-2 rounded border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5 text-yellow-400" />
+              ) : (
+                <Moon className="w-5 h-5 text-gray-700" />
+              )}
+            </button>
             {isAuthenticated ? (
               <Link to={`/dashboard/${user?.role}`} className="btn btn-teal">
                 Dashboard
@@ -58,6 +72,7 @@ const Home = () => {
               <Link to="/register?role=gig" className="btn btn-yellow text-lg px-8 py-3">
                 Join as Gig Worker
               </Link>
+              <a href="/ejs/info" className="btn btn-outline text-lg px-8 py-3">Server Rendered Page</a>
             </div>
             <p className="mt-4 text-sm dark:text-gray-400 text-gray-600">
               Are you an organizer?{' '}

@@ -21,7 +21,7 @@ const GigWallet = () => {
       const data = await gigService.getWallet();
       setWallet(data.data);
     } catch (error) {
-      toast.error('Failed to load wallet');
+      console.error('Failed to load wallet', error);
     } finally {
       setLoading(false);
     }
@@ -38,7 +38,7 @@ const GigWallet = () => {
 
   const handleWithdraw = async () => {
     if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-      toast.error('Please enter a valid amount');
+      console.error('Please enter a valid amount');
       return;
     }
 
@@ -52,7 +52,7 @@ const GigWallet = () => {
       setWithdrawAmount('');
       fetchWallet();
     } catch (error) {
-      toast.error('Withdrawal failed');
+      console.error('Withdrawal failed', error);
     }
   };
 

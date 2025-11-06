@@ -79,26 +79,6 @@ const Register = () => {
     setLoading(true);
     
     try {
-      // Validate required fields
-      const requiredFields = {
-        email: data.email,
-        phone: data.phone,
-        password: data.password,
-        role: selectedRole,
-        first_name: data.first_name,
-        last_name: data.last_name
-      };
-
-      // Check if any required field is missing
-      const missingFields = Object.entries(requiredFields)
-        .filter(([_, value]) => !value)
-        .map(([key]) => key);
-
-      if (missingFields.length > 0) {
-        toast.error(`Missing required fields: ${missingFields.join(', ')}`);
-        return;
-      }
-
       // Prepare form data
       const formData = new FormData();
       formData.append('email', data.email);
@@ -112,8 +92,7 @@ const Register = () => {
 
       // Register via auth store (includes api call)
       const registerResponse = await auth.register(formData);
-      console.debug('registerResponse', registerResponse);
-      
+        
       // If we have a user object, registration worked
       if (registerResponse?.data?.user) {
         // Now try to login with the same credentials
@@ -121,8 +100,7 @@ const Register = () => {
           email: data.email, 
           password: data.password 
         });
-        console.debug('loginResponse', loginResponse);
-        
+          
         if (loginResponse?.data?.user) {
           // Login worked, redirect to dashboard
           toast.success('Registration successful');
@@ -136,25 +114,9 @@ const Register = () => {
       navigate('/login');
         
     } catch (error) {
-      console.error('Registration error:', error);
-      // Log detailed error information
-      if (error.response) {
-        // Server responded with error
-        console.error('Error response:', {
-          data: error.response.data,
-          status: error.response.status,
-          headers: error.response.headers
-        });
-        toast.error(error.response.data?.message || 'Registration failed: Server error');
-      } else if (error.request) {
-        // Request made but no response
-        console.error('No response received:', error.request);
-        toast.error('Registration failed: No response from server');
-      } else {
-        // Request setup error
-        console.error('Request error:', error.message);
-        toast.error('Registration failed: ' + error.message);
-      }
+      const msg = error?.response?.data?.message || error?.message || 'Registration failed';
+      console.error('Registration error:', msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

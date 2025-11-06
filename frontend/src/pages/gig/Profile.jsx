@@ -19,7 +19,7 @@ const GigProfile = () => {
       const data = await gigService.getProfile();
       setProfile(data.data);
     } catch (error) {
-      toast.error('Failed to load profile');
+      console.error('Failed to load profile', error);
     } finally {
       setLoading(false);
     }

@@ -11,7 +11,7 @@ const GigNearbyEvents = () => {
 
   const handleFindNearby = async () => {
     if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
+      console.error('Geolocation is not supported by your browser');
       return;
     }
 
@@ -28,13 +28,13 @@ const GigNearbyEvents = () => {
           setEvents(data.data || []);
           setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
         } catch (error) {
-          toast.error('Failed to load nearby events');
+          console.error('Failed to load nearby events', error);
         } finally {
           setLoading(false);
         }
       },
       (error) => {
-        toast.error('Failed to get your location');
+        console.error('Failed to get your location', error);
         setLoading(false);
       }
     );

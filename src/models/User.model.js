@@ -1,4 +1,5 @@
-import { mongoose, Schema } from "mongoose";
+import mongoose from "mongoose";
+const { Schema } = mongoose;
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { softDelete } from "../middlewares/softDelete.middleware.js";
@@ -53,15 +54,14 @@ const UserSchema = new mongoose.Schema(
 
     avatar: {
       type: String,
-      required: true,
+      default: '', // Will be set by the default avatar based on role
     },
 
     universal_role_id: {
       type: String,
-      required: true,
       unique: true,
-      minLength: 4,
-      maxLength: 18,
+      index: true,
+      default: () => new mongoose.Types.ObjectId().toString(),
     },
 
     isVerified: {

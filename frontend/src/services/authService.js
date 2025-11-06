@@ -3,17 +3,21 @@ import apiClient from '../utils/api';
 export const authService = {
   // Register user
   register: async (formData) => {
-    return await apiClient.post('/users/register', formData, {
+    // Let axios set Content-Type (including boundary) when sending FormData
+    const config = {
       headers: {
+        // Let axios set the Content-Type header for FormData
         'Content-Type': 'multipart/form-data',
       },
-    });
+    };
+    return await apiClient.post('/users/register', formData, config);
   },
 
   // Login user
   login: async (credentials) => {
     const response = await apiClient.post('/auth/users/login', credentials);
-    if (response.data?.accessToken) {
+    // apiClient returns ApiResponse { statusCode, data, message }
+    if (response?.data?.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }

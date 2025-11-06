@@ -35,8 +35,12 @@ export const loginUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findOne({ email });
-  if (!user || !(await user.isPasswordCorrect(password))) {
-    throw new ApiError(401, "Invalid credentials");
+  if (!user) {
+    throw new ApiError(401, "Email not registered");
+  }
+  
+  if (!(await user.isPasswordCorrect(password))) {
+    throw new ApiError(401, "Incorrect password");
   }
 
   const accessToken = user.generateAccessToken();

@@ -17,7 +17,7 @@ const GigEvents = () => {
       const data = await gigService.getMyEvents();
       setEvents(data.data || []);
     } catch (error) {
-      toast.error('Failed to load events');
+      console.error('Failed to load events', error);
     } finally {
       setLoading(false);
     }
@@ -29,7 +29,7 @@ const GigEvents = () => {
       toast.success('Checked in successfully!');
       fetchEvents();
     } catch (error) {
-      toast.error('Check-in failed');
+      console.error('Check-in failed', error);
     }
   };
 

@@ -23,19 +23,11 @@ import OrganizerWallet from './pages/organizer/Wallet';
 // Host Pages
 import HostDashboard from './pages/host/Dashboard';
 import HostEvents from './pages/host/Events';
-import HostOrganizers from './pages/host/Organizers';
 import HostPayments from './pages/host/Payments';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
-import AdminUsers from './pages/admin/Users';
-import AdminKYC from './pages/admin/KYC';
-import AdminDisputes from './pages/admin/Disputes';
-import AdminAnalytics from './pages/admin/Analytics';
 import AdminVerification from './pages/admin/Verification';
-
-// Host Pages
-import HostLegalCompliance from './pages/host/LegalCompliance';
 
 // Home/Landing
 import Home from './pages/Home';
@@ -208,26 +200,10 @@ function App() {
           }
         />
         <Route
-          path="/dashboard/host/organizers"
-          element={
-            <ProtectedRoute allowedRoles={['host']}>
-              <HostOrganizers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/dashboard/host/payments"
           element={
             <ProtectedRoute allowedRoles={['host']}>
               <HostPayments />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/host/legal-compliance"
-          element={
-            <ProtectedRoute allowedRoles={['host']}>
-              <HostLegalCompliance />
             </ProtectedRoute>
           }
         />
@@ -258,55 +234,7 @@ function App() {
           }
         />
         <Route
-          path="/dashboard/admin/users"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminUsers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/admin/kyc"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminKYC />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/admin/disputes"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminDisputes />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/admin/analytics"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminAnalytics />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/dashboard/admin/verification"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminVerification />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/admin/disputes"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminDisputes />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/admin/notifications"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminVerification />

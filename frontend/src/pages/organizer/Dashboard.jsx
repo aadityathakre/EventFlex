@@ -49,7 +49,7 @@ const OrganizerDashboard = () => {
       ]);
       toast.success('Found 3 talent matches');
     } catch (error) {
-      toast.error('Failed to search talent');
+      console.error('Failed to search talent', error);
     }
   };
 

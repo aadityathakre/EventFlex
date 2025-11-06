@@ -17,7 +17,7 @@ const useAuthStore = create((set, get) => {
       try {
         const response = await authService.login(credentials);
         set({
-          user: response.data?.user,
+          user: response?.data?.user,
           isAuthenticated: true,
           loading: false,
         });
@@ -34,7 +34,7 @@ const useAuthStore = create((set, get) => {
       try {
         const response = await authService.register(formData);
         set({
-          user: response.data?.user,
+          user: response?.data?.user,
           isAuthenticated: true,
           loading: false,
         });
