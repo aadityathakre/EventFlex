@@ -1,0 +1,9 @@
+{
+  "network": "amoy",
+  "chainId": 80002,
+  "UniversalGigIdentity": "0x0515e4b379F6C6E4029B6125fF61E17A5Afe4C01",
+  "SkillBadges": "0x33D0ce86f6b30303AD8e830f9D33ced097752AeC",
+  "EventEscrow": "0xb430E3a97a9CcCf0C1da2F653D2BF023377427a9",
+  "ReputationSystem": "0x05fFB2d119eeC71c650C8501ad20147EfcfD9618",
+  "deployedAt": "2025-11-06T16:31:00.000Z"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "eventflex-blockchain",
+  "version": "1.0.0",
+  "description": "Smart contracts for EventFlex on Polygon Amoy",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:amoy": "hardhat run scripts/deploy.js --network amoy",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "hardhat": "^2.26.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^16.6.1",
+    "ethers": "^6.15.0"
+  }
+}
