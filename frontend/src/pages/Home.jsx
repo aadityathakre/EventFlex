@@ -72,7 +72,7 @@ const Home = () => {
               <Link to="/register?role=gig" className="btn btn-yellow text-lg px-8 py-3">
                 Join as Gig Worker
               </Link>
-              <a href="/ejs/info" className="btn btn-outline text-lg px-8 py-3">Server Rendered Page</a>
+              {/* <a href="/ejs/info" className="btn btn-outline text-lg px-8 py-3">Server Rendered Page</a> */}
             </div>
             <p className="mt-4 text-sm dark:text-gray-400 text-gray-600">
               Are you an organizer?{' '}
@@ -185,6 +185,7 @@ const Home = () => {
             <Link to="/contact" className="dark:text-gray-400 text-gray-600 hover:text-teal">Contact</Link>
             <Link to="/privacy" className="dark:text-gray-400 text-gray-600 hover:text-teal">Privacy Policy</Link>
             <Link to="/terms" className="dark:text-gray-400 text-gray-600 hover:text-teal">Terms of Service</Link>
+            <Link to="/admin/dashboard/verification" className="dark:text-gray-400 text-gray-600 hover:text-teal">admin</Link>
           </div>
         </div>
       </footer>
