@@ -53,6 +53,18 @@ const notificationService = {
       emitToListeners('application_decided', data);
     });
 
+    // Backend sometimes emits application_decided_org for organizer-scoped updates
+    socket.on('application_decided_org', (data) => {
+      emitToListeners('application_decided_org', data);
+      // also forward generic event for components subscribed to application_decided
+      emitToListeners('application_decided', data);
+    });
+
+    // Team member added event
+    socket.on('team_member_added', (data) => {
+      emitToListeners('team_member_added', data);
+    });
+
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
     });

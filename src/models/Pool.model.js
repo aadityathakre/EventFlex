@@ -67,6 +67,12 @@ const PoolSchema = new mongoose.Schema(
     date: {
       type: Date,
     },
+    // City for quick search by gigs
+    city: {
+      type: String,
+      trim: true,
+      index: true,
+    },
     venue: {
       address: { type: String },
       lat: { type: Number },

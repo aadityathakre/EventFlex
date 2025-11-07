@@ -41,6 +41,10 @@ export const organizerService = {
   getPaymentHistory: () => apiClient.get('/organizer/payment-history'),
   getWellnessScore: () => apiClient.get('/organizer/wellness-score'),
   getNoShowRisk: (gigId) => apiClient.get(`/organizer/no-show-risk/${gigId}`),
+  getInvitations: () => apiClient.get('/organizer/invitations'),
+  acceptInvitation: (id) => apiClient.post(`/organizer/invitations/${id}/accept`),
+  rejectInvitation: (id) => apiClient.post(`/organizer/invitations/${id}/reject`),
+  addToTeam: (poolId, data) => apiClient.post(`/organizer/pools/${poolId}/add-to-team`, data),
 };
 
 // Host Services

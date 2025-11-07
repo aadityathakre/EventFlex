@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import Organizer from "../models/User.model.js";
 import Pool from "../models/Pool.model.js";
 import Event from "../models/Event.model.js";
+import OrganizerPool from "../models/OrganizerPool.model.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import User from "../models/User.model.js";
@@ -13,6 +14,7 @@ import Escrow from "../models/EscrowContract.model.js";
 import Rating from "../models/RatingReview.model.js";
 import Notification from "../models/Notification.model.js";
 import Dispute from "../models/Dispute.model.js";
+import { createNotification } from "../services/notification.service.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import UserDocument from "../models/UserDocument.model.js";
 import mongoose from "mongoose";
@@ -114,6 +116,8 @@ export const createPool = asyncHandler(async (req, res) => {
     venue,
     roles,
     applicationDeadline
+    ,
+    city
   } = req.body;
 
   // roles expected as array of { title, requiredCount }
@@ -215,6 +219,7 @@ export const createPool = asyncHandler(async (req, res) => {
     skillsRequired: parsedSkills,
     date: date ? new Date(date) : undefined,
     venue: venue || undefined,
+    city: city || (venue?.address ? String(venue.address).split(',').pop().trim() : undefined),
     roles: parsedRoles,
     maxPositions: maxPositions,
     applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : undefined
@@ -346,6 +351,11 @@ export const managePool = asyncHandler(async (req, res) => {
     }
   }
 
+  // Allow updating city as well
+  if (typeof updates.city !== 'undefined') {
+    updates.city = updates.city || (updates.venue?.address ? String(updates.venue.address).split(',').pop().trim() : undefined);
+  }
+
   const pool = await Pool.findOneAndUpdate(
     { _id: id, organizer: req.user._id },
     updates,
@@ -420,6 +430,80 @@ export const acceptApplication = asyncHandler(async (req, res) => {
   }
 
   return res.status(200).json(new ApiResponse(200, pool, 'Application accepted'));
+});
+
+// Add a gig directly to the organizer's team for a pool (select applicant)
+export const addToTeam = asyncHandler(async (req, res) => {
+  const { poolId } = req.params;
+  const { gigId, agreed_rate } = req.body;
+
+  if (!gigId) throw new ApiError(400, 'gigId is required');
+
+  const pool = await Pool.findOne({ _id: poolId, organizer: req.user._id });
+  if (!pool) throw new ApiError(404, 'Pool not found');
+
+  // Find existing entry in pool.gigs
+  let entry = pool.gigs.find(item => String(item.gig) === String(gigId));
+
+  // If not applied yet, add as selected
+  if (!entry) {
+    entry = { gig: gigId, status: 'selected', appliedAt: new Date() };
+    pool.gigs.push(entry);
+    pool.filledPositions = (pool.filledPositions || 0) + 1;
+  } else {
+    if (entry.status === 'selected') {
+      return res.status(200).json(new ApiResponse(200, pool, 'Gig already in team'));
+    }
+    // mark selected and update counts
+    entry.status = 'selected';
+    pool.filledPositions = (pool.filledPositions || 0) + 1;
+  }
+
+  // Try to increment a role/skill filledCount where possible (simple heuristic)
+  try {
+    // Try roles first
+    if (Array.isArray(pool.roles) && pool.roles.length > 0) {
+      const role = pool.roles.find(r => (r.filledCount || 0) < (r.requiredCount || 0));
+      if (role) {
+        role.filledCount = (role.filledCount || 0) + 1;
+      }
+    }
+    // If no role was incremented, try skillsRequired
+    if ((!pool.roles || pool.roles.length === 0) || !pool.roles.some(r => (r.filledCount || 0) > 0)) {
+      if (Array.isArray(pool.skillsRequired) && pool.skillsRequired.length > 0) {
+        const skill = pool.skillsRequired.find(s => (s.filledCount || 0) < (s.requiredCount || 0));
+        if (skill) skill.filledCount = (skill.filledCount || 0) + 1;
+      }
+    }
+  } catch (err) {
+    // non-fatal
+    console.warn('Failed to bump role/skill counts', err.message);
+  }
+
+  await pool.save();
+
+  // Notify the selected gig (if possible)
+  try {
+    await createNotification({
+      recipient: gigId,
+      type: 'ADDED_TO_TEAM',
+      message: `You have been added to pool ${pool.name}`,
+      reference: { type: 'pool', id: pool._id }
+    });
+  } catch (err) {
+    console.warn('Failed to notify gig about team addition', err.message);
+  }
+
+  // Emit updates for watchers
+  try {
+    const populated = await Pool.findById(pool._id).populate('organizer', 'name email').populate('gigs.gig', 'name avatar badges');
+    emitPoolEvent('pool_updated', populated);
+    emitPoolEvent('team_member_added', { poolId: pool._id, gigId });
+  } catch (err) {
+    console.warn('Failed to emit events for team addition', err.message);
+  }
+
+  return res.status(200).json(new ApiResponse(200, pool, 'Gig added to team'));
 });
 
 // Reject a gig application for a pool (mark rejected)
@@ -682,6 +766,81 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, organizer, "Profile fetched"));
+});
+
+// Get host invitations (OrganizerPool) sent to this organizer
+export const getInvitations = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const invitations = await OrganizerPool.find({ organizer: organizerId })
+    .populate('event')
+    .populate('organizer')
+    .sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, { invitations }, 'Invitations fetched'));
+});
+
+// Organizer accepts an invitation (becomes organizer of the event)
+export const acceptInvitation = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params; // organizerPool id
+
+  const invite = await OrganizerPool.findOne({ _id: id, organizer: organizerId });
+  if (!invite) throw new ApiError(404, 'Invitation not found');
+  if (invite.status === 'active') throw new ApiError(400, 'Invitation already accepted');
+  if (invite.status === 'rejected') throw new ApiError(400, 'Invitation already rejected');
+
+  invite.status = 'active';
+  await invite.save();
+
+  // Assign organizer to the event
+  const event = await Event.findById(invite.event);
+  if (event) {
+    event.organizer = organizerId;
+    await event.save();
+  }
+
+  // Notify the host
+  try {
+    await createNotification({
+      recipient: event.host,
+      type: 'ORGANIZER_ACCEPTED',
+      message: `Organizer ${req.user.name || 'organizer'} accepted invite for event ${event?.title || ''}`,
+      reference: { type: 'organizer_pool', id: invite._id }
+    });
+  } catch (err) {
+    console.warn('Failed to create notification for host:', err.message);
+  }
+
+  return res.status(200).json(new ApiResponse(200, invite, 'Invitation accepted'));
+});
+
+// Organizer rejects an invitation
+export const rejectInvitation = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+
+  const invite = await OrganizerPool.findOne({ _id: id, organizer: organizerId });
+  if (!invite) throw new ApiError(404, 'Invitation not found');
+  if (invite.status === 'active') throw new ApiError(400, 'Invitation already accepted');
+  if (invite.status === 'rejected') throw new ApiError(400, 'Invitation already rejected');
+
+  invite.status = 'rejected';
+  await invite.save();
+
+  // Notify the host
+  try {
+    const event = await Event.findById(invite.event);
+    await createNotification({
+      recipient: event.host,
+      type: 'ORGANIZER_REJECTED',
+      message: `Organizer ${req.user.name || 'organizer'} rejected invite for event ${event?.title || ''}`,
+      reference: { type: 'organizer_pool', id: invite._id }
+    });
+  } catch (err) {
+    console.warn('Failed to create rejection notification for host:', err.message);
+  }
+
+  return res.status(200).json(new ApiResponse(200, invite, 'Invitation rejected'));
 });
 
 // 20. Certificates (this feature will come soon)

@@ -9,6 +9,7 @@ const CreatePoolModal = ({ open, onClose, onCreated }) => {
     description: '',
     date: '',
     venue: { address: '', lat: null, lng: null },
+    city: '',
   });
   const [roles, setRoles] = useState([
     { title: '', requiredCount: 1 }
@@ -43,6 +44,7 @@ const CreatePoolModal = ({ open, onClose, onCreated }) => {
         description: form.description,
         date: form.date,
         venue: form.venue,
+        city: form.city,
         roles: roles.filter(r => r.title && (Number(r.requiredCount) > 0))
       };
       // Call backend to create pool (must succeed to persist)
@@ -88,6 +90,11 @@ const CreatePoolModal = ({ open, onClose, onCreated }) => {
 
           <div>
             <MapPicker value={form.venue} onChange={handleVenueChange} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Event City</label>
+            <input type="text" className="input" value={form.city} onChange={handleChange('city')} placeholder="City (used for gig search)" />
           </div>
 
           <div>

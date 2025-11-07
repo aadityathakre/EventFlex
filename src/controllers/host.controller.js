@@ -5,6 +5,7 @@ import UserDocument from "../models/UserDocument.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
+import { createNotification } from "../services/notification.service.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import EscrowContract from "../models/EscrowContract.model.js";
@@ -284,6 +285,21 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
   }
 
   const pool = await OrganizerPool.create(poolPayload);
+
+  try {
+    // Fetch event title for a nicer notification message (best-effort)
+    const event = await Event.findById(eventId).select('title');
+
+    await createNotification({
+      recipient: organizerId,
+      type: 'organizer_invitation',
+      message: `You have been invited to organize: ${event?.title || pool_name}`,
+      reference: pool._id,
+    });
+  } catch (err) {
+    // Don't block the primary response on notification errors - just log
+    console.error('Failed to create organizer invite notification', err);
+  }
 
   return res
     .status(201)

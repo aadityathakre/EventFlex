@@ -46,7 +46,7 @@ const OrganizerPoolSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["open", "active", "completed"],
+      enum: ["open", "active", "completed", "rejected"],
       default: "open",
       required: true,
     },

@@ -1,3 +1,4 @@
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,6 +35,8 @@ import AdminVerification from './pages/admin/Verification';
 
 // Home/Landing
 import Home from './pages/Home';
+
+const OrganizerMessagesLazy = lazy(() => import('./pages/organizer/Messages'));
 
 function App() {
   return (
@@ -204,7 +207,10 @@ function App() {
           path="/dashboard/organizer/messages"
           element={
             <ProtectedRoute allowedRoles={['organizer']}>
-              <OrganizerDashboard />
+              {/* Messages page: host invitations and messages */}
+              <Suspense fallback={<div>Loading...</div>}>
+                <OrganizerMessagesLazy />
+              </Suspense>
             </ProtectedRoute>
           }
         />
