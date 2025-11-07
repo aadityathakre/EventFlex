@@ -1,5 +1,8 @@
 import Pool from '../models/Pool.model.js';
 import PoolApplication from '../models/PoolApplication.model.js';
+import ReputationScore from '../models/ReputationScore.model.js';
+import UserSkill from '../models/UserSkill.model.js';
+import UserProfile from '../models/UserProfile.model.js';
 import { createNotification } from '../services/notification.service.js';
 import { emitPoolEvent } from '../services/socket.service.js';
 
@@ -239,9 +242,32 @@ export const getPoolApplications = async (req, res) => {
       return res.status(404).json({ message: 'Pool not found' });
     }
 
-    const applications = await PoolApplication.find({ pool: pool._id })
-      .populate('gig', 'name email profileImage')
-      .sort({ createdAt: -1 });
+    let applications = await PoolApplication.find({ pool: pool._id })
+      .populate('gig', 'first_name last_name email avatar')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // For each application, append reputation, skills, and profile info
+    applications = await Promise.all(applications.map(async (app) => {
+      try {
+        const rep = await ReputationScore.findOne({ user: app.gig._id }).lean();
+        const skills = await UserSkill.find({ user: app.gig._id }).populate('skill', 'name').lean();
+        const profile = await UserProfile.findOne({ user: app.gig._id }).lean();
+
+        return {
+          ...app,
+          gig: {
+            ...app.gig,
+            reputation: rep ? { overall_rating: rep.overall_rating?.toString?.() || rep.overall_rating, trust_level: rep.trust_level } : null,
+            skills: skills ? skills.map(s => ({ name: s.skill?.name || s.skill, proficiency: s.proficiency_level, verified: s.is_verified })) : [],
+            profile: profile || null
+          }
+        };
+      } catch (err) {
+        console.warn('Failed to append extra profile info for application', app._id, err.message);
+        return app;
+      }
+    }));
 
     res.json(applications);
   } catch (error) {

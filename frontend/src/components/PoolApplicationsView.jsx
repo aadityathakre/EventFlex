@@ -164,14 +164,19 @@ const PoolApplicationsView = () => {
                 {/* Applicant Info */}
                 <Grid item xs={12} sm={3}>
                   <Box display="flex" alignItems="center" gap={2}>
-                    <Avatar src={application.gig.profileImage} />
+                    <Avatar src={application.gig.avatar || application.gig.profileImage} />
                     <Box>
                       <Typography variant="subtitle1">
-                        {application.gig.name}
+                        {application.gig.first_name ? `${application.gig.first_name} ${application.gig.last_name || ''}` : application.gig.name}
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
                         Applied: {format(new Date(application.createdAt), 'PPP')}
                       </Typography>
+                      {application.gig.reputation && (
+                        <Typography variant="body2" color="textSecondary">
+                          Rating: {application.gig.reputation.overall_rating ? application.gig.reputation.overall_rating.toString() : application.gig.reputation.overall_rating} • {application.gig.reputation.trust_level}
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
                 </Grid>
@@ -205,6 +210,26 @@ const PoolApplicationsView = () => {
                   <Typography variant="body2" paragraph>
                     {application.relevantExperience}
                   </Typography>
+                </Grid>
+
+                {/* Applicant Skills (from user profile) */}
+                <Grid item xs={12}>
+                  {application.gig.skills && application.gig.skills.length > 0 && (
+                    <Box mb={2}>
+                      <Typography variant="subtitle2">Profile Skills</Typography>
+                      <Box>
+                        {application.gig.skills.map((s, idx) => (
+                          <Chip key={idx} label={`${s.name} (${s.proficiency})`} size="small" style={{ margin: '0 4px 4px 0' }} />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                  {application.gig.profile?.bio && (
+                    <>
+                      <Typography variant="subtitle2">Bio</Typography>
+                      <Typography variant="body2" paragraph>{application.gig.profile.bio}</Typography>
+                    </>
+                  )}
                 </Grid>
 
                 {/* Actions */}

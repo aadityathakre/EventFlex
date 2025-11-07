@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { organizerService } from '../../services/apiServices';
 import { Link } from 'react-router-dom';
 import CreatePoolModal from '../../components/CreatePoolModal';
+import notificationService from '../../services/notificationService';
 
 const OrganizerPools = () => {
   const [pools, setPools] = useState([]);
@@ -29,7 +30,37 @@ const OrganizerPools = () => {
       }
     };
     fetchPools();
-    return () => (mounted = false);
+    // subscribe to real-time updates
+    const unsubPoolUpdated = notificationService.on('pool_updated', (updatedPool) => {
+      // If the updated pool belongs to the current organizer, refresh
+      try {
+        setPools(prev => prev.map(p => (p._id === updatedPool._id ? updatedPool : p)));
+      } catch (err) {
+        // fallback: refetch
+        fetchPools();
+      }
+    });
+
+    const unsubAppCreated = notificationService.on('pool_application_created', (data) => {
+      // data has poolId
+      if (!data || !data.poolId) return;
+      setPools(prev => prev.map(p => {
+        if (p._id === data.poolId) {
+          // bump a pending count locally (will be corrected on next fetch)
+          const gigs = p.gigs ? [...p.gigs] : [];
+          // optimistic entry placeholder
+          gigs.push({ gig: { _id: data.applicationId }, status: 'pending' });
+          return { ...p, gigs };
+        }
+        return p;
+      }));
+    });
+
+    return () => {
+      mounted = false;
+      try { unsubPoolUpdated(); } catch(e) {}
+      try { unsubAppCreated(); } catch(e) {}
+    };
   }, []);
 
   return (
@@ -103,6 +134,7 @@ const OrganizerPools = () => {
                   )}
                   <div className="flex gap-2">
                     <Link to={`/dashboard/organizer/pools/manage/${pool._id}`} className="btn btn-orange">Manage</Link>
+                    <Link to={`/dashboard/organizer/pools/${pool._id}/applications`} className="btn btn-red">Requests ({(pool.gigs || []).filter(g => g.status === 'pending').length})</Link>
                     <button className="btn btn-teal" onClick={() => {
                       setTeamModalPool(pool);
                       setSelectedGig(null);
