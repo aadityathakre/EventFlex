@@ -30,6 +30,14 @@ const PoolSchema = new mongoose.Schema(
         default: Date.now
       }
     }],
+    // Roles required for this pool (e.g. anchoring, sound, stagehand)
+    roles: [
+      {
+        title: { type: String, required: true },
+        requiredCount: { type: Number, default: 1 },
+        filledCount: { type: Number, default: 0 },
+      }
+    ],
     description: {
       type: String,
       trim: true,
@@ -41,8 +49,20 @@ const PoolSchema = new mongoose.Schema(
       maxlength: 500
     },
     skillsRequired: [{
-      type: String,
-      trim: true
+      skill: {
+        type: String,
+        trim: true,
+        required: true
+      },
+      requiredCount: {
+        type: Number,
+        default: 1,
+        min: 1
+      },
+      filledCount: {
+        type: Number,
+        default: 0
+      }
     }],
     date: {
       type: Date,
@@ -82,5 +102,31 @@ const PoolSchema = new mongoose.Schema(
 PoolSchema.index({ organizer: 1, status: 1 });
 // Index for searching open pools
 PoolSchema.index({ status: 1, applicationDeadline: 1 });
+
+// Compute maxPositions automatically from roles and skills if provided
+PoolSchema.pre('save', function (next) {
+  try {
+    let totalPositions = 0;
+    
+    // Sum up required positions from roles
+    if (this.roles && this.roles.length > 0) {
+      totalPositions += this.roles.reduce((acc, r) => acc + (r.requiredCount || 0), 0);
+    }
+    
+    // Sum up required positions from skills
+    if (this.skillsRequired && this.skillsRequired.length > 0) {
+      totalPositions += this.skillsRequired.reduce((acc, s) => acc + (s.requiredCount || 0), 0);
+    }
+    
+    // Update maxPositions only if we have either roles or skills
+    if (totalPositions > 0) {
+      this.maxPositions = totalPositions;
+    }
+    
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default mongoose.model("Pool", PoolSchema);

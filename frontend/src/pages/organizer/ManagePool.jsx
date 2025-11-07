@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { organizerService } from '../../services/apiServices';
 import toast from 'react-hot-toast';
 
 const ManagePool = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [pool, setPool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [roles, setRoles] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -16,7 +18,11 @@ const ManagePool = () => {
       try {
         const res = await organizerService.getPoolDetails(id);
         const data = res?.data || res;
-        if (mounted) setPool(data?.pool || data);
+        const fetched = data?.pool || data;
+        if (mounted) {
+          setPool(fetched);
+          setRoles(fetched.roles || []);
+        }
       } catch (err) {
         console.error('Failed to load pool from backend', err);
         toast.error('Failed to load pool from backend');
@@ -30,7 +36,7 @@ const ManagePool = () => {
 
   const handleSave = async () => {
     try {
-      const payload = { name: pool.name, description: pool.description, date: pool.date, venue: pool.venue };
+      const payload = { name: pool.name, description: pool.description, date: pool.date, venue: pool.venue, roles };
       await organizerService.managePool(id, payload);
       toast.success('Pool updated');
       setEditing(false);
@@ -50,6 +56,13 @@ const ManagePool = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Manage Pool - {pool.name}</h1>
           <div>
+            <button
+              onClick={() => navigate(`/dashboard/organizer/pools/${id}/applications`)}
+              className="btn mr-3"
+              style={{ backgroundColor: '#dc2626', color: '#fff' }}
+            >
+              Requests
+            </button>
             {editing ? (
               <>
                 <button onClick={handleSave} className="btn btn-teal mr-2">Save</button>
@@ -78,6 +91,38 @@ const ManagePool = () => {
             <div>
               <label className="block text-sm font-medium">Venue</label>
               <p className="text-sm text-gray-600">{pool.venue?.address || JSON.stringify(pool.venue) || 'Not set'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Roles & Slots</label>
+              <div className="space-y-2">
+                {roles.map((role, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      className="input flex-1"
+                      value={role.title}
+                      onChange={(e) => setRoles(prev => prev.map((r,i) => i===idx?{...r, title: e.target.value}:r))}
+                      disabled={!editing}
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      className="input w-28"
+                      value={role.requiredCount || 1}
+                      onChange={(e) => setRoles(prev => prev.map((r,i) => i===idx?{...r, requiredCount: Number(e.target.value)}:r))}
+                      disabled={!editing}
+                    />
+                    {editing && (
+                      <button type="button" onClick={() => setRoles(prev => prev.filter((_,i)=>i!==idx))} className="btn btn-outline">Remove</button>
+                    )}
+                  </div>
+                ))}
+                {editing && (
+                  <div>
+                    <button type="button" onClick={() => setRoles(prev=>[...prev,{title:'', requiredCount:1}])} className="btn btn-teal">Add role</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

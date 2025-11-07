@@ -167,6 +167,18 @@ const PoolList = () => {
                   Positions: {pool.filledPositions}/{pool.maxPositions}
                 </Typography>
 
+                {/* Roles and slot counts */}
+                {pool.roles && pool.roles.length > 0 && (
+                  <Box mt={1} mb={1}>
+                    <Typography variant="subtitle2">Roles:</Typography>
+                    <Box display="flex" flexWrap="wrap" gap={1} mt={1}>
+                      {pool.roles.map((r, i) => (
+                        <Chip key={i} label={`${r.title} — ${r.filledCount || 0}/${r.requiredCount}`} size="small" />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
                 {/* Deadline */}
                 {pool.applicationDeadline && (
                   <Typography variant="body2" color="textSecondary" gutterBottom>

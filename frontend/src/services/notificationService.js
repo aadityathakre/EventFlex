@@ -18,7 +18,7 @@ const notificationService = {
       socket.disconnect();
     }
 
-    socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+    socket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
       auth: { token },
       reconnection: true,
       reconnectionDelay: 1000,
@@ -27,8 +27,8 @@ const notificationService = {
 
     socket.on('connect', () => {
       console.log('Connected to notification system');
-      // Request initial pool data after reconnection
-      socket.emit('subscribe_pools');
+      // Request initial pool data after reconnection (use same event name as backend)
+      socket.emit('watch_pools', { filters: {} });
     });
 
     socket.on('notification', (notification) => {
@@ -83,20 +83,20 @@ const notificationService = {
   // Get user's notifications
   getNotifications: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    const response = await api.get(`/notifications?${queryString}`);
-    return response.data;
+    const data = await api.get(`/notifications?${queryString}`);
+    return data;
   },
 
   // Mark notification as seen
   markAsSeen: async (notificationId) => {
-    const response = await api.put(`/notifications/${notificationId}/seen`);
-    return response.data;
+    const data = await api.put(`/notifications/${notificationId}/seen`);
+    return data;
   },
 
   // Mark all notifications as seen
   markAllAsSeen: async () => {
-    const response = await api.put('/notifications/mark-all-seen');
-    return response.data;
+    const data = await api.put('/notifications/mark-all-seen');
+    return data;
   }
 };
 

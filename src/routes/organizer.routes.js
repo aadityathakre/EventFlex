@@ -11,6 +11,9 @@ import {
   getMyPools,
   managePool,
   getPoolDetails,
+  getPoolApplicants,
+  acceptApplication,
+  rejectApplication,
   chatWithGig,
 
   // 📅 Event Management
@@ -59,6 +62,9 @@ router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPoo
 router.get("/pools", verifyToken, authorizeRoles("organizer"), getMyPools);
 router.put("/pools/manage/:id", verifyToken, authorizeRoles("organizer"), managePool);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
+router.get("/pools/:id/applicants", verifyToken, authorizeRoles("organizer"), getPoolApplicants);
+router.post("/pools/:poolId/applications/:gigId/accept", verifyToken, authorizeRoles("organizer"), acceptApplication);
+router.post("/pools/:poolId/applications/:gigId/reject", verifyToken, authorizeRoles("organizer"), rejectApplication);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 
 //

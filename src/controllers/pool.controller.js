@@ -1,60 +1,51 @@
 import Pool from '../models/Pool.model.js';
 import PoolApplication from '../models/PoolApplication.model.js';
 import { createNotification } from '../services/notification.service.js';
-import Pool from '../models/Pool.model.js';
-import PoolApplication from '../models/PoolApplication.model.js';
-import { createNotification } from '../services/notification.service.js';
-import { io } from '../socket.js';
+import { emitPoolEvent } from '../services/socket.service.js';
+
+// List available pools for gigs (with paging & basic filters)
+export const listAvailablePools = async (req, res) => {
   try {
-    const { 
-      page = 1, 
+    const {
+      page = 1,
       limit = 10,
       skills,
-      location 
+      location
     } = req.query;
 
     const query = {
-      status: 'open',
-      applicationDeadline: { $gt: new Date() }
+      status: 'open'
     };
 
-    // Filter by skills if provided
     if (skills) {
       const skillsList = skills.split(',').map(s => s.trim());
       query.skillsRequired = { $in: skillsList };
     }
 
-    // Filter by location if provided
     if (location) {
-      // Implement location-based filtering using coordinates
-      // This is a simplified version - you might want to use geospatial queries
       query['venue.address'] = { $regex: location, $options: 'i' };
     }
 
+    const skip = (Number(page) - 1) * Number(limit);
+
     const pools = await Pool.find(query)
       .populate('organizer', 'name email profileImage')
-    // Populate small organizer info before emitting
-    const populated = await Pool.findById(pool._id).populate('organizer', 'name email profileImage');
-    // Emit to all connected clients that a new pool is available
-    try {
-      io?.emit('pool_created', populated);
-    } catch (err) {
-      console.warn('Socket emit failed (pool_created):', err.message);
-    }
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+      .skip(skip)
+      .limit(Number(limit))
+      .lean();
 
     const total = await Pool.countDocuments(query);
 
-    res.json({
+    return res.status(200).json({
       pools,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
       total
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    console.error('listAvailablePools error', err);
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -64,24 +55,20 @@ export const getPoolDetails = async (req, res) => {
     const pool = await Pool.findById(req.params.id)
       .populate('organizer', 'name email profileImage')
       .populate('gigs.gig', 'name email profileImage');
-    
-    if (!pool) {
-      return res.status(404).json({ message: 'Pool not found' });
-    }
+
+    if (!pool) return res.status(404).json({ message: 'Pool not found' });
 
     // Check if current user has applied
-    const application = await PoolApplication.findOne({
-      pool: pool._id,
-      gig: req.user._id
-    });
+    const application = await PoolApplication.findOne({ pool: pool._id, gig: req.user._id });
 
-    res.json({
-      ...pool.toJSON(),
+    return res.status(200).json({
+      ...pool.toObject(),
       hasApplied: !!application,
       applicationStatus: application?.status
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    console.error('getPoolDetails error', err);
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -91,35 +78,14 @@ export const applyToPool = async (req, res) => {
     const { coverLetter, proposedRate, skills, relevantExperience } = req.body;
     const poolId = req.params.id;
 
-
-    // Emit real-time event to the organizer's room so organizer UI can refresh
-    try {
-      io?.to(pool.organizer.toString()).emit('pool_application_created', {
-        poolId: pool._id,
-        applicationId: application._id,
-      });
-    } catch (err) {
-      console.warn('Socket emit failed (pool_application_created):', err.message);
-    }
-    // Check if pool exists and is open
     const pool = await Pool.findById(poolId);
-    if (!pool) {
-      return res.status(404).json({ message: 'Pool not found' });
-    }
-    if (pool.status !== 'open') {
-      return res.status(400).json({ message: 'This pool is not accepting applications' });
-    }
+    if (!pool) return res.status(404).json({ message: 'Pool not found' });
+    if (pool.status !== 'open') return res.status(400).json({ message: 'This pool is not accepting applications' });
 
-    // Check if already applied
-    const existingApplication = await PoolApplication.findOne({
-      pool: poolId,
-      gig: req.user._id
-    });
-    if (existingApplication) {
-      return res.status(400).json({ message: 'You have already applied to this pool' });
-    }
+    const existing = await PoolApplication.findOne({ pool: poolId, gig: req.user._id });
+    if (existing) return res.status(400).json({ message: 'You have already applied to this pool' });
 
-    const application = new PoolApplication({
+    const application = await PoolApplication.create({
       pool: poolId,
       gig: req.user._id,
       coverLetter,
@@ -128,33 +94,50 @@ export const applyToPool = async (req, res) => {
       relevantExperience
     });
 
-    await application.save();
+    // Ensure pool.gigs contains an entry for this applicant (pending)
+    try {
+      const poolDoc = await Pool.findById(poolId);
+      if (poolDoc) {
+        const existing = poolDoc.gigs.find(g => String(g.gig) === String(req.user._id));
+        if (!existing) {
+          poolDoc.gigs.push({
+            gig: req.user._id,
+            status: 'pending',
+            appliedAt: application.createdAt
+          });
+          await poolDoc.save();
+        } else {
+          // update appliedAt if needed
+          existing.status = 'pending';
+          existing.appliedAt = application.createdAt;
+          await poolDoc.save();
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to sync Pool.gigs with application:', err.message);
+    }
 
-    // Notify organizer of new application
+    // Notify organizer
     await createNotification({
       recipient: pool.organizer,
       type: 'NEW_POOL_APPLICATION',
       message: `New application received for pool: ${pool.name}`,
-      reference: {
-        type: 'pool_application',
-        id: application._id
-      }
+      reference: { type: 'pool_application', id: application._id }
     });
 
-
-    // Emit real-time event to the gig and organizer so they can refresh UI
+    // Emit events so UI can update
     try {
-      io?.to(application.gig._id.toString()).emit('application_decided', application);
-      io?.to(application.pool.organizer.toString()).emit('application_decided_org', application);
-      // Also emit a pool update so organizer/gig pools views can refresh
-      const updatedPool = await Pool.findById(application.pool._id).populate('organizer', 'name email profileImage');
-      io?.emit('pool_updated', updatedPool);
-    } catch (err) {
-      console.warn('Socket emit failed (application_decided):', err.message);
+      emitPoolEvent('pool_application_created', { poolId: pool._id, applicationId: application._id });
+      const updatedPool = await Pool.findById(pool._id).populate('organizer', 'name email profileImage');
+      emitPoolEvent('pool_updated', updatedPool);
+    } catch (emitErr) {
+      console.warn('Socket emit failed (applyToPool):', emitErr.message);
     }
-    res.status(201).json(application);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+
+    return res.status(201).json(application);
+  } catch (err) {
+    console.error('applyToPool error', err);
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -300,6 +283,15 @@ export const decideOnApplication = async (req, res) => {
         id: application._id
       }
     });
+
+    // Emit socket events so organizer/gig UIs refresh in real-time
+    try {
+      emitPoolEvent('application_decided_org', application);
+      const updatedPool = await Pool.findById(application.pool._id).populate('organizer', 'name email profileImage');
+      emitPoolEvent('pool_updated', updatedPool);
+    } catch (emitErr) {
+      console.warn('Socket emit failed (decideOnApplication):', emitErr.message);
+    }
 
     res.json(application);
   } catch (error) {

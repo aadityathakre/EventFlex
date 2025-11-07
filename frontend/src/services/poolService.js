@@ -1,65 +1,66 @@
 import api from '../utils/api';
+import notificationService from './notificationService';
 
 const poolService = {
   // Get available pools with filters
   getAvailablePools: async (filters = {}) => {
     const queryString = new URLSearchParams(filters).toString();
-    const response = await api.get(`/pools?${queryString}`);
+    const data = await api.get(`/pools?${queryString}`);
     // Subscribe to real-time updates for these pools
     const socket = notificationService.getSocket();
     if (socket?.connected) {
       socket.emit('watch_pools', { filters });
     }
-    return response.data;
+    return data;
   },
 
   // Get specific pool details
   getPoolDetails: async (poolId) => {
-    const response = await api.get(`/pools/${poolId}`);
-    return response.data;
+    const data = await api.get(`/pools/${poolId}`);
+    return data;
   },
 
   // Apply to a pool
   applyToPool: async (poolId, applicationData) => {
-    const response = await api.post(`/pools/${poolId}/apply`, applicationData);
-    return response.data;
+    const data = await api.post(`/pools/${poolId}/apply`, applicationData);
+    return data;
   },
 
   // Get gig's applications
   getMyApplications: async (status) => {
     const queryString = status ? `?status=${status}` : '';
-    const response = await api.get(`/applications${queryString}`);
-    return response.data;
+    const data = await api.get(`/applications${queryString}`);
+    return data;
   },
 
   // Organizer: Create new pool
   createPool: async (poolData) => {
-    const response = await api.post('/pools', poolData);
-    return response.data;
+    const data = await api.post('/pools', poolData);
+    return data;
   },
 
   // Organizer: Update pool
   updatePool: async (poolId, poolData) => {
-    const response = await api.put(`/pools/${poolId}`, poolData);
-    return response.data;
+    const data = await api.put(`/pools/${poolId}`, poolData);
+    return data;
   },
 
   // Organizer: Get own pools
   getMyPools: async () => {
-    const response = await api.get('/my-pools');
-    return response.data;
+    const data = await api.get('/my-pools');
+    return data;
   },
 
   // Organizer: Get pool applications
   getPoolApplications: async (poolId) => {
-    const response = await api.get(`/pools/${poolId}/applications`);
-    return response.data;
+    const data = await api.get(`/pools/${poolId}/applications`);
+    return data;
   },
 
   // Organizer: Decide on application
   decideOnApplication: async (applicationId, decision) => {
-    const response = await api.put(`/applications/${applicationId}/decide`, decision);
-    return response.data;
+    const data = await api.put(`/applications/${applicationId}/decide`, decision);
+    return data;
   }
 };
 

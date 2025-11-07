@@ -155,6 +155,17 @@ const OrganizerPoolList = () => {
                     Applications: {pool.gigs.length}
                   </Typography>
                 </Box>
+                {/* Roles */}
+                {pool.roles && pool.roles.length > 0 && (
+                  <Box mt={2}>
+                    <Typography variant="subtitle2">Roles & Slots</Typography>
+                    <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                      {pool.roles.map((r, idx) => (
+                        <Chip key={idx} label={`${r.title}: ${r.filledCount || 0}/${r.requiredCount}`} size="small" />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
 
                 {/* Quick Action Buttons */}
                 <Box mt={2} display="flex" gap={1}>
