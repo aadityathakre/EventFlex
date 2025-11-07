@@ -7,7 +7,8 @@ export const gigService = {
   checkIn: (eventId) => apiClient.post(`/gigs/check-in/${eventId}`),
   getNearbyEvents: (params) => apiClient.get('/gigs/nearby-events', { params }),
   getRecommendedEvents: () => apiClient.get('/gigs/recommended-events'),
-  getOrganizerPools: () => apiClient.get('/gigs/organizer-pools'),
+  // Accept optional coords: { lng, lat } — will be sent as query params
+  getOrganizerPools: (coords) => apiClient.get('/gigs/organizer-pools', { params: coords }),
   joinPool: (poolId, data) => apiClient.post(`/gigs/join-pool/${poolId}`, data),
   getWallet: () => apiClient.get('/gigs/wallet'),
   withdraw: (data) => apiClient.post('/gigs/withdraw', data),

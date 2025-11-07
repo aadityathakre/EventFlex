@@ -13,6 +13,7 @@ import GigNearbyEvents from './pages/gig/NearbyEvents';
 import GigPools from './pages/gig/Pools';
 import GigWallet from './pages/gig/Wallet';
 import GigProfile from './pages/gig/Profile';
+import Withdraw from './pages/gig/Withdraw';
 
 // Organizer Pages
 import OrganizerDashboard from './pages/organizer/Dashboard';
@@ -88,6 +89,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['gig']}>
               <GigProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/gig/withdraw"
+          element={
+            <ProtectedRoute allowedRoles={['gig']}>
+              <Withdraw />
             </ProtectedRoute>
           }
         />

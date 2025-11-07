@@ -70,7 +70,7 @@ router.get(
   verifyToken,
   authorizeRoles("gig"),
   getNearbyEvents
-);
+); 
 router.get(
   "/organizer-pools",
   verifyToken,

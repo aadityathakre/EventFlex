@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
+import { defaultAvatars } from '../../utils/defaultAvatars';
 import { gigService } from '../../services/apiServices';
 import toast from 'react-hot-toast';
 import { Users, Plus } from 'lucide-react';
@@ -17,7 +18,21 @@ const GigPools = () => {
 
   const fetchPools = async () => {
     try {
-      const data = await gigService.getOrganizerPools();
+      // Try to get user coordinates for nearby ordering; fall back to server default
+      let coords = {};
+      if ('geolocation' in navigator) {
+        try {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+          );
+          coords = { lng: pos.coords.longitude, lat: pos.coords.latitude };
+        } catch (e) {
+          // ignore geolocation errors and let backend return open pools
+        }
+      }
+
+      const data = await gigService.getOrganizerPools(coords);
+      // apiClient response interceptor returns the ApiResponse object
       setPools(data.data || []);
     } catch (error) {
       console.error('Failed to load pools', error);
@@ -25,6 +40,14 @@ const GigPools = () => {
       setLoading(false);
     }
   };
+
+  // Poll for updates every 15 seconds to keep the pools list fresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPools();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleJoinPool = async () => {
     if (!selectedPool || !proposedRate) {
@@ -65,8 +88,14 @@ const GigPools = () => {
             {pools.map((pool) => (
               <div key={pool._id} className="card">
                 <div className="flex items-center mb-4">
-                  <Users className="w-6 h-6 text-primary-600 mr-2" />
-                  <h3 className="text-xl font-semibold">{pool.name}</h3>
+                  {/* Organizer DP (if available) */}
+                  {pool.organizer?.profile_image_url || pool.organizer?.avatar ? (
+                    <img src={pool.organizer.profile_image_url || pool.organizer.avatar} alt="dp" className="w-8 h-8 rounded-full mr-2 object-cover" />
+                  ) : (
+                    // Use default organizer DP from defaultAvatars
+                    <img src={defaultAvatars.organizer} alt="default-dp" className="w-8 h-8 rounded-full mr-2 object-cover" />
+                  )}
+                  <h3 className="text-xl font-semibold">{pool.name || pool.pool_name}</h3>
                 </div>
                 <p className="text-gray-600 mb-4">{pool.description}</p>
                 <p className="text-sm text-gray-500 mb-4">

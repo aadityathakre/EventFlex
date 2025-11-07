@@ -142,25 +142,51 @@ const getNearbyEvents = asyncHandler(async (req, res) => {
 });
 
 // 5. View nearby organizer pools
+// Accepts optional query params `lng` and `lat`. If provided, runs a $near query.
+// If not provided, returns all open pools. Populates basic organizer info so
+// frontend can show organizer name and profile image (DP).
 const getOrganizerPools = asyncHandler(async (req, res) => {
-  const { coordinates } = req.body;
+  // Support coordinates sent either as query params (preferred for GET)
+  // or in the request body (fallback).
+  const lngQ = req.query.lng ?? req.body?.lng ?? req.body?.coordinates?.[0];
+  const latQ = req.query.lat ?? req.body?.lat ?? req.body?.coordinates?.[1];
 
-  const pools = await OrganizerPool.find({
-    location: {
+  const lng = typeof lngQ === 'string' ? parseFloat(lngQ) : lngQ;
+  const lat = typeof latQ === 'string' ? parseFloat(latQ) : latQ;
+
+  let query = { status: 'open' };
+
+  if (!isNaN(lng) && !isNaN(lat)) {
+    query.location = {
       $near: {
         $geometry: {
-          type: "Point",
-          coordinates,
+          type: 'Point',
+          coordinates: [lng, lat],
         },
         $maxDistance: 10000,
       },
-    },
-    status: "open", // ✅ match schema
-  }).select("-organizer");
+    };
+  }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
+  // Populate organizer basic info (name, profile image) for frontend
+  const pools = await OrganizerPool.find(query)
+    .populate('organizer', 'name profile_image_url avatar')
+    .lean();
+
+  // Map to a stable shape the frontend expects (name, events, organizer, _id)
+  const mapped = pools.map((p) => ({
+    _id: p._id,
+    pool_name: p.pool_name,
+    name: p.pool_name, // keep legacy field for frontend convenience
+    description: p.description || '',
+    events: p.event ? 1 : 0,
+    max_capacity: p.max_capacity,
+    pay_range: p.pay_range,
+    organizer: p.organizer || null,
+    location: p.location,
+  }));
+
+  return res.status(200).json(new ApiResponse(200, mapped, 'Nearby pools fetched'));
 });
 
 // 6. Join a specific pool
