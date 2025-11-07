@@ -55,6 +55,13 @@ const PoolApplicationSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     }
+     ,
+     // Soft-hide an application so it's not shown to organizers
+     hidden: {
+       type: Boolean,
+       default: false,
+       index: true,
+     }
   },
   { 
     timestamps: true,
@@ -67,32 +74,43 @@ const PoolApplicationSchema = new mongoose.Schema(
 
 // Middleware to update Pool's gigs array when application status changes
 PoolApplicationSchema.pre('save', async function(next) {
-  if (this.isModified('status')) {
-    const pool = await Pool.findById(this.pool);
-    if (!pool) return next();
+  // Ensure pool.gigs stays in sync when a new application is created or when status/hidden changes
+  if (this.isNew || this.isModified('status') || this.isModified('hidden')) {
+    try {
+      const pool = await Pool.findById(this.pool);
+      if (!pool) return next();
 
-    // Update gig status in pool's gigs array
-    const gigIndex = pool.gigs.findIndex(g => g.gig.toString() === this.gig.toString());
-    if (gigIndex === -1) {
-      pool.gigs.push({
-        gig: this.gig,
-        status: this.status,
-        appliedAt: this.createdAt,
-        application: this._id
-      });
-    } else {
-      pool.gigs[gigIndex].status = this.status;
-    }
-
-    // Update filledPositions count
-    if (this.status === 'selected') {
-      pool.filledPositions = (pool.filledPositions || 0) + 1;
-      if (pool.filledPositions >= pool.maxPositions) {
-        pool.status = 'closed';
+      // Update gig status in pool's gigs array
+      const gigIndex = pool.gigs.findIndex(g => String(g.gig) === String(this.gig));
+      if (gigIndex === -1) {
+        pool.gigs.push({
+          gig: this.gig,
+          status: this.status,
+          appliedAt: this.createdAt,
+          application: this._id
+        });
+      } else {
+        pool.gigs[gigIndex].status = this.status;
+        // ensure application id is present on the pool entry
+        pool.gigs[gigIndex].application = pool.gigs[gigIndex].application || this._id;
+          // If this application is hidden, remove it from the pool.gigs listing
+          if (this.hidden) {
+            pool.gigs.splice(gigIndex, 1);
+          }
       }
-    }
 
-    await pool.save();
+      // Update filledPositions count when selected
+      if (this.status === 'selected') {
+        pool.filledPositions = (pool.filledPositions || 0) + 1;
+        if (pool.filledPositions >= (pool.maxPositions || 0)) {
+          pool.status = 'closed';
+        }
+      }
+
+      await pool.save();
+    } catch (err) {
+      console.warn('PoolApplication pre-save sync failed:', err.message);
+    }
   }
   next();
 });

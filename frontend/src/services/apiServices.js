@@ -45,6 +45,7 @@ export const organizerService = {
   acceptInvitation: (id) => apiClient.post(`/organizer/invitations/${id}/accept`),
   rejectInvitation: (id) => apiClient.post(`/organizer/invitations/${id}/reject`),
   addToTeam: (poolId, data) => apiClient.post(`/organizer/pools/${poolId}/add-to-team`, data),
+  removeApplication: (poolId, applicationId) => apiClient.post(`/organizer/pools/${poolId}/applications/${applicationId}/remove`),
   acceptApplication: (poolId, gigId) => apiClient.post(`/organizer/pools/${poolId}/applications/${gigId}/accept`),
   rejectApplication: (poolId, gigId) => apiClient.post(`/organizer/pools/${poolId}/applications/${gigId}/reject`),
 };

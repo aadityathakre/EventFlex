@@ -551,6 +551,27 @@ export const rejectApplication = asyncHandler(async (req, res) => {
   await pool.save();
 
   try {
+    // Also update the PoolApplication document if present so state is consistent
+    const poolApp = await PoolApplication.findOne({ pool: poolId, gig: gigId });
+    if (poolApp) {
+      poolApp.status = 'rejected';
+      poolApp.organizerActionDate = new Date();
+      await poolApp.save();
+      // Optionally notify the gig about rejection
+      try {
+        await createNotification({
+          recipient: poolApp.gig,
+          type: 'POOL_APPLICATION_REJECTED',
+          message: `Your application for pool ${pool.name} has been rejected`,
+          reference: { type: 'pool_application', id: poolApp._id }
+        });
+      } catch (nerr) {
+        console.warn('Failed to notify gig about rejection', nerr.message);
+      }
+      // emit application decided event for organizer-scoped listeners
+      emitPoolEvent('application_decided_org', poolApp);
+    }
+
     const populated = await Pool.findById(pool._id).populate('organizer', 'name email').populate('gigs.gig', 'name avatar badges');
     emitPoolEvent('pool_updated', populated);
   } catch (err) {
@@ -869,6 +890,47 @@ export const rejectInvitation = asyncHandler(async (req, res) => {
   }
 
   return res.status(200).json(new ApiResponse(200, invite, 'Invitation rejected'));
+});
+
+// Organizer: remove (hide/delete) an application from a pool
+export const removeApplication = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { poolId, applicationId } = req.params;
+
+  const pool = await Pool.findOne({ _id: poolId, organizer: organizerId });
+  if (!pool) throw new ApiError(404, 'Pool not found');
+
+  // Try to locate the PoolApplication. The caller may pass either an application id
+  // or (by mistake) a gig id — be tolerant and try both.
+  let application = await PoolApplication.findById(applicationId);
+  if (!application) {
+    // maybe the client passed gig id instead of application id
+    application = await PoolApplication.findOne({ pool: poolId, gig: applicationId, hidden: { $ne: true } });
+  }
+  if (!application) throw new ApiError(404, 'Application not found');
+  if (String(application.pool) !== String(poolId)) throw new ApiError(400, 'Application does not belong to this pool');
+
+  // Soft-hide the application so it's not shown in organizer views
+  application.hidden = true;
+  await application.save();
+
+  // Remove from pool.gigs if present. Match by the saved application _id or the gig id.
+  const appId = application._id;
+  const gigId = application.gig;
+  const idx = pool.gigs.findIndex(g => String(g.application) === String(appId) || String(g.gig) === String(gigId));
+  if (idx !== -1) {
+    pool.gigs.splice(idx, 1);
+    await pool.save();
+  }
+
+  try {
+    const populated = await Pool.findById(pool._id).populate('gigs.gig', 'first_name last_name avatar');
+    emitPoolEvent('pool_updated', populated);
+  } catch (err) {
+    console.warn('Failed to emit pool_updated after removal', err.message);
+  }
+
+  return res.status(200).json(new ApiResponse(200, { removed: true }, 'Application removed'));
 });
 
 // 20. Certificates (this feature will come soon)

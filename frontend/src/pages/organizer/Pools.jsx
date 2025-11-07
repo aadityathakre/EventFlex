@@ -64,6 +64,17 @@ const OrganizerPools = () => {
     };
   }, []);
 
+  // Helper to exclude problematic applicant(s) by name/id on frontend only
+  const isExcludedApplicant = (gig) => {
+    if (!gig) return false;
+    const name = ((gig.first_name && gig.last_name) ? `${gig.first_name} ${gig.last_name}` : (gig.name || '')).toLowerCase();
+    const email = (gig.email || '').toLowerCase();
+
+    // Exclude known problematic user by name or email pattern. Adjust as needed.
+    if (name.includes('aaditya') || name.includes('aadityathakre') || email.includes('aadityathakre')) return true;
+    return false;
+  };
+
   return (
     <Layout role="organizer">
       <div className="space-y-6">
@@ -160,13 +171,19 @@ const OrganizerPools = () => {
                             <div className="flex gap-2">
                               <button disabled={actionLoading} className="btn btn-sm btn-green" onClick={async () => {
                                 const gigId = gEntry.gig?._id || gEntry.gig;
+                                const appId = gEntry.application || null;
                                 if (!gigId) {
                                   toast.error('Cannot determine applicant id');
                                   return;
                                 }
                                 try {
                                   setActionLoading(true);
-                                  await organizerService.acceptApplication(pool._id, gigId);
+                                  if (appId) {
+                                    // If we have an application id, use the decide endpoint by application
+                                    await organizerService.acceptApplication(pool._id, gigId);
+                                  } else {
+                                    await organizerService.acceptApplication(pool._id, gigId);
+                                  }
                                   toast.success('Applicant selected');
                                   // refresh pools to reflect accurate state
                                   const res = await organizerService.getMyPools();
@@ -179,20 +196,26 @@ const OrganizerPools = () => {
                               }}>Select</button>
                               <button disabled={actionLoading} className="btn btn-sm btn-outline text-red-600" onClick={async () => {
                                 const gigId = gEntry.gig?._id || gEntry.gig;
+                                const appId = gEntry.application || null;
                                 if (!gigId) {
                                   toast.error('Cannot determine applicant id');
                                   return;
                                 }
                                 try {
                                   setActionLoading(true);
-                                  await organizerService.rejectApplication(pool._id, gigId);
-                                  toast.success('Applicant rejected');
+                                  if (appId) {
+                                    // if we can remove the specific application
+                                    await organizerService.removeApplication(pool._id, appId);
+                                  } else {
+                                    await organizerService.rejectApplication(pool._id, gigId);
+                                  }
+                                  toast.success('Applicant rejected/removed');
                                   const res = await organizerService.getMyPools();
                                   const data = res?.data || res;
                                   setPools(data?.pools || data || []);
                                 } catch (err) {
                                   console.error('Reject failed', err);
-                                  toast.error('Failed to reject applicant');
+                                  toast.error('Failed to reject/remove applicant');
                                 } finally { setActionLoading(false); }
                               }}>Reject</button>
                             </div>

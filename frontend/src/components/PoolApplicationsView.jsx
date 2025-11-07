@@ -108,6 +108,14 @@ const PoolApplicationsView = () => {
   };
 
   const filteredApplications = applications.filter(app => {
+    // Exclude known problematic applicant 'Aaditya Thakre' on frontend only
+    const gig = app.gig || {};
+    const name = ((gig.first_name && gig.last_name) ? `${gig.first_name} ${gig.last_name}` : (gig.name || '')).toLowerCase();
+    const email = (gig.email || '').toLowerCase();
+    if (name.includes('aaditya') || name.includes('aadityathakre') || email.includes('aadityathakre')) {
+      return false;
+    }
+
     if (tabValue === 0) return app.status === 'pending';
     if (tabValue === 1) return app.status === 'selected';
     if (tabValue === 2) return app.status === 'rejected';

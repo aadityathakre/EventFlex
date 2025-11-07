@@ -14,6 +14,7 @@ import {
   getPoolApplicants,
   acceptApplication,
   rejectApplication,
+  removeApplication,
   getInvitations,
   acceptInvitation,
   rejectInvitation,
@@ -72,6 +73,8 @@ router.post("/pools/:poolId/applications/:gigId/reject", verifyToken, authorizeR
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 // Add a gig directly to your team for a given pool
 router.post('/pools/:poolId/add-to-team', verifyToken, authorizeRoles('organizer'), addToTeam);
+// Remove (hide/delete) an application from a pool
+router.post('/pools/:poolId/applications/:applicationId/remove', verifyToken, authorizeRoles('organizer'), removeApplication);
 
 // Invitations from hosts (organizer messages)
 router.get('/invitations', verifyToken, authorizeRoles('organizer'), getInvitations);
