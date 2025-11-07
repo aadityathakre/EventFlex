@@ -8,6 +8,7 @@ import {
 
   // 👥 Pool & Team Management
   createPool,
+  getMyPools,
   managePool,
   getPoolDetails,
   chatWithGig,
@@ -55,6 +56,7 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 // 👥 Pool & Team Management
 //
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
+router.get("/pools", verifyToken, authorizeRoles("organizer"), getMyPools);
 router.put("/pools/manage/:id", verifyToken, authorizeRoles("organizer"), managePool);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);

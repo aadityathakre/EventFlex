@@ -104,17 +104,26 @@ export const verifyAadhaar = asyncHandler(async (req, res) => {
 // 4. Create Pool
 export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const { name, description } = req.body;
+  const { name, description, date, venue } = req.body;
 
   const pool = await Pool.create({
     organizer: organizerId,
     name,
     description,
+    date: date ? new Date(date) : undefined,
+    venue: venue || undefined,
   });
 
   return res
     .status(201)
     .json(new ApiResponse(201, pool, "Pool created successfully !"));
+});
+
+// List pools for the current organizer
+export const getMyPools = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const pools = await Pool.find({ organizer: organizerId }).sort({ createdAt: -1 }).select('-__v');
+  return res.status(200).json(new ApiResponse(200, { pools }, 'Organizer pools fetched'));
 });
 
 // 5. Manage Pool (Add/Remove Gigs)

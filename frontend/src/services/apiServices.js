@@ -28,6 +28,7 @@ export const gigService = {
 // Organizer Services
 export const organizerService = {
   createPool: (data) => apiClient.post('/organizer/pools/create', data),
+  getMyPools: () => apiClient.get('/organizer/pools'),
   getPoolDetails: (poolId) => apiClient.get(`/organizer/pools/${poolId}`),
   managePool: (poolId, data) => apiClient.put(`/organizer/pools/manage/${poolId}`, data),
   createEvent: (data) => apiClient.post('/organizer/events/create', data),

@@ -19,6 +19,7 @@ import OrganizerDashboard from './pages/organizer/Dashboard';
 import OrganizerEvents from './pages/organizer/Events';
 import OrganizerPools from './pages/organizer/Pools';
 import OrganizerWallet from './pages/organizer/Wallet';
+import ManagePool from './pages/organizer/ManagePool';
 
 // Host Pages
 import HostDashboard from './pages/host/Dashboard';
@@ -138,6 +139,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['organizer']}>
               <OrganizerPools />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/organizer/pools/manage/:id"
+          element={
+            <ProtectedRoute allowedRoles={['organizer']}>
+              <ManagePool />
             </ProtectedRoute>
           }
         />

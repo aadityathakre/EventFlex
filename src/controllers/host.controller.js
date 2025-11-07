@@ -261,29 +261,29 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
     pay_range,
   } = req.body;
 
-  if (
-    !organizerId ||
-    !eventId ||
-    !pool_name ||
-    !location?.coordinates ||
-    !max_capacity
-  ) {
+  if (!organizerId || !eventId || !pool_name || !max_capacity) {
     throw new ApiError(400, "Missing required fields");
   }
 
-  const pool = await OrganizerPool.create({
+  const poolPayload = {
     organizer: organizerId,
     event: eventId,
-    location: {
-      type: "Point",
-      coordinates: location.coordinates,
-    },
     pool_name,
     max_capacity,
     required_skills,
     pay_range,
     status: "open",
-  });
+  };
+
+  // include location only if provided
+  if (location?.coordinates) {
+    poolPayload.location = {
+      type: "Point",
+      coordinates: location.coordinates,
+    };
+  }
+
+  const pool = await OrganizerPool.create(poolPayload);
 
   return res
     .status(201)
