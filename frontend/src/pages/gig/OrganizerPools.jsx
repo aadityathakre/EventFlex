@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { gigService } from '../../services/apiServices';
 import { toast } from 'react-hot-toast';
+import { MapPin, Calendar, Users, Clock, Tag, Building, Search, DollarSign } from 'lucide-react';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import Layout from '../../components/Layout';
 
 const OrganizerPools = () => {
   const [pools, setPools] = useState([]);
@@ -46,59 +48,134 @@ const OrganizerPools = () => {
     return <LoadingSpinner />;
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">Organizer Pools</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {pools.map((pool) => (
-          <div 
-            key={pool._id} 
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-          >
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-2 text-gray-800">{pool.name}</h2>
-              <p className="text-gray-600 mb-4">{pool.description}</p>
-              
-              <div className="flex items-center mb-4">
-                <img 
-                  src={pool.organizer?.profile_image_url || '/default-avatar.png'} 
-                  alt={pool.organizer?.name}
-                  className="w-10 h-10 rounded-full mr-3"
-                />
-                <div>
-                  <p className="font-medium text-gray-800">{pool.organizer.name}</p>
-                  <p className="text-sm text-gray-500">Organizer</p>
-                </div>
-              </div>
+  const formatDate = (dateString) => {
+    const options = {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    };
+    return new Date(dateString).toLocaleDateString('en-IN', options);
+  };
 
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">
-                  {pool.member_count ?? (pool.gigs?.length || 0)} members
-                </span>
-                <button
-                  onClick={() => handleJoinPool(pool._id)}
-                  disabled={pool.hasJoined || pool.status === 'joined'}
-                  className={`px-4 py-2 rounded-md ${
-                    pool.hasJoined || pool.status === 'joined'
-                      ? 'bg-gray-300 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
-                >
-                  {pool.hasJoined ? 'Request Sent' : 'Join Pool'}
-                </button>
-              </div>
+  return (
+    <Layout role="gig">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold dark:text-white text-gray-900">Event Pools</h1>
+            <p className="text-gray-600 dark:text-gray-400">Join top-tier event teams and start earning</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search pools..."
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
             </div>
           </div>
-        ))}
-      </div>
-
-      {pools.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-gray-600">No organizer pools available at the moment.</p>
         </div>
-      )}
-    </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {pools.map((pool) => (
+            <div 
+              key={pool._id} 
+              className="bg-white dark:bg-dark-card rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{pool.name}</h2>
+                    {pool.category && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">
+                        <Building className="w-3 h-3 mr-1" />
+                        {pool.category}
+                      </span>
+                    )}
+                  </div>
+                  {pool.pay_range && (
+                    <div className="text-right">
+                      <div className="flex items-center text-teal-600 dark:text-teal-400">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        <span className="font-semibold">{pool.pay_range}</span>
+                      </div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">per event</span>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">{pool.description}</p>
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {pool.location && (
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <MapPin className="w-4 h-4 mr-2 text-teal-500" />
+                      <span className="text-sm">{pool.location}</span>
+                    </div>
+                  )}
+                  
+                  {pool.event_date && (
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Calendar className="w-4 h-4 mr-2 text-teal-500" />
+                      <span className="text-sm">{formatDate(pool.event_date)}</span>
+                    </div>
+                  )}
+                  
+                  {pool.duration && (
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Clock className="w-4 h-4 mr-2 text-teal-500" />
+                      <span className="text-sm">{pool.duration}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                    <Users className="w-4 h-4 mr-2 text-teal-500" />
+                    <span className="text-sm">
+                      {pool.member_count ?? (pool.gigs?.length || 0)} members
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center">
+                    <img 
+                      src={pool.organizer?.profile_image_url || '/default-avatar.png'} 
+                      alt={pool.organizer?.name}
+                      className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-700"
+                    />
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{pool.organizer.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Event Organizer</p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => handleJoinPool(pool._id)}
+                    disabled={pool.hasJoined || pool.status === 'joined'}
+                    className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      pool.hasJoined || pool.status === 'joined'
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'bg-teal-500 hover:bg-teal-600 text-white shadow hover:shadow-lg hover:-translate-y-0.5'
+                    }`}
+                  >
+                    {pool.hasJoined ? 'Request Sent' : 'Join Pool'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {pools.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-600 dark:text-gray-400">No organizer pools available at the moment.</p>
+          </div>
+        )}
+      </div>
+    </Layout>
   );
 };
 
