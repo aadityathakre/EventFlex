@@ -64,8 +64,8 @@ const OrganizerPools = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold dark:text-white text-gray-900">Event Pools</h1>
-            <p className="text-gray-600 dark:text-gray-400">Join top-tier event teams and start earning</p>
+            <h1 className="text-3xl font-bold dark:text-white text-gray-900">All Available Pools</h1>
+            <p className="text-gray-600 dark:text-gray-400">Browse and join event teams that match your skills</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative w-64">
@@ -77,6 +77,15 @@ const OrganizerPools = () => {
               />
             </div>
           </div>
+        </div>
+        
+        {/* Filters */}
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          <button className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-600">All Pools</button>
+          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Wedding Events</button>
+          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Corporate</button>
+          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Exhibitions</button>
+          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Tech Events</button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

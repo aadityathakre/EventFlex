@@ -131,50 +131,7 @@ const Sidebar = ({ role }) => {
 
       {/* Help & User Section */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-        {role === 'gig' && (
-          <div className="mb-3">
-            <h4 className="text-sm font-semibold mb-2 dark:text-gray-200 text-gray-700">Organizer Pools</h4>
-            {poolsLoading ? (
-              <div className="text-xs text-gray-500">Loading...</div>
-            ) : pools.length === 0 ? (
-              <div className="text-xs text-gray-500">No pools available</div>
-              ) : (
-              pools.slice(0, 4).map((pool) => (
-                <div key={pool._id} className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100">
-                    <img src={pool.organizer?.profile_image_url || defaultAvatars.organizer} alt={pool.organizer?.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Link to={`/dashboard/${role}/pools`} className="text-sm font-medium truncate dark:text-white text-gray-900">{pool.name}</Link>
-                    <div className="text-xs text-gray-500">{pool.member_count} members</div>
-                  </div>
-                  <div>
-                    <button
-                      onClick={async () => {
-                        if (pool.status === 'joined' || pool.status === 'pending') return;
-                        const ok = window.confirm(`Join pool \"${pool.name}\"?`);
-                        if (!ok) return;
-                        setJoining(prev => ({ ...prev, [pool._id]: true }));
-                        try {
-                          await gigService.joinPoolModel(pool._id);
-                          // optimistic update
-                          setPools(curr => curr.map(c => c._id === pool._id ? { ...c, status: 'joined', member_count: (c.member_count || 0) + 1 } : c));
-                        } catch (e) {
-                          console.error('Failed to join pool', e);
-                        } finally {
-                          setJoining(prev => ({ ...prev, [pool._id]: false }));
-                        }
-                      }}
-                      disabled={!!joining[pool._id]}
-                      className={`text-xs px-2 py-1 rounded ${pool.status === 'joined' ? 'bg-gray-200 text-gray-700' : pool.status === 'pending' ? 'bg-yellow-300 text-black' : 'bg-teal text-white'}`}>
-                      {joining[pool._id] ? 'Joining...' : (pool.status === 'joined' ? 'Joined' : pool.status === 'pending' ? 'Requested' : 'Join')}
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+        {/* No pools list in sidebar */}
         <Link
           to="/help"
           className="sidebar-link"
