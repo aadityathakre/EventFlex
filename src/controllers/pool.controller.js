@@ -104,15 +104,17 @@ export const applyToPool = async (req, res) => {
         const existing = poolDoc.gigs.find(g => String(g.gig) === String(req.user._id));
         if (!existing) {
           poolDoc.gigs.push({
-            gig: req.user._id,
-            status: 'pending',
-            appliedAt: application.createdAt
+              gig: req.user._id,
+              status: 'pending',
+              appliedAt: application.createdAt,
+              application: application._id
           });
           await poolDoc.save();
         } else {
           // update appliedAt if needed
           existing.status = 'pending';
-          existing.appliedAt = application.createdAt;
+            existing.appliedAt = application.createdAt;
+            existing.application = application._id;
           await poolDoc.save();
         }
       }

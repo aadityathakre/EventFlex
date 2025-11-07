@@ -20,6 +20,11 @@ const PoolSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
+      // reference to the PoolApplication document (if any)
+      application: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PoolApplication'
+      },
       status: {
         type: String,
         enum: ["pending", "selected", "rejected"],

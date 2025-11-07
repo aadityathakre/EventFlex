@@ -77,7 +77,8 @@ PoolApplicationSchema.pre('save', async function(next) {
       pool.gigs.push({
         gig: this.gig,
         status: this.status,
-        appliedAt: this.createdAt
+        appliedAt: this.createdAt,
+        application: this._id
       });
     } else {
       pool.gigs[gigIndex].status = this.status;

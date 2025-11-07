@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import Organizer from "../models/User.model.js";
 import Pool from "../models/Pool.model.js";
+import PoolApplication from "../models/PoolApplication.model.js";
 import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
 import Conversation from "../models/Conversation.model.js";
@@ -241,7 +242,12 @@ export const createPool = asyncHandler(async (req, res) => {
 // List pools for the current organizer
 export const getMyPools = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const pools = await Pool.find({ organizer: organizerId }).sort({ createdAt: -1 }).select('-__v');
+  const pools = await Pool.find({ organizer: organizerId })
+    .sort({ createdAt: -1 })
+    .populate('gigs.gig', 'first_name last_name avatar')
+    .select('-__v')
+    .lean();
+
   return res.status(200).json(new ApiResponse(200, { pools }, 'Organizer pools fetched'));
 });
 
@@ -423,8 +429,30 @@ export const acceptApplication = asyncHandler(async (req, res) => {
 
   // Emit update for watchers
   try {
-    const populated = await Pool.findById(pool._id).populate('organizer', 'name email').populate('gigs.gig', 'name avatar badges');
+    // Also update the PoolApplication document if present
+    const poolApp = await PoolApplication.findOne({ pool: poolId, gig: gigId });
+    if (poolApp) {
+      poolApp.status = 'selected';
+      poolApp.organizerActionDate = new Date();
+      await poolApp.save();
+
+      // Notify the gig about selection
+      try {
+        await createNotification({
+          recipient: poolApp.gig,
+          type: 'POOL_APPLICATION_SELECTED',
+          message: `Your application for pool ${pool.name} has been selected`,
+          reference: { type: 'pool_application', id: poolApp._id }
+        });
+      } catch (nerr) {
+        console.warn('Failed to notify gig about selection', nerr.message);
+      }
+    }
+
+    const populated = await Pool.findById(pool._id).populate('organizer', 'name email').populate('gigs.gig', 'first_name last_name avatar');
     emitPoolEvent('pool_updated', populated);
+    // emit application decided event for organizer-scoped listeners
+    if (poolApp) emitPoolEvent('application_decided_org', poolApp);
   } catch (err) {
     console.warn('Failed to emit pool_updated', err.message);
   }

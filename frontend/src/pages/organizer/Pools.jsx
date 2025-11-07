@@ -4,6 +4,7 @@ import { organizerService } from '../../services/apiServices';
 import { Link } from 'react-router-dom';
 import CreatePoolModal from '../../components/CreatePoolModal';
 import notificationService from '../../services/notificationService';
+import toast from 'react-hot-toast';
 
 const OrganizerPools = () => {
   const [pools, setPools] = useState([]);
@@ -141,6 +142,65 @@ const OrganizerPools = () => {
                       setRate('');
                     }}>Add to Your Team</button>
                   </div>
+
+                  {/* Inline pending applicants preview */}
+                  {Array.isArray(pool.gigs) && pool.gigs.filter(g => g.status === 'pending').length > 0 && (
+                    <div className="mt-3 border-t pt-3">
+                      <div className="text-sm font-medium mb-2">Recent Applicants</div>
+                      <div className="flex flex-col gap-2">
+                        {pool.gigs.filter(g => g.status === 'pending').slice(0,3).map((gEntry) => (
+                          <div key={gEntry.application || gEntry.gig._id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <img src={gEntry.gig?.avatar} alt="avatar" className="w-8 h-8 rounded-full" />
+                              <div>
+                                <div className="text-sm font-medium">{gEntry.gig?.first_name ? `${gEntry.gig.first_name} ${gEntry.gig.last_name || ''}` : (gEntry.gig?.name || 'Applicant')}</div>
+                                <div className="text-xs text-gray-500">Applied: {gEntry.appliedAt ? new Date(gEntry.appliedAt).toLocaleDateString() : '—'}</div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button disabled={actionLoading} className="btn btn-sm btn-green" onClick={async () => {
+                                const gigId = gEntry.gig?._id || gEntry.gig;
+                                if (!gigId) {
+                                  toast.error('Cannot determine applicant id');
+                                  return;
+                                }
+                                try {
+                                  setActionLoading(true);
+                                  await organizerService.acceptApplication(pool._id, gigId);
+                                  toast.success('Applicant selected');
+                                  // refresh pools to reflect accurate state
+                                  const res = await organizerService.getMyPools();
+                                  const data = res?.data || res;
+                                  setPools(data?.pools || data || []);
+                                } catch (err) {
+                                  console.error('Accept failed', err);
+                                  toast.error('Failed to select applicant');
+                                } finally { setActionLoading(false); }
+                              }}>Select</button>
+                              <button disabled={actionLoading} className="btn btn-sm btn-outline text-red-600" onClick={async () => {
+                                const gigId = gEntry.gig?._id || gEntry.gig;
+                                if (!gigId) {
+                                  toast.error('Cannot determine applicant id');
+                                  return;
+                                }
+                                try {
+                                  setActionLoading(true);
+                                  await organizerService.rejectApplication(pool._id, gigId);
+                                  toast.success('Applicant rejected');
+                                  const res = await organizerService.getMyPools();
+                                  const data = res?.data || res;
+                                  setPools(data?.pools || data || []);
+                                } catch (err) {
+                                  console.error('Reject failed', err);
+                                  toast.error('Failed to reject applicant');
+                                } finally { setActionLoading(false); }
+                              }}>Reject</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
