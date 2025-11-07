@@ -1,3 +1,4 @@
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -15,16 +16,15 @@ import GigOrganizerPools from './pages/gig/OrganizerPools';
 import PoolDetails from './pages/gig/PoolDetails';
 import GigWallet from './pages/gig/Wallet';
 import GigProfile from './pages/gig/Profile';
-import Withdraw from './pages/gig/Withdraw';
-
-// //help pages
-import Help from './pages/help.jsx';
+import PoolApplicationForm from './components/PoolApplicationForm';
 
 // Organizer Pages
 import OrganizerDashboard from './pages/organizer/Dashboard';
 import OrganizerEvents from './pages/organizer/Events';
 import OrganizerPools from './pages/organizer/Pools';
 import OrganizerWallet from './pages/organizer/Wallet';
+import ManagePool from './pages/organizer/ManagePool';
+import PoolApplicationsView from './components/PoolApplicationsView';
 
 // Host Pages
 import HostDashboard from './pages/host/Dashboard';
@@ -45,6 +45,8 @@ import Dispute from './pages/admin/Disputes';
 
 // Home/Landing
 import Home from './pages/Home';
+
+const OrganizerMessagesLazy = lazy(() => import('./pages/organizer/Messages'));
 
 function App() {
   return (
@@ -94,6 +96,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['gig']}>
               <PoolDetails />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pools/:poolId/apply"
+          element={
+            <ProtectedRoute allowedRoles={['gig']}>
+              <PoolApplicationForm />
             </ProtectedRoute>
           }
         />
@@ -175,6 +185,22 @@ function App() {
           }
         />
         <Route
+          path="/dashboard/organizer/pools/:poolId/applications"
+          element={
+            <ProtectedRoute allowedRoles={['organizer']}>
+              <PoolApplicationsView />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/organizer/pools/manage/:id"
+          element={
+            <ProtectedRoute allowedRoles={['organizer']}>
+              <ManagePool />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dashboard/organizer/wallet"
           element={
             <ProtectedRoute allowedRoles={['organizer']}>
@@ -210,7 +236,10 @@ function App() {
           path="/dashboard/organizer/messages"
           element={
             <ProtectedRoute allowedRoles={['organizer']}>
-              <OrganizerDashboard />
+              {/* Messages page: host invitations and messages */}
+              <Suspense fallback={<div>Loading...</div>}>
+                <OrganizerMessagesLazy />
+              </Suspense>
             </ProtectedRoute>
           }
         />

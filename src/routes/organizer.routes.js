@@ -8,8 +8,17 @@ import {
 
   // 👥 Pool & Team Management
   createPool,
+  getMyPools,
   managePool,
   getPoolDetails,
+  getPoolApplicants,
+  acceptApplication,
+  rejectApplication,
+  removeApplication,
+  getInvitations,
+  acceptInvitation,
+  rejectInvitation,
+  addToTeam,
   chatWithGig,
 
   // 📅 Event Management
@@ -55,9 +64,22 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 // 👥 Pool & Team Management
 //
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
+router.get("/pools", verifyToken, authorizeRoles("organizer"), getMyPools);
 router.put("/pools/manage/:id", verifyToken, authorizeRoles("organizer"), managePool);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
+router.get("/pools/:id/applicants", verifyToken, authorizeRoles("organizer"), getPoolApplicants);
+router.post("/pools/:poolId/applications/:gigId/accept", verifyToken, authorizeRoles("organizer"), acceptApplication);
+router.post("/pools/:poolId/applications/:gigId/reject", verifyToken, authorizeRoles("organizer"), rejectApplication);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
+// Add a gig directly to your team for a given pool
+router.post('/pools/:poolId/add-to-team', verifyToken, authorizeRoles('organizer'), addToTeam);
+// Remove (hide/delete) an application from a pool
+router.post('/pools/:poolId/applications/:applicationId/remove', verifyToken, authorizeRoles('organizer'), removeApplication);
+
+// Invitations from hosts (organizer messages)
+router.get('/invitations', verifyToken, authorizeRoles('organizer'), getInvitations);
+router.post('/invitations/:id/accept', verifyToken, authorizeRoles('organizer'), acceptInvitation);
+router.post('/invitations/:id/reject', verifyToken, authorizeRoles('organizer'), rejectInvitation);
 
 //
 // 📅 Event Management

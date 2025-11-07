@@ -5,6 +5,7 @@ import UserDocument from "../models/UserDocument.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
+import { createNotification } from "../services/notification.service.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import EscrowContract from "../models/EscrowContract.model.js";
@@ -262,83 +263,43 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
     pay_range,
   } = req.body;
 
-  // allow broadcast invites (no specific organizer) or direct invite to a chosen organizer
-  if (!eventId || !pool_name || !location_address || !max_capacity) {
+  if (!organizerId || !eventId || !pool_name || !max_capacity) {
     throw new ApiError(400, "Missing required fields");
   }
 
-  const poolData = {
-    organizer: organizerId || null,
+  const poolPayload = {
+    organizer: organizerId,
     event: eventId,
-    location_address,
     pool_name,
     max_capacity,
     required_skills,
     pay_range,
-    status: organizerId ? "open" : "open",
+    status: "open",
   };
 
-  const pool = await OrganizerPool.create(poolData);
+  // include location only if provided
+  if (location?.coordinates) {
+    poolPayload.location = {
+      type: "Point",
+      coordinates: location.coordinates,
+    };
+  }
 
-  // Prepare host display name
-  const hostUser = await User.findById(hostId).select('first_name last_name name');
-  const hostDisplay = hostUser?.name || `${hostUser?.first_name || ''} ${hostUser?.last_name || ''}`.trim() || 'Host';
+  const pool = await OrganizerPool.create(poolPayload);
 
-  // if organizerId was not provided, broadcast a notification to all organizers and create messages
-  if (!organizerId) {
+  try {
+    // Fetch event title for a nicer notification message (best-effort)
     const event = await Event.findById(eventId).select('title');
-    const organizers = await User.find({ role: 'organizer' }).select('first_name last_name name');
 
-    const notifications = organizers.map((org) => ({
-      user: org._id,
-      type: 'event',
-      message: `New organizer opportunity: ${pool.pool_name} for event ${event?.title || eventId}`,
-    }));
-
-    if (notifications.length) {
-      await Notification.insertMany(notifications);
-    }
-
-    // create a conversation + message for each organizer so they can see the invite
-    for (const org of organizers) {
-      const orgDisplay = org?.name || `${org?.first_name || ''} ${org?.last_name || ''}`.trim() || 'Organizer';
-
-      let conversation = await Conversation.findOne({ participants: { $all: [hostId, org._id] }, event: eventId, pool: pool._id });
-      if (!conversation) {
-        conversation = await Conversation.create({ participants: [hostId, org._id], event: eventId, pool: pool._id });
-      }
-
-      await Message.create({
-        conversation: conversation._id,
-        sender: hostId,
-        sender_name: hostDisplay,
-        receiver_name: orgDisplay,
-        message_text: `Host ${hostDisplay} broadcasted an invite: ${pool.pool_name} for event ${event?.title || ''}`,
-      });
-    }
-  } else {
-    // if invited directly, notify that specific organizer and persist a message
-    const orgUser = await User.findById(organizerId).select('first_name last_name name');
-    const orgDisplay = orgUser?.name || `${orgUser?.first_name || ''} ${orgUser?.last_name || ''}`.trim() || 'Organizer';
-
-    await Notification.create({
-      user: organizerId,
-      type: 'event',
-      message: `You have been invited to manage pool ${pool.pool_name}`,
+    await createNotification({
+      recipient: organizerId,
+      type: 'organizer_invitation',
+      message: `You have been invited to organize: ${event?.title || pool_name}`,
+      reference: pool._id,
     });
-
-    let conversation = await Conversation.findOne({ participants: { $all: [hostId, organizerId] }, event: eventId, pool: pool._id });
-    if (!conversation) {
-      conversation = await Conversation.create({ participants: [hostId, organizerId], event: eventId, pool: pool._id });
-    }
-
-    await Message.create({
-      conversation: conversation._id,
-      sender: hostId,
-      sender_name: hostDisplay,
-      receiver_name: orgDisplay,
-      message_text: `Host ${hostDisplay} invited you to manage pool ${pool.pool_name} for event ${eventId}`,
-    });
+  } catch (err) {
+    // Don't block the primary response on notification errors - just log
+    console.error('Failed to create organizer invite notification', err);
   }
 
   return res

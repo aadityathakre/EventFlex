@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { Users, Plus, MapPin, Calendar, Edit, Trash2, Upload, MoreVertical, Search, FileText, Signal, CheckCircle } from 'lucide-react';
 import { organizerService } from '../../services/apiServices';
+import CreatePoolModal from '../../components/CreatePoolModal';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 
 const OrganizerDashboard = () => {
   const [pools, setPools] = useState([]);
+  const [createOpen, setCreateOpen] = useState(false);
   const [events, setEvents] = useState([]);
   const [nearbyTalent, setNearbyTalent] = useState([]);
   const [searchParams, setSearchParams] = useState({
@@ -22,13 +24,18 @@ const OrganizerDashboard = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch pools (mock data for now - will integrate with backend)
-      setPools([
-        { _id: '1', name: 'Tech Conference Crew', location: 'Mumbai', members: 15 },
-        { _id: '2', name: 'Festival Volunteers', location: 'Goa', members: 10 },
-      ]);
-      
-      // Fetch events
+      // Fetch pools from backend
+      try {
+        const res = await organizerService.getMyPools();
+        const data = res?.data || res;
+        const backendPools = data?.pools || data || [];
+        setPools(backendPools);
+      } catch (err) {
+        console.error('Failed to fetch pools from backend', err);
+        setPools([]);
+      }
+
+      // Fetch events (keep mock for now)
       const eventsData = await organizerService.getEventDetails?.('event-id') || [];
       setEvents([
         { _id: '1', title: 'Corporate Gala Dinner', date: 'Dec 15, 2023', location: 'Delhi' },
@@ -60,7 +67,7 @@ const OrganizerDashboard = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold dark:text-white text-gray-900">Organizer Dashboard</h1>
           <div className="flex items-center gap-4">
-            <button className="btn btn-teal">
+            <button onClick={() => setCreateOpen(true)} className="btn btn-teal">
               <Plus className="w-4 h-4" />
               Create Pool
             </button>
@@ -74,10 +81,10 @@ const OrganizerDashboard = () => {
             <div className="card">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold dark:text-white text-gray-900">My Gig Pools</h2>
-                <Link to="/dashboard/organizer/pools" className="btn btn-teal">
+                <button onClick={() => setCreateOpen(true)} className="btn btn-teal">
                   <Users className="w-4 h-4" />
                   Create Pool
-                </Link>
+                </button>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {pools.map((pool) => (
@@ -95,7 +102,7 @@ const OrganizerDashboard = () => {
                       </span>
                     </div>
                     <button className="btn btn-orange w-full text-sm">
-                      Manage
+                      <Link to={`/dashboard/organizer/pools/manage/${pool._id}`} className="w-full block text-left">Manage</Link>
                     </button>
                   </div>
                 ))}
@@ -299,6 +306,20 @@ const OrganizerDashboard = () => {
           </div>
         </div>
       </div>
+      <CreatePoolModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={async () => {
+          setCreateOpen(false);
+          try {
+            const res = await organizerService.getMyPools();
+            const data = res?.data || res;
+            setPools(data?.pools || data || []);
+          } catch (err) {
+            console.error('Failed to refresh pools after create', err);
+          }
+        }}
+      />
     </Layout>
   );
 };

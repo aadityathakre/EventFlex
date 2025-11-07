@@ -16,11 +16,17 @@ const OrganizerPoolSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    // simple textual address for the pool location (no geo coords)
-    location_address: {
-      type: String,
-      trim: true,
-      required: true,
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        // not required so pools can be created without a pinned location
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        // optional: coordinates may be omitted when organizer doesn't pin location
+      },
     },
     pool_name: {
       type: String,
@@ -40,7 +46,7 @@ const OrganizerPoolSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["open", "active", "completed"],
+      enum: ["open", "active", "completed", "rejected"],
       default: "open",
       required: true,
     },

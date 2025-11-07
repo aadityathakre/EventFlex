@@ -20,6 +20,11 @@ const PoolSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
+      // reference to the PoolApplication document (if any)
+      application: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PoolApplication'
+      },
       status: {
         type: String,
         enum: ["pending", "selected", "rejected"],
@@ -66,35 +71,17 @@ const PoolSchema = new mongoose.Schema(
     }],
     date: {
       type: Date,
-      required: true,
-      index: true
+    },
+    // City for quick search by gigs
+    city: {
+      type: String,
+      trim: true,
+      index: true,
     },
     venue: {
-      address: { 
-        type: String,
-        required: true,
-        trim: true
-      },
-      city: {
-        type: String,
-        required: true,
-        trim: true,
-        index: true
-      },
-      state: {
-        type: String,
-        trim: true
-      },
-      pincode: {
-        type: String,
-        trim: true
-      },
+      address: { type: String },
       lat: { type: Number },
       lng: { type: Number },
-      location: {
-        type: { type: String, default: 'Point' },
-        coordinates: [Number]
-      }
     },
     status: {
       type: String,
@@ -126,11 +113,6 @@ const PoolSchema = new mongoose.Schema(
 PoolSchema.index({ organizer: 1, status: 1 });
 // Index for searching open pools
 PoolSchema.index({ status: 1, applicationDeadline: 1 });
-
-// Indexes for date and location-based searches
-PoolSchema.index({ date: 1 });
-PoolSchema.index({ 'venue.city': 1 });
-PoolSchema.index({ 'venue.location': '2dsphere' });
 
 // Compute maxPositions automatically from roles and skills if provided
 PoolSchema.pre('save', function (next) {

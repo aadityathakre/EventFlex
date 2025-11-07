@@ -100,6 +100,7 @@ export const gigService = {
 // Organizer Services
 export const organizerService = {
   createPool: (data) => apiClient.post('/organizer/pools/create', data),
+  getMyPools: () => apiClient.get('/organizer/pools'),
   getPoolDetails: (poolId) => apiClient.get(`/organizer/pools/${poolId}`),
   managePool: (poolId, data) => apiClient.put(`/organizer/pools/manage/${poolId}`, data),
   createEvent: (data) => apiClient.post('/organizer/events/create', data),
@@ -112,6 +113,13 @@ export const organizerService = {
   getPaymentHistory: () => apiClient.get('/organizer/payment-history'),
   getWellnessScore: () => apiClient.get('/organizer/wellness-score'),
   getNoShowRisk: (gigId) => apiClient.get(`/organizer/no-show-risk/${gigId}`),
+  getInvitations: () => apiClient.get('/organizer/invitations'),
+  acceptInvitation: (id) => apiClient.post(`/organizer/invitations/${id}/accept`),
+  rejectInvitation: (id) => apiClient.post(`/organizer/invitations/${id}/reject`),
+  addToTeam: (poolId, data) => apiClient.post(`/organizer/pools/${poolId}/add-to-team`, data),
+  removeApplication: (poolId, applicationId) => apiClient.post(`/organizer/pools/${poolId}/applications/${applicationId}/remove`),
+  acceptApplication: (poolId, gigId) => apiClient.post(`/organizer/pools/${poolId}/applications/${gigId}/accept`),
+  rejectApplication: (poolId, gigId) => apiClient.post(`/organizer/pools/${poolId}/applications/${gigId}/reject`),
 };
 
 // Organizer actions on host-created pools
