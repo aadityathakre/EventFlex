@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { DollarSign, ArrowUpRight, Plus, GraduationCap, Shield, Building, Users, Search, MapPin, Calendar, Star, Award, QrCode } from 'lucide-react';
+import JoinPoolButton from '../../components/gig/JoinPoolButton';
 import { defaultAvatars } from '../../utils/defaultAvatars';
 import { gigService } from '../../services/apiServices';
 import toast from 'react-hot-toast';
@@ -95,6 +96,7 @@ const GigDashboard = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold dark:text-white text-gray-900">Dashboard</h1>
           <div className="flex items-center gap-4">
+            <JoinPoolButton />
             <button className="relative p-2">
               <span className="text-gray-400">🔔</span>
             </button>

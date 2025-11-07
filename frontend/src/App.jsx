@@ -11,6 +11,8 @@ import GigDashboard from './pages/gig/Dashboard';
 import GigEvents from './pages/gig/Events';
 import GigNearbyEvents from './pages/gig/NearbyEvents';
 import GigPools from './pages/gig/Pools';
+import GigOrganizerPools from './pages/gig/OrganizerPools';
+import PoolDetails from './pages/gig/PoolDetails';
 import GigWallet from './pages/gig/Wallet';
 import GigProfile from './pages/gig/Profile';
 import Withdraw from './pages/gig/Withdraw';
@@ -72,7 +74,15 @@ function App() {
           path="/dashboard/gig/pools"
           element={
             <ProtectedRoute allowedRoles={['gig']}>
-              <GigPools />
+              <GigOrganizerPools />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/gig/pools/:poolId"
+          element={
+            <ProtectedRoute allowedRoles={['gig']}>
+              <PoolDetails />
             </ProtectedRoute>
           }
         />

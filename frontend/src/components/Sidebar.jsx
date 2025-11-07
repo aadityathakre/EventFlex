@@ -9,12 +9,17 @@ import {
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import { useState, useEffect } from 'react';
+import { gigService } from '../services/apiServices';
+import { defaultAvatars } from '../utils/defaultAvatars';
 
 const Sidebar = ({ role }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
+  const [pools, setPools] = useState([]);
+  const [poolsLoading, setPoolsLoading] = useState(true);
+  const [joining, setJoining] = useState({});
 
   useEffect(() => {
     // Initialize theme on mount
@@ -24,6 +29,25 @@ const Sidebar = ({ role }) => {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Fetch a short list of organizer-created pools for the gig sidebar
+  useEffect(() => {
+    let mounted = true;
+    const fetchPools = async () => {
+      try {
+        const res = await gigService.getPools();
+        if (!mounted) return;
+        // gigService.getPools uses a transformResponse that returns the array itself
+        setPools(res || []);
+      } catch (err) {
+        console.error('Failed to load pools for sidebar', err);
+      } finally {
+        if (mounted) setPoolsLoading(false);
+      }
+    };
+    if (role === 'gig') fetchPools();
+    return () => { mounted = false; };
+  }, [role]);
 
   const handleLogout = async () => {
     await logout();
@@ -107,6 +131,50 @@ const Sidebar = ({ role }) => {
 
       {/* Help & User Section */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+        {role === 'gig' && (
+          <div className="mb-3">
+            <h4 className="text-sm font-semibold mb-2 dark:text-gray-200 text-gray-700">Organizer Pools</h4>
+            {poolsLoading ? (
+              <div className="text-xs text-gray-500">Loading...</div>
+            ) : pools.length === 0 ? (
+              <div className="text-xs text-gray-500">No pools available</div>
+              ) : (
+              pools.slice(0, 4).map((pool) => (
+                <div key={pool._id} className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100">
+                    <img src={pool.organizer?.profile_image_url || defaultAvatars.organizer} alt={pool.organizer?.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Link to={`/dashboard/${role}/pools`} className="text-sm font-medium truncate dark:text-white text-gray-900">{pool.name}</Link>
+                    <div className="text-xs text-gray-500">{pool.member_count} members</div>
+                  </div>
+                  <div>
+                    <button
+                      onClick={async () => {
+                        if (pool.status === 'joined' || pool.status === 'pending') return;
+                        const ok = window.confirm(`Join pool \"${pool.name}\"?`);
+                        if (!ok) return;
+                        setJoining(prev => ({ ...prev, [pool._id]: true }));
+                        try {
+                          await gigService.joinPoolModel(pool._id);
+                          // optimistic update
+                          setPools(curr => curr.map(c => c._id === pool._id ? { ...c, status: 'joined', member_count: (c.member_count || 0) + 1 } : c));
+                        } catch (e) {
+                          console.error('Failed to join pool', e);
+                        } finally {
+                          setJoining(prev => ({ ...prev, [pool._id]: false }));
+                        }
+                      }}
+                      disabled={!!joining[pool._id]}
+                      className={`text-xs px-2 py-1 rounded ${pool.status === 'joined' ? 'bg-gray-200 text-gray-700' : pool.status === 'pending' ? 'bg-yellow-300 text-black' : 'bg-teal text-white'}`}>
+                      {joining[pool._id] ? 'Joining...' : (pool.status === 'joined' ? 'Joined' : pool.status === 'pending' ? 'Requested' : 'Join')}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
         <Link
           to="/help"
           className="sidebar-link"
@@ -135,18 +203,22 @@ const Sidebar = ({ role }) => {
 
         {/* User Profile */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg">
-          <div className="w-10 h-10 rounded-full bg-teal flex items-center justify-center">
-            {user?.avatar ? (
-              <img src={user.avatar} alt={user.first_name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <UserCircle className="w-6 h-6 text-white" />
-            )}
-          </div>
+          <Link to={`/dashboard/${role}/profile`} className="block">
+            <div className="w-10 h-10 rounded-full bg-teal flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-teal transition-all">
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.first_name} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <UserCircle className="w-6 h-6 text-white" />
+              )}
+            </div>
+          </Link>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium dark:text-white text-gray-900 truncate">
-              {user?.first_name} {user?.last_name}
-            </p>
-            <p className="text-xs dark:text-gray-400 text-gray-600 capitalize">{role}</p>
+            <Link to={`/dashboard/${role}/profile`} className="block">
+              <p className="text-sm font-medium dark:text-white text-gray-900 truncate hover:text-teal transition-colors">
+                {user?.first_name} {user?.last_name}
+              </p>
+              <p className="text-xs dark:text-gray-400 text-gray-600 capitalize">{role}</p>
+            </Link>
           </div>
           <button
             onClick={handleLogout}

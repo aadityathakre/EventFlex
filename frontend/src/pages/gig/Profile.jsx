@@ -65,8 +65,15 @@ const GigProfile = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size should be less than 5MB');
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG)');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      toast.error('Image size should be less than 2MB');
       return;
     }
 
@@ -74,12 +81,33 @@ const GigProfile = () => {
     formData.append('avatar', file);
 
     try {
-      await gigService.updateProfile({ profile_image_url: formData });
+      const loadingToast = toast.loading('Uploading profile image...');
+      
+      // Set a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Upload timeout')), 30000); // 30 second timeout
+      });
+
+      // Race between the upload and timeout
+      await Promise.race([
+        gigService.updateProfileImage(formData),
+        timeoutPromise
+      ]);
+
+      toast.dismiss(loadingToast);
+      
+      // Add a small delay before fetching the updated profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await fetchProfile();
-      toast.success('Profile image updated');
+      
+      toast.success('Profile image updated successfully');
     } catch (error) {
       console.error('Error updating profile image:', error);
-      toast.error('Failed to update profile image');
+      if (error.message === 'Upload timeout') {
+        toast.error('Upload taking too long. Please try again with a smaller image.');
+      } else {
+        toast.error('Failed to update profile image. Please try again.');
+      }
     }
   };
 
@@ -142,17 +170,19 @@ const GigProfile = () => {
         </div>
 
         {/* Profile Header Card */}
-        <div className="card bg-gradient-to-r from-teal to-teal-dark text-white p-6">
+        <div className="card bg-white dark:bg-gray-800 p-6">
           <div className="flex items-center gap-6">
             <div className="relative">
-              <img
-                src={profile?.profile_image_url || defaultAvatars.gig}
-                alt="Profile"
-                className="w-24 h-24 rounded-full object-cover"
-              />
+              <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-teal/30">
+                <img
+                  src={profile?.profile_image_url || defaultAvatars.gig}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
               {!isEditing ? null : (
-                <label className="absolute bottom-0 right-0 p-1 bg-yellow-400 rounded-full cursor-pointer">
-                  <Camera className="w-4 h-4 text-gray-900" />
+                <label className="absolute bottom-0 right-0 p-1.5 bg-teal text-white rounded-full cursor-pointer hover:bg-teal-dark transition-colors">
+                  <Camera className="w-4 h-4" />
                   <input
                     type="file"
                     className="hidden"
@@ -163,24 +193,28 @@ const GigProfile = () => {
               )}
             </div>
             <div>
-              <h2 className="text-2xl font-bold mb-2">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 {isEditing ? (
                   <input
                     type="text"
                     value={editForm.name}
                     onChange={e => setEditForm({...editForm, name: e.target.value})}
-                    className="input bg-teal-dark/50 border-0 text-white placeholder-white/70"
+                    className="input bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
                     placeholder="Your name"
                   />
                 ) : (
                   profile?.name
                 )}
               </h2>
-              <p className="opacity-90">@{user?.username}</p>
+              <p className="text-gray-600 dark:text-gray-400">@{user?.username}</p>
               <div className="flex items-center gap-2 mt-2">
-                <span className="badge bg-yellow-400 text-gray-900">Gig Worker</span>
-                <span className={`badge ${
-                  kycStatus === 'verified' ? 'bg-green-500' : 'bg-gray-500'
+                <span className="px-2 py-1 text-xs font-medium rounded-full bg-teal/10 text-teal">
+                  Gig Worker
+                </span>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  kycStatus === 'verified' 
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
                 }`}>
                   {kycStatus === 'verified' ? 'KYC Verified' : 'KYC Pending'}
                 </span>
