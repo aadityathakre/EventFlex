@@ -19,6 +19,7 @@ import {
 import { useParams } from 'react-router-dom';
 import poolService from '../services/poolService';
 import { format } from 'date-fns';
+import notificationService from '../services/notificationService';
 
 const PoolApplicationsView = () => {
   const { poolId } = useParams();
@@ -50,6 +51,22 @@ const PoolApplicationsView = () => {
 
   useEffect(() => {
     loadData();
+  }, [poolId]);
+
+  // Subscribe to real-time application events so organizer UI updates immediately
+  useEffect(() => {
+    const unsubAppCreated = notificationService.on('pool_application_created', (data) => {
+      if (data.poolId === poolId) loadData();
+    });
+
+    const unsubDecided = notificationService.on('application_decided_org', (application) => {
+      if (application.pool && application.pool._id === poolId) loadData();
+    });
+
+    return () => {
+      unsubAppCreated();
+      unsubDecided();
+    };
   }, [poolId]);
 
   const handleTabChange = (event, newValue) => {

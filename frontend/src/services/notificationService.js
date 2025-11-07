@@ -1,24 +1,56 @@
-import api from './api';
+import api from '../utils/api';
 import io from 'socket.io-client';
-import { store } from '../store';
-import { addNotification, markNotificationSeen } from '../store/slices/notificationSlice';
 
 let socket;
+const listeners = {};
+
+const emitToListeners = (event, payload) => {
+  const fns = listeners[event] || [];
+  fns.forEach((fn) => {
+    try { fn(payload); } catch (err) { console.error('listener error', err); }
+  });
+};
 
 const notificationService = {
   // Initialize socket connection
   initializeSocket: (token) => {
+    if (socket?.connected) {
+      socket.disconnect();
+    }
+
     socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
-      auth: { token }
+      auth: { token },
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
     });
 
     socket.on('connect', () => {
       console.log('Connected to notification system');
+      // Request initial pool data after reconnection
+      socket.emit('subscribe_pools');
     });
 
     socket.on('notification', (notification) => {
-      store.dispatch(addNotification(notification));
-      // Optional: Play a sound or show a toast notification
+      // emit to local listeners; UI can decide what to do with notification
+      emitToListeners('notification', notification);
+    });
+
+    // Pool/app events
+    socket.on('pool_created', (pool) => {
+      emitToListeners('pool_created', pool);
+    });
+
+    socket.on('pool_updated', (pool) => {
+      emitToListeners('pool_updated', pool);
+    });
+
+    socket.on('pool_application_created', (data) => {
+      emitToListeners('pool_application_created', data);
+    });
+
+    socket.on('application_decided', (data) => {
+      emitToListeners('application_decided', data);
     });
 
     socket.on('connect_error', (error) => {
@@ -28,12 +60,25 @@ const notificationService = {
     return socket;
   },
 
+  // Simple event subscription API for components
+  on: (event, cb) => {
+    if (!listeners[event]) listeners[event] = [];
+    listeners[event].push(cb);
+    return () => { // return unsubscribe
+      listeners[event] = listeners[event].filter(f => f !== cb);
+    };
+  },
+
   // Disconnect socket
   disconnectSocket: () => {
     if (socket) {
       socket.disconnect();
+      socket = null;
     }
   },
+
+  // Expose socket instance if needed
+  getSocket: () => socket,
 
   // Get user's notifications
   getNotifications: async (params = {}) => {
@@ -45,7 +90,6 @@ const notificationService = {
   // Mark notification as seen
   markAsSeen: async (notificationId) => {
     const response = await api.put(`/notifications/${notificationId}/seen`);
-    store.dispatch(markNotificationSeen(notificationId));
     return response.data;
   },
 

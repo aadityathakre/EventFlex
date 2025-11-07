@@ -3,6 +3,7 @@ import { Box, Grid, Card, CardContent, Typography, Button, TextField, Chip, Circ
 import { useNavigate } from 'react-router-dom';
 import poolService from '../services/poolService';
 import { format } from 'date-fns';
+import notificationService from '../services/notificationService';
 
 const PoolList = () => {
   const navigate = useNavigate();
@@ -24,6 +25,12 @@ const PoolList = () => {
       });
       setPools(response.pools);
       setTotalPages(response.totalPages);
+      
+      // Subscribe to real-time updates via socket
+      const socket = notificationService.getSocket();
+      if (socket?.connected) {
+        socket.emit('watch_pools', { filters });
+      }
     } catch (error) {
       console.error('Error loading pools:', error);
     } finally {
@@ -33,6 +40,48 @@ const PoolList = () => {
 
   useEffect(() => {
     loadPools();
+  }, [page, filters]);
+
+  // Subscribe to real-time pool events so gigs see newly created pools immediately
+  useEffect(() => {
+    const unsubCreate = notificationService.on('pool_created', (newPool) => {
+      // Add new pool to state if it matches current filters
+      setPools(currentPools => {
+        // Only add if not already in list
+        if (!currentPools.find(p => p._id === newPool._id)) {
+          return [newPool, ...currentPools];
+        }
+        return currentPools;
+      });
+    });
+
+    const unsubUpdate = notificationService.on('pool_updated', (updatedPool) => {
+      // Update pool in state if it exists
+      setPools(currentPools => 
+        currentPools.map(pool => 
+          pool._id === updatedPool._id ? updatedPool : pool
+        )
+      );
+    });
+
+    // Listen for pool deletions
+    const unsubDelete = notificationService.on('pool_deleted', (poolId) => {
+      setPools(currentPools => 
+        currentPools.filter(pool => pool._id !== poolId)
+      );
+    });
+
+    // Initial subscription
+    const socket = notificationService.getSocket();
+    if (socket?.connected) {
+      socket.emit('watch_pools', { filters });
+    }
+
+    return () => {
+      unsubCreate();
+      unsubUpdate();
+      unsubDelete();
+    };
   }, [page, filters]);
 
   const handleApply = (poolId) => {

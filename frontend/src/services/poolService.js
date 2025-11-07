@@ -1,10 +1,15 @@
-import api from './api';
+import api from '../utils/api';
 
 const poolService = {
   // Get available pools with filters
   getAvailablePools: async (filters = {}) => {
     const queryString = new URLSearchParams(filters).toString();
     const response = await api.get(`/pools?${queryString}`);
+    // Subscribe to real-time updates for these pools
+    const socket = notificationService.getSocket();
+    if (socket?.connected) {
+      socket.emit('watch_pools', { filters });
+    }
     return response.data;
   },
 

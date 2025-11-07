@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { authService } from '../services/authService';
+import notificationService from '../services/notificationService';
 
 const useAuthStore = create((set, get) => {
   // Initialize from localStorage
   const initialUser = authService.getCurrentUser();
-  const initialAuth = authService.isAuthenticated();
+  // Since we're using cookies, we can only check if user exists
+  const initialAuth = !!initialUser;
 
   return {
     user: initialUser,
@@ -21,6 +23,13 @@ const useAuthStore = create((set, get) => {
           isAuthenticated: true,
           loading: false,
         });
+        // Initialize socket connection after successful login (use stored token)
+        try {
+          const token = localStorage.getItem('accessToken');
+          if (token) notificationService.initializeSocket(token);
+        } catch (err) {
+          console.warn('Failed to initialize socket after login', err.message);
+        }
         return response;
       } catch (error) {
         set({ loading: false });
@@ -48,6 +57,8 @@ const useAuthStore = create((set, get) => {
     // Logout
     logout: async () => {
       await authService.logout();
+      // Disconnect socket on logout
+      try { notificationService.disconnectSocket(); } catch (err) { /* ignore */ }
       set({
         user: null,
         isAuthenticated: false,
@@ -76,4 +87,16 @@ const useAuthStore = create((set, get) => {
 });
 
 export default useAuthStore;
+
+// If there's an existing authenticated session on page load, initialize socket
+try {
+  if (authService.isAuthenticated()) {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      notificationService.initializeSocket(token);
+    }
+  }
+} catch (err) {
+  // ignore errors during initialization
+}
 

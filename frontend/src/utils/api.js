@@ -12,22 +12,16 @@ const apiClient = axios.create({
   },
 });
 
-// Request interceptor
+  // Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // Get token from localStorage if available
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // No need to set Authorization header as we're using HTTP-only cookies
     return config;
   },
   (error) => {
     return Promise.reject(error);
   }
-);
-
-// Response interceptor
+);// Response interceptor
 apiClient.interceptors.response.use(
   (response) => {
     return response.data;
@@ -41,18 +35,13 @@ apiClient.interceptors.response.use(
 
       try {
         // Try to refresh token
-        const refreshResponse = await axios.post(
+        await axios.post(
           `${API_BASE_URL}/auth/users/refresh-token`,
           {},
           { withCredentials: true }
         );
-
-        const { data } = refreshResponse.data;
-        if (data?.accessToken) {
-          localStorage.setItem('accessToken', data.accessToken);
-          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-          return apiClient(originalRequest);
-        }
+        // Retry the original request - cookies will be sent automatically
+        return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed, logout user
         localStorage.removeItem('accessToken');

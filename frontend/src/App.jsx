@@ -13,6 +13,7 @@ import GigNearbyEvents from './pages/gig/NearbyEvents';
 import GigPools from './pages/gig/Pools';
 import GigWallet from './pages/gig/Wallet';
 import GigProfile from './pages/gig/Profile';
+import PoolApplicationForm from './components/PoolApplicationForm';
 
 // Organizer Pages
 import OrganizerDashboard from './pages/organizer/Dashboard';
@@ -20,6 +21,7 @@ import OrganizerEvents from './pages/organizer/Events';
 import OrganizerPools from './pages/organizer/Pools';
 import OrganizerWallet from './pages/organizer/Wallet';
 import ManagePool from './pages/organizer/ManagePool';
+import PoolApplicationsView from './components/PoolApplicationsView';
 
 // Host Pages
 import HostDashboard from './pages/host/Dashboard';
@@ -73,6 +75,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['gig']}>
               <GigPools />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pools/:poolId/apply"
+          element={
+            <ProtectedRoute allowedRoles={['gig']}>
+              <PoolApplicationForm />
             </ProtectedRoute>
           }
         />
@@ -139,6 +149,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['organizer']}>
               <OrganizerPools />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/organizer/pools/:poolId/applications"
+          element={
+            <ProtectedRoute allowedRoles={['organizer']}>
+              <PoolApplicationsView />
             </ProtectedRoute>
           }
         />

@@ -16,9 +16,9 @@ export const authService = {
   // Login user
   login: async (credentials) => {
     const response = await apiClient.post('/auth/users/login', credentials);
-    // apiClient returns ApiResponse { statusCode, data, message }
-    if (response?.data?.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
+    // Backend returns ApiResponse { statusCode, data: { user, accessToken, refreshToken }, message }
+    if (response?.data?.user) {
+      // Store user data in localStorage for persistence
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response;
