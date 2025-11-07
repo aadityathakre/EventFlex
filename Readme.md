@@ -2,5 +2,5 @@
 
 # author - Aditya
 
-``` npm init 
+``` npm init .. 
   

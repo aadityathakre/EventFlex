@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %></title>
+    <style>
+      body { font-family: Inter, system-ui, Arial, sans-serif; background:#f7fafc; color:#222; margin:0; padding:24px }
+      .container{max-width:900px;margin:0 auto}
+      header{display:flex;justify-content:space-between;align-items:center}
+      .card{background:white;border-radius:8px;padding:16px;margin-top:16px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+      a.button{display:inline-block;padding:10px 14px;margin:6px 6px 6px 0;background:#06b6d4;color:white;border-radius:6px;text-decoration:none}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1><%= title %></h1>
+        <a href="/" class="button">Back to Frontend</a>
+      </header>
+
+      <div class="card">
+        <h2>Server-rendered actions</h2>
+        <p>These links call backend API routes directly (they return JSON). Click any to open in the same tab.</p>
+        <div>
+          <% actions.forEach(function(action){ %>
+            <a href="<%= action.href %>" class="button"><%= action.label %></a>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Quick server form</h2>
+        <p>Submit a simple POST to the backend (example, will call /api/v1/gigs/debug if available).</p>
+        <form method="post" action="/api/v1/gigs/debug" onsubmit="alert('This will send a POST to /api/v1/gigs/debug (example)');">
+          <input type="hidden" name="_example" value="1" />
+          <button type="submit" class="button">Send POST (example)</button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

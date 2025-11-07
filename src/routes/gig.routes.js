@@ -207,11 +207,5 @@ router.get("/kyc-status", verifyToken, authorizeRoles("gig"), getKYCStatus);
 // 📊 Dashboard & Debug
 //
 router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
-router.get(
-  "/debug/gig/:id",
-  verifyToken,
-  authorizeRoles("admin"),
-  debugGigData
-);
 
 export default router;
