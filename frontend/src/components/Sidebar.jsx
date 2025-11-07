@@ -10,7 +10,7 @@ import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import { useState, useEffect } from 'react';
 
-const Sidebar = ({ role }) => {
+const Sidebar = ({ role, mobileOpen, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
@@ -49,6 +49,7 @@ const Sidebar = ({ role }) => {
         ...commonItems,
         { path: `/dashboard/${role}/events`, label: 'Create New Event', icon: Calendar },
         { path: `/dashboard/${role}/manage-events`, label: 'Manage Events', icon: FileText },
+        { path: `/dashboard/${role}/organizers`, label: 'Organizers', icon: Users },
         { path: `/dashboard/${role}/payments`, label: 'Payment & Contracts', icon: CreditCard },
         { path: `/dashboard/${role}/reviews`, label: 'Ratings & Reviews', icon: Star },
       ];
@@ -74,7 +75,9 @@ const Sidebar = ({ role }) => {
   const navItems = getNavItems();
 
   return (
-    <div className="w-64 h-screen fixed left-0 top-0 dark:bg-dark-sidebar bg-light-sidebar border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex w-64 h-screen fixed left-0 top-0 dark:bg-dark-sidebar bg-light-sidebar border-r border-gray-200 dark:border-gray-700 flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <Link to={`/dashboard/${role}`} className="flex items-center gap-2">
@@ -156,7 +159,36 @@ const Sidebar = ({ role }) => {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* Mobile overlay sidebar */}
+      <div className={`fixed inset-0 z-40 lg:hidden ${mobileOpen ? '' : 'pointer-events-none'}`} aria-hidden={!mobileOpen}>
+        <div className={`absolute inset-0 bg-black/40 ${mobileOpen ? 'opacity-100' : 'opacity-0'} transition-opacity`} onClick={onClose} />
+        <div className={`absolute left-0 top-0 h-full w-64 dark:bg-dark-sidebar bg-light-sidebar border-r border-gray-200 dark:border-gray-700 transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform`}> 
+          <div className="p-4 flex items-center justify-between border-b">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-teal rounded flex items-center justify-center">
+                <span className="text-white font-bold">E</span>
+              </div>
+              <span className="text-lg font-bold">EventFlex</span>
+            </div>
+            <button onClick={onClose} className="p-2">Close</button>
+          </div>
+          <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100%-96px)]">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path || (item.path !== `/dashboard/${role}` && location.pathname.startsWith(item.path));
+              return (
+                <Link key={item.path} to={item.path} className={`sidebar-link ${isActive ? 'active' : ''}`} onClick={onClose}>
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+    </>
   );
 };
 

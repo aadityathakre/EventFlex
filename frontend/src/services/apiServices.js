@@ -42,6 +42,11 @@ export const organizerService = {
   getNoShowRisk: (gigId) => apiClient.get(`/organizer/no-show-risk/${gigId}`),
 };
 
+// Organizer actions on host-created pools
+export const poolService = {
+  applyToPool: (poolId) => apiClient.post(`/host/pools/apply/${poolId}`),
+};
+
 // Host Services
 export const hostService = {
   createEvent: (data) => apiClient.post('/host/events/create', data),
@@ -52,6 +57,13 @@ export const hostService = {
   inviteOrganizer: (data) => apiClient.post('/host/invite-organizer', data),
   approveOrganizer: (organizerId) => apiClient.post(`/host/approve-organizer/${organizerId}`),
   getAssignedOrganizers: () => apiClient.get('/host/organizers'),
+  getAllOrganizers: () => apiClient.get('/host/organizers/all'),
+  getAllPools: () => apiClient.get('/host/pools'),
+  startChatWithOrganizer: (data) => apiClient.post('/host/chat', data),
+  // host messaging
+  getConversations: () => apiClient.get('/host/conversations'),
+  getConversation: (conversationId) => apiClient.get(`/host/conversations/${conversationId}`),
+  sendMessage: (conversationId, message) => apiClient.post(`/host/message/${conversationId}`, { message_text: message }),
   depositToEscrow: (data) => apiClient.post('/host/payment/deposit', data),
   getEscrowStatus: (eventId) => apiClient.get(`/host/payment/status/${eventId}`),
   verifyAttendance: (eventId) => apiClient.post(`/host/verify-attendance/${eventId}`),

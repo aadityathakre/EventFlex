@@ -6,8 +6,8 @@ const OrganizerPoolSchema = new mongoose.Schema(
   {
     organizer: {
       type: Schema.Types.ObjectId,
-      ref: "User", // assuming organizer is a user with role = "organizer"
-      required: true,
+      ref: "User", // organizer may be null for broadcast invites
+      required: false,
       index: true,
     },
     event: {
@@ -16,17 +16,11 @@ const OrganizerPoolSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        required: true,
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
-        required: true,
-      },
+    // simple textual address for the pool location (no geo coords)
+    location_address: {
+      type: String,
+      trim: true,
+      required: true,
     },
     pool_name: {
       type: String,
@@ -53,7 +47,7 @@ const OrganizerPoolSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );
-OrganizerPoolSchema.index({ location: "2dsphere" });
+// note: removed geo index since we store a textual address for pool locations
 
 const OrganizerPool = mongoose.model("OrganizerPool", OrganizerPoolSchema);
 export default OrganizerPool;

@@ -36,8 +36,9 @@ const PaymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["completed", "pending"],
-      default: "completed",
+      // add held/released states to support escrow lifecycle
+      enum: ["pending", "held", "released", "completed"],
+      default: "pending",
       required: true,
     },
     upi_transaction_id: {

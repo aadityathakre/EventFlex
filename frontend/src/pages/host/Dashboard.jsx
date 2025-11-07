@@ -60,187 +60,90 @@ const HostDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
+          {/* Main Content (left) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Create Your Next Event */}
+            {/* Quick Actions */}
             <div className="card">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold dark:text-white text-gray-900">Create Your Next Event</h2>
-                <Link to="/dashboard/host/events" className="text-teal hover:underline">
-                  Continue →
-                </Link>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-bold dark:text-white text-gray-900">Quick Actions</h2>
+                <Link to="/dashboard/host/events" className="text-sm text-teal hover:underline">Manage Events</Link>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500">
-                    <CheckCircle className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium dark:text-white text-gray-900">Event Details</p>
-                    <p className="text-sm text-green-500">Completed</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange">
-                    <Pencil className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium dark:text-white text-gray-900">Find an Organizer</p>
-                    <p className="text-sm text-orange">Current Step</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-600">
-                    <Lock className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium dark:text-gray-400 text-gray-600">Finalize & Pay</p>
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Link to="/dashboard/host/events/create" className="card p-3 hover:shadow-md">
+                  <div className="font-medium">Create Event</div>
+                  <div className="text-sm text-gray-500">Start a new event listing</div>
+                </Link>
+                <Link to="/dashboard/host/manage-events" className="card p-3 hover:shadow-md">
+                  <div className="font-medium">Manage Events</div>
+                  <div className="text-sm text-gray-500">View and edit your events</div>
+                </Link>
+                <Link to="/dashboard/host/organizers" className="card p-3 hover:shadow-md">
+                  <div className="font-medium">Organizers</div>
+                  <div className="text-sm text-gray-500">Invite / approve organizers</div>
+                </Link>
+                <Link to="/dashboard/host/payments" className="card p-3 hover:shadow-md">
+                  <div className="font-medium">Payments</div>
+                  <div className="text-sm text-gray-500">View escrow & payouts</div>
+                </Link>
               </div>
             </div>
 
-            {/* Your Events */}
+            {/* Upcoming Events */}
             <div className="card">
-              <div className="flex gap-4 mb-4">
-                <button className="px-4 py-2 bg-teal text-white rounded-lg font-medium">
-                  Active
-                </button>
-                <button className="px-4 py-2 dark:text-gray-400 text-gray-600 rounded-lg font-medium">
-                  Completed
-                </button>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-bold dark:text-white text-gray-900">Upcoming Events</h2>
+                <Link to="/dashboard/host/events" className="text-sm text-teal hover:underline">See all</Link>
               </div>
               <div className="space-y-4">
-                {activeEvents.map((event) => (
-                  <div key={event._id} className="p-4 dark:bg-dark-bg bg-gray-50 rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
+                {activeEvents.slice(0, 3).map((event) => (
+                  <div key={event._id} className="p-3 dark:bg-dark-bg bg-gray-50 rounded-lg">
+                    <div className="flex items-start justify-between">
                       <div>
-                        <span className="badge badge-success mb-2">Active</span>
-                        <h3 className="text-lg font-semibold dark:text-white text-gray-900 mb-1">
-                          {event.title}
-                        </h3>
-                        <p className="text-sm dark:text-gray-400 text-gray-600 mb-2">
-                          {event.description}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm dark:text-gray-400 text-gray-600">
-                          <Calendar className="w-4 h-4" />
-                          {event.date}
-                        </div>
+                        <h3 className="text-lg font-semibold dark:text-white text-gray-900 mb-1">{event.title}</h3>
+                        <p className="text-sm dark:text-gray-400 text-gray-600 mb-1">{event.description}</p>
+                        <div className="text-sm text-gray-500 flex items-center gap-2"><Calendar className="w-4 h-4" />{event.date}</div>
+                      </div>
+                      <div className="text-right">
+                        <Link to={`/dashboard/host/events/${event._id}`} className="text-teal hover:underline text-sm">Open</Link>
                       </div>
                     </div>
-                    <Link to={`/dashboard/host/events/${event._id}`} className="text-teal hover:underline text-sm">
-                      View Details
-                    </Link>
                   </div>
                 ))}
+                {activeEvents.length === 0 && <div className="text-sm text-gray-500">No upcoming events</div>}
               </div>
             </div>
           </div>
 
-          {/* Right Sidebar - Reputation & Reviews */}
+          {/* Right Sidebar - Wallet & Reputation compact */}
           <div className="space-y-6">
-            {/* Reputation Overview */}
+            {/* Wallet / Payments summary */}
             <div className="card">
-              <h2 className="text-xl font-bold dark:text-white text-gray-900 mb-4">
-                Reputation Overview
-              </h2>
-
-              {/* Badges */}
-              <div className="mb-6">
-                <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-3">Your Badges</h3>
-                <div className="space-y-2">
-                  {reputation.badges.map((badge, index) => (
-                    <div
-                      key={index}
-                      className={`badge ${
-                        index === 0 ? 'bg-green-500' : 'bg-orange'
-                      } text-white px-3 py-2`}
-                    >
-                      {badge === 'Verified Host' && (
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                      )}
-                      {badge === 'Trusted Event Creator' && (
-                        <Star className="w-4 h-4 mr-2" />
-                      )}
-                      {badge}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Community Rating */}
-              <div>
-                <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-2">
-                  Community Rating
-                </h3>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl font-bold dark:text-white text-gray-900">
-                    {reputation.rating}
-                  </span>
-                  <span className="text-gray-400">/ 5.0</span>
-                </div>
-                <div className="flex items-center gap-1 mb-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${
-                        i < Math.floor(reputation.rating)
-                          ? 'text-yellow-500 fill-yellow-500'
-                          : i < reputation.rating
-                          ? 'text-yellow-500 fill-yellow-500 opacity-50'
-                          : 'text-gray-400'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="text-sm dark:text-gray-400 text-gray-600">
-                  Based on {reputation.reviews} reviews from Organizers & Gig Workers.
-                </p>
+              <h2 className="text-lg font-bold mb-2">Wallet & Escrows</h2>
+              <p className="text-sm text-gray-600 mb-3">Quick snapshot of your current balances and escrows.</p>
+              <div className="space-y-2">
+                <Link to="/dashboard/host/payments" className="flex items-center justify-between">
+                  <span className="text-sm">View Escrows</span>
+                  <span className="text-sm text-teal">Open</span>
+                </Link>
+                <Link to="/dashboard/host/wallet" className="flex items-center justify-between">
+                  <span className="text-sm">Wallet Balance</span>
+                  <span className="text-sm text-gray-600">—</span>
+                </Link>
               </div>
             </div>
 
-            {/* Recent Reviews */}
+            {/* Reputation compact */}
             <div className="card">
-              <h2 className="text-xl font-bold dark:text-white text-gray-900 mb-4">
-                Recent Reviews
-              </h2>
-              <div className="space-y-4">
+              <h2 className="text-lg font-bold mb-2">Reputation</h2>
+              <div className="flex items-center gap-3">
                 <div>
-                  <p className="text-lg font-semibold dark:text-white text-gray-900 mb-2">
-                    "Excellent Collaboration"
-                  </p>
-                  <div className="flex items-center gap-1 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    ))}
-                  </div>
-                  <p className="text-sm dark:text-gray-400 text-gray-600 mb-2">
-                    Anil was a pleasure to work with. Very clear communication...
-                  </p>
-                  <p className="text-xs dark:text-gray-500 text-gray-500">
-                    by Priya (Organizer) for Tech Summit 2024
-                  </p>
+                  <div className="text-2xl font-bold">{reputation.rating}</div>
+                  <div className="text-sm text-gray-500">based on {reputation.reviews} reviews</div>
                 </div>
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <p className="text-lg font-semibold dark:text-white text-gray-900 mb-2">
-                    "Professional & Organized"
-                  </p>
-                  <div className="flex items-center gap-1 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    ))}
-                  </div>
-                  <p className="text-sm dark:text-gray-400 text-gray-600 mb-2">
-                    The event was a success. The host was very professional.
-                  </p>
-                  <p className="text-xs dark:text-gray-500 text-gray-500">
-                    by Rohan (Gig Worker) for Indie Music Fest
-                  </p>
+                <div className="ml-auto">
+                  <Link to="/dashboard/host/reviews" className="text-sm text-teal hover:underline">See reviews</Link>
                 </div>
               </div>
-              <Link to="/dashboard/host/reviews" className="text-teal hover:underline text-sm mt-4 inline-block">
-                View All Reviews
-              </Link>
             </div>
           </div>
         </div>

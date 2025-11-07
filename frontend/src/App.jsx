@@ -24,6 +24,13 @@ import OrganizerWallet from './pages/organizer/Wallet';
 import HostDashboard from './pages/host/Dashboard';
 import HostEvents from './pages/host/Events';
 import HostPayments from './pages/host/Payments';
+import CreateEvent from './pages/host/CreateEvent';
+import HostMessages from './pages/host/Messages';
+import Reviews from './pages/host/Reviews';
+import ManageEvents from './pages/host/ManageEvents';
+import EventDetails from './pages/host/EventDetails';
+import EditEvent from './pages/host/EditEvent';
+import Organizers from './pages/host/Organizers';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -200,6 +207,54 @@ function App() {
           }
         />
         <Route
+          path="/dashboard/host/events/:id"
+          element={
+            <ProtectedRoute allowedRoles={["host"]}>
+              <EventDetails />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/host/events/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={["host"]}>
+              <EditEvent />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/host/events/create"
+          element={
+            <ProtectedRoute allowedRoles={["host"]}>
+              <CreateEvent />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/host/messages"
+          element={
+            <ProtectedRoute allowedRoles={["host"]}>
+              <HostMessages />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/host/organizers"
+          element={
+            <ProtectedRoute allowedRoles={["host"]}>
+              <Organizers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/host/manage-events"
+          element={
+            <ProtectedRoute allowedRoles={["host"]}>
+              <ManageEvents />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dashboard/host/payments"
           element={
             <ProtectedRoute allowedRoles={['host']}>
@@ -207,19 +262,12 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/dashboard/host/manage-events"
-          element={
-            <ProtectedRoute allowedRoles={['host']}>
-              <HostEvents />
-            </ProtectedRoute>
-          }
-        />
+        
         <Route
           path="/dashboard/host/reviews"
           element={
             <ProtectedRoute allowedRoles={['host']}>
-              <HostDashboard />
+              <Reviews />
             </ProtectedRoute>
           }
         />

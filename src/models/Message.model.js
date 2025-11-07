@@ -16,6 +16,15 @@ const MessageSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+      // store sender and receiver display names for quick access/denormalization
+      sender_name: {
+        type: String,
+        trim: true,
+      },
+      receiver_name: {
+        type: String,
+        trim: true,
+      },
     message_text: {
       type: String,
       required: true,

@@ -65,7 +65,18 @@ apiClient.interceptors.response.use(
     // Handle errors by logging to console only (no user-facing toast)
     const message = error.response?.data?.message || error.message || 'An error occurred';
     // eslint-disable-next-line no-console
-    console.error('API error:', { status: error.response?.status, message, url: originalRequest?.url });
+    try {
+      const full = error.toJSON ? error.toJSON() : { message: error.message };
+      console.error('API error summary:', { status: error.response?.status, message, url: originalRequest?.url });
+      console.error('API error details:', full);
+      // also log raw request/config for deeper inspection
+      console.error('API error request:', error.request);
+      console.error('API error originalRequest config:', originalRequest);
+    } catch (logErr) {
+      // fallback
+      // eslint-disable-next-line no-console
+      console.error('API error (fallback):', error);
+    }
     return Promise.reject(error);
   }
 );

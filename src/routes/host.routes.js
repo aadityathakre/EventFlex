@@ -16,8 +16,14 @@ import {
   // 🧑‍🤝‍🧑 Organizer Management
   inviteOrganizer,
   approveOrganizer,
+  applyToPool,
   getAssignedOrganizers,
+  getAllOrganizers,
+  getAllPools,
   startChatWithOrganizer,
+  getConversations,
+  getConversationById,
+  sendMessage,
 
   // 💰 Payments & Escrow
   depositToEscrow,
@@ -52,8 +58,18 @@ router.put("/events/complete/:id", verifyToken, authorizeRoles("host"), complete
 // 🧑‍🤝‍🧑 Organizer Management
 router.post("/invite-organizer", verifyToken, authorizeRoles("host"), inviteOrganizer);
 router.post("/approve-organizer/:id", verifyToken, authorizeRoles("host"), approveOrganizer);
+// organizer can apply to an open pool (organizer role required)
+router.post('/pools/apply/:id', verifyToken, authorizeRoles('organizer'), applyToPool);
 router.get("/organizers", verifyToken, authorizeRoles("host"), getAssignedOrganizers);
+// fetch all users with role 'organizer' (for host to browse)
+router.get("/organizers/all", verifyToken, authorizeRoles("host"), getAllOrganizers);
+// fetch all organizer pools (visible to hosts)
+router.get("/pools", verifyToken, authorizeRoles("host"), getAllPools);
 router.post("/chat", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
+// Host messaging endpoints
+router.get("/conversations", verifyToken, authorizeRoles("host"), getConversations);
+router.get("/conversations/:conversationId", verifyToken, authorizeRoles("host"), getConversationById);
+router.post("/message/:conversationId", verifyToken, authorizeRoles("host"), sendMessage);
 
 //
 // 💰 Payments & Escrow

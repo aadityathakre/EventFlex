@@ -16,6 +16,7 @@ import UserBadge from "../models/UserBadge.model.js";
 import Badge from "../models/Badge.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import User from "../models/User.model.js";
+import Notification from "../models/Notification.model.js";
 import mongoose from "mongoose";
 
 // 1. Upload KYC Documents
@@ -255,39 +256,147 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
     organizerId,
     eventId,
     pool_name,
-    location,
+  location_address,
     max_capacity,
     required_skills,
     pay_range,
   } = req.body;
 
-  if (
-    !organizerId ||
-    !eventId ||
-    !pool_name ||
-    !location?.coordinates ||
-    !max_capacity
-  ) {
+  // allow broadcast invites (no specific organizer) or direct invite to a chosen organizer
+  if (!eventId || !pool_name || !location_address || !max_capacity) {
     throw new ApiError(400, "Missing required fields");
   }
 
-  const pool = await OrganizerPool.create({
-    organizer: organizerId,
+  const poolData = {
+    organizer: organizerId || null,
     event: eventId,
-    location: {
-      type: "Point",
-      coordinates: location.coordinates,
-    },
+    location_address,
     pool_name,
     max_capacity,
     required_skills,
     pay_range,
-    status: "open",
-  });
+    status: organizerId ? "open" : "open",
+  };
+
+  const pool = await OrganizerPool.create(poolData);
+
+  // Prepare host display name
+  const hostUser = await User.findById(hostId).select('first_name last_name name');
+  const hostDisplay = hostUser?.name || `${hostUser?.first_name || ''} ${hostUser?.last_name || ''}`.trim() || 'Host';
+
+  // if organizerId was not provided, broadcast a notification to all organizers and create messages
+  if (!organizerId) {
+    const event = await Event.findById(eventId).select('title');
+    const organizers = await User.find({ role: 'organizer' }).select('first_name last_name name');
+
+    const notifications = organizers.map((org) => ({
+      user: org._id,
+      type: 'event',
+      message: `New organizer opportunity: ${pool.pool_name} for event ${event?.title || eventId}`,
+    }));
+
+    if (notifications.length) {
+      await Notification.insertMany(notifications);
+    }
+
+    // create a conversation + message for each organizer so they can see the invite
+    for (const org of organizers) {
+      const orgDisplay = org?.name || `${org?.first_name || ''} ${org?.last_name || ''}`.trim() || 'Organizer';
+
+      let conversation = await Conversation.findOne({ participants: { $all: [hostId, org._id] }, event: eventId, pool: pool._id });
+      if (!conversation) {
+        conversation = await Conversation.create({ participants: [hostId, org._id], event: eventId, pool: pool._id });
+      }
+
+      await Message.create({
+        conversation: conversation._id,
+        sender: hostId,
+        sender_name: hostDisplay,
+        receiver_name: orgDisplay,
+        message_text: `Host ${hostDisplay} broadcasted an invite: ${pool.pool_name} for event ${event?.title || ''}`,
+      });
+    }
+  } else {
+    // if invited directly, notify that specific organizer and persist a message
+    const orgUser = await User.findById(organizerId).select('first_name last_name name');
+    const orgDisplay = orgUser?.name || `${orgUser?.first_name || ''} ${orgUser?.last_name || ''}`.trim() || 'Organizer';
+
+    await Notification.create({
+      user: organizerId,
+      type: 'event',
+      message: `You have been invited to manage pool ${pool.pool_name}`,
+    });
+
+    let conversation = await Conversation.findOne({ participants: { $all: [hostId, organizerId] }, event: eventId, pool: pool._id });
+    if (!conversation) {
+      conversation = await Conversation.create({ participants: [hostId, organizerId], event: eventId, pool: pool._id });
+    }
+
+    await Message.create({
+      conversation: conversation._id,
+      sender: hostId,
+      sender_name: hostDisplay,
+      receiver_name: orgDisplay,
+      message_text: `Host ${hostDisplay} invited you to manage pool ${pool.pool_name} for event ${eventId}`,
+    });
+  }
 
   return res
     .status(201)
     .json(new ApiResponse(201, pool, "Organizer invited to event"));
+});
+
+// Organizer applies to an open pool (organizer role)
+export const applyToPool = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const poolId = req.params.id;
+
+  const pool = await OrganizerPool.findById(poolId).populate('event');
+  if (!pool) throw new ApiError(404, 'Organizer pool not found');
+  if (pool.status !== 'open') throw new ApiError(400, 'Pool not open for applications');
+  if (pool.organizer) throw new ApiError(400, 'Pool already has an organizer');
+
+  pool.organizer = organizerId;
+  pool.status = 'pending'; // pending host approval
+  await pool.save();
+
+  // notify host about applicant
+  const event = pool.event;
+  const hostId = event?.host;
+  if (hostId) {
+    await Notification.create({
+      user: hostId,
+      type: 'event',
+      message: `Organizer applied to pool ${pool.pool_name} for event ${event?.title || pool.event}`,
+    });
+  }
+
+  // persist application as a message in the conversation
+  try {
+    const organizerUser = await User.findById(organizerId).select('first_name last_name name');
+    const organizerDisplay = organizerUser?.name || `${organizerUser?.first_name || ''} ${organizerUser?.last_name || ''}`.trim() || 'Organizer';
+    const hostUser = await User.findById(hostId).select('first_name last_name name');
+    const hostDisplay = hostUser?.name || `${hostUser?.first_name || ''} ${hostUser?.last_name || ''}`.trim() || 'Host';
+
+    let conversation = await Conversation.findOne({ participants: { $all: [hostId, organizerId] }, event: event._id, pool: pool._id });
+    if (!conversation) {
+      conversation = await Conversation.create({ participants: [hostId, organizerId], event: event._id, pool: pool._id });
+    }
+
+    await Message.create({
+      conversation: conversation._id,
+      sender: organizerId,
+      sender_name: organizerDisplay,
+      receiver_name: hostDisplay,
+      message_text: `Organizer ${organizerDisplay} has applied to manage pool ${pool.pool_name}`,
+    });
+  } catch (e) {
+    // log but don't block
+    // eslint-disable-next-line no-console
+    console.error('Failed to persist application message', e);
+  }
+
+  return res.status(200).json(new ApiResponse(200, pool, 'Applied to pool; awaiting host approval'));
 });
 
 // 10. Approve Organizer for Event
@@ -300,7 +409,53 @@ export const approveOrganizer = asyncHandler(async (req, res) => {
   pool.status = "active";
   await pool.save();
 
-  return res.status(200).json(new ApiResponse(200, pool, "Organizer approved"));
+  // notify organizer they were approved
+  if (pool.organizer) {
+    await Notification.create({
+      user: pool.organizer,
+      type: 'event',
+      message: `You have been approved to manage pool ${pool.pool_name}`,
+    });
+  }
+
+  // assign approved organizer as the event's organizer (manager)
+  try {
+    if (pool.event && pool.organizer) {
+      await Event.findByIdAndUpdate(pool.event, { organizer: pool.organizer });
+    }
+  } catch (e) {
+    // log and continue
+    // eslint-disable-next-line no-console
+    console.error('Failed to assign event organizer after approval', e);
+  }
+
+  // fetch updated pool and event for response
+  const updatedPool = await OrganizerPool.findById(orgPoolId).populate('organizer event');
+
+  // persist approval as a message
+  try {
+    const hostUser = await User.findById(req.user._id).select('first_name last_name name');
+    const hostDisplay = hostUser?.name || `${hostUser?.first_name || ''} ${hostUser?.last_name || ''}`.trim() || 'Host';
+    const orgUser = await User.findById(pool.organizer).select('first_name last_name name');
+    const orgDisplay = orgUser?.name || `${orgUser?.first_name || ''} ${orgUser?.last_name || ''}`.trim() || 'Organizer';
+
+    let conversation = await Conversation.findOne({ participants: { $all: [req.user._id, pool.organizer] }, event: updatedPool.event._id, pool: updatedPool._id });
+    if (!conversation) {
+      conversation = await Conversation.create({ participants: [req.user._id, pool.organizer], event: updatedPool.event._id, pool: updatedPool._id });
+    }
+
+    await Message.create({
+      conversation: conversation._id,
+      sender: req.user._id,
+      sender_name: hostDisplay,
+      receiver_name: orgDisplay,
+      message_text: `Host ${hostDisplay} approved you to manage pool ${updatedPool.pool_name}`,
+    });
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to persist approval message', e);
+  }
+  return res.status(200).json(new ApiResponse(200, { pool: updatedPool }, "Organizer approved and assigned"));
 });
 
 // 11. View Assigned Organizers
@@ -318,6 +473,23 @@ export const getAssignedOrganizers = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, filtered, "Assigned organizers fetched"));
+});
+
+// Fetch all organizers (users with role 'organizer') - available to authenticated hosts
+export const getAllOrganizers = asyncHandler(async (req, res) => {
+  const organizers = await User.find({ role: 'organizer' }).select('-password -refreshToken');
+  return res.status(200).json(new ApiResponse(200, organizers, 'Organizers list fetched'));
+});
+
+// Fetch all organizer pools (visible to hosts)
+export const getAllPools = asyncHandler(async (req, res) => {
+  // If requester is an organizer, only show open pools available to apply
+  const role = req.user?.role;
+  const query = {};
+  if (role === 'organizer') query.status = 'open';
+
+  const pools = await OrganizerPool.find(query).populate('organizer event').sort({ createdAt: -1 });
+  return res.status(200).json(new ApiResponse(200, pools, 'Organizer pools fetched'));
 });
 
 // 12. Start In-App Chat with Organizer
@@ -354,6 +526,57 @@ export const startChatWithOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, { conversation, welcome }, "Chat started"));
 });
 
+// List conversations for a host
+export const getConversations = asyncHandler(async (req, res) => {
+  const hostId = req.user._1d || req.user._id;
+
+  const conversations = await Conversation.find({ participants: hostId })
+    .populate("event", "name date location")
+    .populate("pool", "name")
+    .sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+// Get a single conversation and its messages (host)
+export const getConversationById = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId).populate(
+    "event pool"
+  );
+
+  if (!conversation || !conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const messages = await Message.find({ conversation: conversationId }).sort({ createdAt: 1 });
+
+  return res.status(200).json(new ApiResponse(200, { conversation, messages }, "Conversation fetched"));
+});
+
+// Send message as host within a conversation
+export const sendMessage = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { conversationId } = req.params;
+  const { message_text } = req.body;
+
+  if (!message_text || message_text.trim() === "") {
+    throw new ApiError(400, "Message text is required");
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+
+  if (!conversation || !conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const message = await Message.create({ conversation: conversationId, sender: hostId, message_text });
+
+  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
 // 🔹 13. Deposit to Escrow
 export const depositToEscrow = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
@@ -385,7 +608,7 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     total_amount,
     organizer_percentage,
     gigs_percentage,
-    status: "funded",
+  status: "funded",
   });
 
   const payment = await Payment.create({
@@ -395,7 +618,8 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     amount: total_amount,
     payment_method,
     upi_transaction_id,
-    status: "completed",
+  // mark the incoming deposit as 'held' until release
+  status: "held",
   });
 
   return res
@@ -422,9 +646,12 @@ export const getEscrowStatus = asyncHandler(async (req, res) => {
   if (!escrow)
     throw new ApiError(404, "No escrow contract found for this event");
 
+  // fetch payment history related to this escrow
+  const payments = await Payment.find({ escrow: escrow._id }).populate('payee payer');
+
   return res
     .status(200)
-    .json(new ApiResponse(200, escrow, "Escrow status fetched"));
+    .json(new ApiResponse(200, { escrow, payments }, "Escrow status fetched"));
 });
 
 // 🔹 15. Verify Attendance
@@ -438,12 +665,61 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
   if (escrow.status === "released")
     throw new ApiError(400, "Escrow already released");
 
+  // compute amounts (Decimal128 stored as strings)
+  const total = Number(escrow.total_amount?.toString?.() || escrow.total_amount || 0);
+  const orgPerc = Number(escrow.organizer_percentage?.toString?.() || escrow.organizer_percentage || 0);
+  const gigsPerc = Number(escrow.gigs_percentage?.toString?.() || escrow.gigs_percentage || 0);
+
+  const organizerAmount = Math.round((total * orgPerc) / 100);
+  const gigsAmount = Math.round((total * gigsPerc) / 100);
+
+  // mark any held payments for this escrow as 'released'
+  await Payment.updateMany({ escrow: escrow._id, status: 'held' }, { $set: { status: 'released' } });
+
+  // create payout payment to organizer
+  const organizerPayout = await Payment.create({
+    escrow: escrow._id,
+    payer: hostId,
+    payee: escrow.organizer,
+    amount: organizerAmount,
+    payment_method: 'upi',
+    status: 'completed',
+  });
+
+  // if event has gigs, split gigsAmount among gigs; otherwise record a single platform/gigs payment
+  const event = await Event.findById(eventId).select('gigs');
+  if (event && Array.isArray(event.gigs) && event.gigs.length > 0) {
+    const perGig = Math.floor(gigsAmount / event.gigs.length);
+    for (const gigId of event.gigs) {
+      // create completed payment for each gig
+      // eslint-disable-next-line no-await-in-loop
+      await Payment.create({
+        escrow: escrow._id,
+        payer: hostId,
+        payee: gigId,
+        amount: perGig,
+        payment_method: 'upi',
+        status: 'completed',
+      });
+    }
+  } else if (gigsAmount > 0) {
+    // no gigs assigned: create a single payment record for gigs portion (held for platform or later allocation)
+    await Payment.create({
+      escrow: escrow._id,
+      payer: hostId,
+      payee: escrow.host, // keep host as temporary payee for record; platform handling can be added later
+      amount: gigsAmount,
+      payment_method: 'upi',
+      status: 'completed',
+    });
+  }
+
   escrow.status = "released";
   await escrow.save();
 
   return res
     .status(200)
-    .json(new ApiResponse(200, escrow, "Attendance verified, escrow released"));
+    .json(new ApiResponse(200, { escrow, organizerPayout }, "Attendance verified, escrow released and payouts created"));
 });
 
 // 🔹 16. Wallet Balance
