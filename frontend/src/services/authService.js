@@ -13,24 +13,10 @@ export const authService = {
 
   // ✅ Login user (Updated for admin handling)
   login: async (credentials) => {
-<<<<<<< HEAD
-    // 👇 Check if this is admin login
-    const isAdmin = credentials.email === "adityathakre1281@gmail.com";
-
-    // 👇 Hit the correct endpoint
-    const endpoint = isAdmin ? '/auth/admin/login' : '/auth/users/login';
-
-    const response = await apiClient.post(endpoint, credentials);
-
-    // ✅ Save tokens if available
-    if (response?.data?.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken);
-=======
     const response = await apiClient.post('/auth/users/login', credentials);
     // Backend returns ApiResponse { statusCode, data: { user, accessToken, refreshToken }, message }
     if (response?.data?.user) {
       // Store user data in localStorage for persistence
->>>>>>> organizer-branch
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
 
