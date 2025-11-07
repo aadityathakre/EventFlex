@@ -48,6 +48,40 @@ const getMyEvents = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, events, "Accepted events fetched"));
 });
 
+// 2a. Get pools where this gig's application was accepted
+const getAcceptedPools = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  // Find pool applications accepted for this gig and populate pool info
+  const applications = await PoolApplication.find({ gig: gigId, application_status: 'accepted' })
+    .populate({ path: 'pool', populate: { path: 'organizer', select: 'name profile_image_url avatar' } })
+    .lean();
+
+  const pools = applications.map(app => {
+    const pool = app.pool || {};
+    return {
+      _id: pool._id,
+      pool_name: pool.pool_name || pool.name,
+      name: pool.name || pool.pool_name,
+      description: pool.description || '',
+      organizer: pool.organizer ? {
+        _id: pool.organizer._id,
+        name: pool.organizer.name,
+        profile_image_url: pool.organizer.profile_image_url || pool.organizer.avatar
+      } : null,
+      location: pool.location || (pool.venue ? `${pool.venue.address || ''}${pool.venue.city ? ', ' + pool.venue.city : ''}` : ''),
+      venue: pool.venue || null,
+      date: pool.date || null,
+      status: pool.status || 'open',
+      applicationId: app._id,
+      application_status: app.application_status,
+      createdAt: pool.createdAt
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, pools, 'Accepted pools fetched'));
+});
+
 // 2. QR/GPS check-in
 const checkIn = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
@@ -118,7 +152,7 @@ const getAttendanceHistory = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, history, "Attendance history fetched"));
 });
-
+ 
 // 4. View nearby events
 const getNearbyEvents = asyncHandler(async (req, res) => {
   const { coordinates } = req.body; // [lng, lat]
@@ -142,25 +176,166 @@ const getNearbyEvents = asyncHandler(async (req, res) => {
 });
 
 // 5. View nearby organizer pools
+// Accepts optional query params `lng` and `lat`. If provided, runs a $near query.
+// If not provided, returns all open pools. Populates basic organizer info so
+// frontend can show organizer name and profile image (DP).
 const getOrganizerPools = asyncHandler(async (req, res) => {
-  const { coordinates } = req.body;
+  // Support coordinates sent either as query params (preferred for GET)
+  // or in the request body (fallback).
+  const lngQ = req.query.lng ?? req.body?.lng ?? req.body?.coordinates?.[0];
+  const latQ = req.query.lat ?? req.body?.lat ?? req.body?.coordinates?.[1];
 
-  const pools = await OrganizerPool.find({
-    location: {
+  const lng = typeof lngQ === 'string' ? parseFloat(lngQ) : lngQ;
+  const lat = typeof latQ === 'string' ? parseFloat(latQ) : latQ;
+
+  let query = { status: 'open' };
+
+  if (!isNaN(lng) && !isNaN(lat)) {
+    query.location = {
       $near: {
         $geometry: {
-          type: "Point",
-          coordinates,
+          type: 'Point',
+          coordinates: [lng, lat],
         },
         $maxDistance: 10000,
       },
-    },
-    status: "open", // ✅ match schema
-  }).select("-organizer");
+    };
+  }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
+  // Populate organizer basic info (name, profile image) for frontend
+  const pools = await OrganizerPool.find(query)
+    .populate('organizer', 'name profile_image_url avatar')
+    .lean();
+
+  // Map to a stable shape the frontend expects
+  const gigId = req.user._id;
+
+  // Get the application status for each pool
+  const poolIds = pools.map(p => p._id);
+  const applications = await PoolApplication.find({
+    gig: gigId,
+    pool: { $in: poolIds }
+  });
+
+  const applicationMap = applications.reduce((acc, app) => {
+    acc[app.pool.toString()] = app.status;
+    return acc;
+  }, {});
+
+  const mapped = await Promise.all(pools.map(async (p) => ({
+    _id: p._id,
+    pool_name: p.pool_name,
+    name: p.pool_name,
+    description: p.description || '',
+    events: p.event ? 1 : 0,
+    max_capacity: p.max_capacity,
+    pay_range: p.pay_range,
+    organizer: p.organizer ? {
+      _id: p.organizer._id,
+      name: p.organizer.name,
+      profile_image_url: p.organizer.profile_image_url || p.organizer.avatar
+    } : null,
+    location: p.location,
+    status: applicationMap[p._id.toString()] || 'not_applied'
+  })));
+
+  return res.status(200).json(new ApiResponse(200, mapped, 'Nearby pools fetched'));
+});
+
+// NEW: showPools - return pools created using the Pool model (organizer-created pools)
+// Supports optional query params: city and date (YYYY-MM-DD). Filters operate on Pool schema
+// fields (venue.city and date) so filtering is performed directly on Pool documents.
+const showPools = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { city, date } = req.query;
+
+  // Build query based on Pool schema fields
+  const query = { status: 'open' };
+
+  if (city) {
+    query['venue.city'] = { $regex: city, $options: 'i' };
+  }
+
+  if (date) {
+    const dateObj = new Date(date);
+    const dayStart = new Date(dateObj.setHours(0, 0, 0, 0));
+    const dayEnd = new Date(dateObj.setHours(24, 0, 0, 0));
+    query.date = { $gte: dayStart, $lt: dayEnd };
+  }
+
+  // Return pools matching the filters
+  const pools = await Pool.find(query)
+    .populate('organizer', 'name profile_image_url avatar')
+    .lean();
+
+  // Get any existing applications by this gig for these pools
+  const poolIds = pools.map(p => p._id);
+  const applications = await PoolApplication.find({
+    gig: gigId,
+    pool: { $in: poolIds }
+  });
+
+  const applicationMap = applications.reduce((acc, app) => {
+    acc[app.pool.toString()] = app.status;
+    return acc;
+  }, {});
+
+  const mapped = pools.map((p) => ({
+    _id: p._id,
+    name: p.name,
+    description: p.description || '',
+    organizer: p.organizer ? {
+      _id: p.organizer._id,
+      name: p.organizer.name,
+      profile_image_url: p.organizer.profile_image_url || p.organizer.avatar
+    } : null,
+    member_count: Array.isArray(p.gigs) ? p.gigs.length : 0,
+    // application status takes precedence; otherwise determine joined from gigs array
+    status: applicationMap[p._id.toString()] || (Array.isArray(p.gigs) && p.gigs.some(id => id?.toString() === gigId.toString()) ? 'joined' : 'not_joined'),
+    date: p.date,
+    venue: p.venue,
+    createdAt: p.createdAt
+  }));
+
+  return res.status(200).json(new ApiResponse(200, mapped, 'Pools fetched'));
+});
+
+// Join a Pool created via the Pool model (organizer-created pools)
+const joinPoolModel = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { poolId } = req.params;
+
+  const pool = await Pool.findById(poolId);
+  if (!pool) {
+    throw new ApiError(404, 'Pool not found');
+  }
+
+  // If already a member
+  if (Array.isArray(pool.gigs) && pool.gigs.some(id => id?.toString() === gigId.toString())) {
+    return res.status(200).json(new ApiResponse(200, { status: 'joined' }, 'Already a member'));
+  }
+
+  // Add gig to pool members
+  // Use atomic update to avoid triggering full document validation
+  await Pool.findByIdAndUpdate(poolId, {
+    $push: { gigs: { gig: gigId, status: 'pending', appliedAt: new Date() } }
+  });
+
+  // Notify organizer (optional)
+  try {
+    await Notification.create({
+      user: pool.organizer,
+      type: 'pool_membership',
+      title: 'New Pool Member',
+      message: `A gig worker has joined your pool "${pool.name}"`,
+      data: { poolId: pool._id, gigId }
+    });
+  } catch (e) {
+    // ignore notification failures
+    console.warn('Failed to create pool join notification', e?.message || e);
+  }
+
+  return res.status(201).json(new ApiResponse(201, { status: 'joined', poolId: pool._id }, 'Joined pool'));
 });
 
 // 6. Join a specific pool
@@ -169,33 +344,56 @@ const joinPool = asyncHandler(async (req, res) => {
   const { poolId } = req.params;
   const { proposed_rate, cover_message } = req.body;
 
+  // Validate pool exists
   const pool = await OrganizerPool.findById(poolId);
   if (!pool) {
     throw new ApiError(404, "Pool not found");
   }
 
+  // Check if already applied
   const existingApplication = await PoolApplication.findOne({
     gig: gigId,
     pool: poolId,
   });
+
   if (existingApplication) {
-    return res
-    .status(200)
-    .json(new ApiResponse(201, existingApplication, "GiG  already in this pool"));
+    if (existingApplication.status === 'pending') {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, { status: 'pending' }, "Application already pending"));
+    }
+    if (existingApplication.status === 'accepted') {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, { status: 'accepted' }, "Already a member of this pool"));
+    }
   }
 
+  // Create new application
   const application = await PoolApplication.create({
     gig: gigId,
     pool: poolId,
-    proposed_rate: mongoose.Types.Decimal128.fromString(
-      proposed_rate.toString()
-    ),
-    cover_message,
+    status: 'pending',
+    proposed_rate: proposed_rate ? mongoose.Types.Decimal128.fromString(proposed_rate.toString()) : undefined,
+    cover_message: cover_message || 'Interested in joining the pool',
+  });
+
+  // Create notification for organizer
+  await Notification.create({
+    user: pool.organizer,
+    type: 'pool_application',
+    title: 'New Pool Application',
+    message: `A gig worker has applied to join your pool "${pool.pool_name}"`,
+    data: {
+      poolId: pool._id,
+      gigId: gigId,
+      applicationId: application._id
+    }
   });
 
   return res
     .status(201)
-    .json(new ApiResponse(201, application, "Pool application submitted"));
+    .json(new ApiResponse(201, { status: 'pending', application }, "Pool application submitted successfully"));
 });
 
 //gig wallet
@@ -210,6 +408,17 @@ const getWallet = asyncHandler(async (req, res) => {
       user: gigId,
       upi_id: "aditya3676",
       balance_inr: mongoose.Types.Decimal128.fromString("2000.00"),
+    });
+
+    // Create an initial test payment
+    await Payment.create({
+      escrow: null,
+      payer: gigId,  // self-credit for testing
+      payee: gigId,
+      amount: mongoose.Types.Decimal128.fromString("2000.00"),
+      payment_method: "upi",
+      status: "completed",
+      upi_transaction_id: "INIT" + Date.now()
     });
   }
 
@@ -279,15 +488,15 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
   const payments = await Payment.find({ payee: gigId })
-    .populate("escrow", "event total_amount status");
+    .populate("escrow", "event total_amount status")
+    .sort({ createdAt: -1 }); // Sort by most recent first
 
-  if (!payments || payments.length === 0) {
-    throw new ApiError(404, "No payments found");
-  }
-
-  const formattedPayments = payments.map((p) => ({
+  const formattedPayments = (payments || []).map((p) => ({
     ...p.toObject(),
     amount: parseFloat(p.amount?.toString() || "0.00"),
+    description: p.escrow?.event?.name || "Event payment",
+    type: "credit",  // All payments to gigs are credits
+    createdAt: p.createdAt,
   }));
 
   return res
@@ -777,6 +986,8 @@ const verifyAadhaar = asyncHandler(async (req, res) => {
 export {
   getNearbyEvents,
   getOrganizerPools,
+  showPools,
+  joinPoolModel,
   joinPool,
   getMyEvents,
   checkIn,
@@ -801,9 +1012,83 @@ export {
   getKYCStatus,
   debugGigData,
   getRecommendedEvents,
+  getAcceptedPools,
   getGigDashboard,
   uploadDocuments,
   uploadKycVideo,
   createWallet,
   verifyAadhaar,
+  getOrganizerPoolDetails,
+  getPoolModelDetails,
 };
+
+// Get details of a specific organizer pool
+const getOrganizerPoolDetails = asyncHandler(async (req, res) => {
+  const { poolId } = req.params;
+  const gigId = req.user._id;
+
+  const pool = await OrganizerPool.findById(poolId)
+    .populate('organizer', 'name profile_image_url avatar');
+
+  if (!pool) {
+    throw new ApiError(404, "Pool not found");
+  }
+
+  // Check if the gig worker has already applied to this pool
+  const application = await PoolApplication.findOne({
+    gig: gigId,
+    pool: poolId,
+  });
+
+  const response = {
+    _id: pool._id,
+    name: pool.pool_name,
+    pool_name: pool.pool_name,
+    description: pool.description,
+    organizer: pool.organizer,
+    max_capacity: pool.max_capacity,
+    pay_range: pool.pay_range,
+    events: pool.events,
+    location: pool.location,
+    status: application ? application.status : 'not_applied',
+    createdAt: pool.createdAt,
+    updatedAt: pool.updatedAt
+  };
+
+  return res.status(200).json(new ApiResponse(200, response, "Pool details fetched"));
+});
+
+// Get details of a specific Pool (Pool model)
+const getPoolModelDetails = asyncHandler(async (req, res) => {
+  const { poolId } = req.params;
+  const gigId = req.user._1 || req.user._id || req.user?.id || req.user;
+
+  // Normalize gigId to ObjectId-ish string when possible
+  const gigObjectId = req.user._id;
+
+  const pool = await Pool.findById(poolId)
+    .populate('organizer', 'name profile_image_url avatar')
+    .lean();
+
+  if (!pool) {
+    throw new ApiError(404, "Pool not found");
+  }
+
+  // Check if the gig worker has an existing application for this pool
+  const application = await PoolApplication.findOne({ gig: gigObjectId, pool: poolId });
+
+  const response = {
+    _id: pool._id,
+    name: pool.name,
+    description: pool.description || '',
+    organizer: pool.organizer || null,
+    gigs: pool.gigs || [],
+    member_count: Array.isArray(pool.gigs) ? pool.gigs.length : 0,
+    hasJoined: Array.isArray(pool.gigs) && pool.gigs.some(id => id?.toString() === gigObjectId.toString()),
+    status: application ? application.status : (Array.isArray(pool.gigs) && pool.gigs.some(id => id?.toString() === gigObjectId.toString()) ? 'joined' : 'not_joined'),
+    createdAt: pool.createdAt,
+    updatedAt: pool.updatedAt
+  };
+
+  return res.status(200).json(new ApiResponse(200, response, "Pool details fetched"));
+});

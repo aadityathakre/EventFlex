@@ -7,8 +7,72 @@ export const gigService = {
   checkIn: (eventId) => apiClient.post(`/gigs/check-in/${eventId}`),
   getNearbyEvents: (params) => apiClient.get('/gigs/nearby-events', { params }),
   getRecommendedEvents: () => apiClient.get('/gigs/recommended-events'),
-  getOrganizerPools: () => apiClient.get('/gigs/organizer-pools'),
+  // Get all organizer pools with optional location filtering
+  getOrganizerPools: (coords) => apiClient.get('/gigs/organizer-pools', { 
+    params: coords,
+    transformResponse: [(data) => {
+      try {
+        const parsedData = JSON.parse(data);
+        return parsedData.data.map(pool => ({
+          ...pool,
+          hasJoined: pool.status === 'pending' || pool.status === 'joined'
+        }));
+      } catch (error) {
+        console.error('Error parsing pool data:', error);
+        return [];
+      }
+    }]
+  }),
+  // Get pools created by organizers (Pool model)
+  // Accept optional query params: { city, date }
+  getPools: (params) => apiClient.get('/gigs/pools', {
+    params,
+    transformResponse: [(data) => {
+      try {
+        const parsed = JSON.parse(data);
+        return parsed.data.map(pool => ({
+          ...pool,
+          hasJoined: pool.status === 'pending' || pool.status === 'joined'
+        }));
+      } catch (e) {
+        console.error('Error parsing pools response', e);
+        return [];
+      }
+    }]
+  }),
+  // Get pools where this gig was accepted (organizer approved)
+  getAcceptedPools: () => apiClient.get('/gigs/accepted-pools', {
+    transformResponse: [(data) => {
+      try {
+        const parsed = JSON.parse(data);
+        return parsed.data || [];
+      } catch (e) {
+        console.error('Error parsing accepted pools response', e);
+        return [];
+      }
+    }]
+  }),
+  // Join a Pool created by organizer (Pool model)
+  joinPoolModel: (poolId) => apiClient.post(`/gigs/pools/join/${poolId}`),
+  // Join a specific pool
   joinPool: (poolId, data) => apiClient.post(`/gigs/join-pool/${poolId}`, data),
+  // Get details of a specific pool (Pool model)
+  getPoolDetails: (poolId) => apiClient.get(`/gigs/pools/${poolId}`, {
+    transformResponse: [(data) => {
+      try {
+        const parsed = JSON.parse(data);
+        // ApiResponse shape: { statusCode, data, message, success }
+        const payload = parsed.data || parsed;
+        return {
+          ...payload,
+          hasJoined: payload.status === 'pending' || payload.status === 'joined' || !!payload.hasJoined
+        };
+      } catch (e) {
+        console.error('Error parsing pool details response', e);
+        return null;
+      }
+    }]
+  }),
   getWallet: () => apiClient.get('/gigs/wallet'),
   withdraw: (data) => apiClient.post('/gigs/withdraw', data),
   getPaymentHistory: () => apiClient.get('/gigs/payment-history'),
@@ -16,6 +80,14 @@ export const gigService = {
   updateProfile: (data) => apiClient.put('/gigs/profile', data),
   uploadKycVideo: (formData) => apiClient.post('/gigs/kyc/video', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  updateProfileImage: (formData) => apiClient.put('/gigs/profile-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 30000, // 30 second timeout
+    onUploadProgress: (progressEvent) => {
+      const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      console.log('Upload progress:', percentCompleted, '%');
+    }
   }),
   getKycStatus: () => apiClient.get('/gigs/kyc-status'),
   getBadges: () => apiClient.get('/gigs/badges'),

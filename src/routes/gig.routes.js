@@ -17,9 +17,14 @@ import {
   checkIn,
   getAttendanceHistory,
   getNearbyEvents,
+  showPools,
+  getPoolModelDetails,
   getOrganizerPools,
+  getOrganizerPoolDetails,
+  joinPoolModel,
   joinPool,
   getRecommendedEvents,
+  getAcceptedPools,
 
   // Wallet & Payments
   getWallet,
@@ -70,12 +75,52 @@ router.get(
   verifyToken,
   authorizeRoles("gig"),
   getNearbyEvents
-);
+); 
 router.get(
   "/organizer-pools",
   verifyToken,
   authorizeRoles("gig"),
   getOrganizerPools
+);
+router.get(
+  "/accepted-pools",
+  verifyToken,
+  authorizeRoles("gig"),
+  getAcceptedPools
+);
+// New route to return pools created via the Pool model (organizer-created pools)
+router.get(
+  "/pools",
+  verifyToken,
+  authorizeRoles("gig"),
+  showPools
+);
+// Join a Pool (Pool model)
+router.post(
+  "/pools/join/:poolId",
+  verifyToken,
+  authorizeRoles("gig"),
+  joinPoolModel
+);
+// Get details for a single Pool (Pool model)
+router.get(
+  "/pools/:poolId",
+  verifyToken,
+  authorizeRoles("gig"),
+  getPoolModelDetails
+);
+router.get(
+  "/organizer-pools/:poolId",
+  verifyToken,
+  authorizeRoles("gig"),
+  getOrganizerPoolDetails
+);
+// Get Pool-model pool details
+router.get(
+  "/pools/:poolId",
+  verifyToken,
+  authorizeRoles("gig"),
+  getPoolModelDetails
 );
 router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
 

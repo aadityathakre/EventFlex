@@ -9,13 +9,17 @@ import {
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import { useState, useEffect } from 'react';
-import Login  from '../pages/auth/Login.jsx';
+import { gigService } from '../services/apiServices';
+import { defaultAvatars } from '../utils/defaultAvatars';
 
 const Sidebar = ({ role, mobileOpen, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
+  const [pools, setPools] = useState([]);
+  const [poolsLoading, setPoolsLoading] = useState(true);
+  const [joining, setJoining] = useState({});
 
   useEffect(() => {
     // Initialize theme on mount
@@ -25,6 +29,25 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Fetch a short list of organizer-created pools for the gig sidebar
+  useEffect(() => {
+    let mounted = true;
+    const fetchPools = async () => {
+      try {
+        const res = await gigService.getPools();
+        if (!mounted) return;
+        // gigService.getPools uses a transformResponse that returns the array itself
+        setPools(res || []);
+      } catch (err) {
+        console.error('Failed to load pools for sidebar', err);
+      } finally {
+        if (mounted) setPoolsLoading(false);
+      }
+    };
+    if (role === 'gig') fetchPools();
+    return () => { mounted = false; };
+  }, [role]);
 
   const handleLogout = async () => {
     await logout();
@@ -57,7 +80,7 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
     } else if (role === 'gig') {
       return [
         ...commonItems,
-        { path: `/dashboard/${role}/gigs`, label: 'My Gigs', icon: Briefcase },
+        { path: `/dashboard/${role}/gigs`, label: 'My Events', icon: Briefcase },
         { path: `/dashboard/${role}/skills`, label: 'My Skills', icon: GraduationCap },
         { path: `/dashboard/${role}/wallet`, label: 'Wallet', icon: Wallet },
         { path: `/dashboard/${role}/pools`, label: 'Organizer Pools', icon: Users },
@@ -117,13 +140,14 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
 
       {/* Help & User Section */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-        {/* <Link
+        {/* No pools list in sidebar */}
+        <Link
           to="/help"
           className="sidebar-link"
         >
           <HelpCircle className="w-5 h-5" />
           <span>Help & Support</span>
-        </Link> */}
+        </Link> 
 
         {/* Theme Toggle */}
         <button
@@ -145,18 +169,22 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
 
         {/* User Profile */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-lg">
-          <div className="w-10 h-10 rounded-full bg-teal flex items-center justify-center">
-            {user?.avatar ? (
-              <img src={user.avatar} alt={user.first_name} className="w-full h-full rounded-full object-cover" />
-            ) : (
-              <UserCircle className="w-6 h-6 text-white" />
-            )}
-          </div>
+          <Link to={`/dashboard/${role}/profile`} className="block">
+            <div className="w-10 h-10 rounded-full bg-teal flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-teal transition-all">
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.first_name} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <UserCircle className="w-6 h-6 text-white" />
+              )}
+            </div>
+          </Link>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium dark:text-white text-gray-900 truncate">
-              {user?.first_name} {user?.last_name}
-            </p>
-            <p className="text-xs dark:text-gray-400 text-gray-600 capitalize">{role}</p>
+            <Link to={`/dashboard/${role}/profile`} className="block">
+              <p className="text-sm font-medium dark:text-white text-gray-900 truncate hover:text-teal transition-colors">
+                {user?.first_name} {user?.last_name}
+              </p>
+              <p className="text-xs dark:text-gray-400 text-gray-600 capitalize">{role}</p>
+            </Link>
           </div>
           <button
             onClick={handleLogout}
