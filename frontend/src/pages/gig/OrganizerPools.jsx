@@ -9,6 +9,8 @@ import Layout from '../../components/Layout';
 const OrganizerPools = () => {
   const [pools, setPools] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [city, setCity] = useState('');
+  const [date, setDate] = useState('');
   const navigate = useNavigate();
   const { poolId } = useParams();
 
@@ -19,7 +21,11 @@ const OrganizerPools = () => {
   const fetchPools = async () => {
     try {
       // Use the Pool-model endpoint that returns organizer-created pools
-      const response = await gigService.getPools();
+      const params = {};
+      if (city) params.city = city;
+      if (date) params.date = date; // format YYYY-MM-DD from input[type=date]
+
+      const response = await gigService.getPools(params);
       // apiClient response interceptor returns transformed data directly
       setPools(response || []);
     } catch (error) {
@@ -79,14 +85,40 @@ const OrganizerPools = () => {
           </div>
         </div>
         
-        {/* Filters */}
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          <button className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-600">All Pools</button>
-          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Wedding Events</button>
-          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Corporate</button>
-          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Exhibitions</button>
-          <button className="px-4 py-2 bg-gray-100 dark:bg-dark-card text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Tech Events</button>
-        </div>
+            {/* Filters - show only Date and City filters */}
+            <div className="flex gap-4 items-center overflow-x-auto pb-2">
+              <button className="px-4 py-2 bg-teal text-white rounded-lg hover:bg-teal-600">All Pools</button>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">City</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Enter city"
+                  className="input w-40"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Date</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <button
+                  onClick={() => { setLoading(true); fetchPools(); }}
+                  className="px-4 py-2 bg-teal-500 text-white rounded-lg"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {pools.map((pool) => (

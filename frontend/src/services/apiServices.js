@@ -24,7 +24,9 @@ export const gigService = {
     }]
   }),
   // Get pools created by organizers (Pool model)
-  getPools: () => apiClient.get('/gigs/pools', {
+  // Accept optional query params: { city, date }
+  getPools: (params) => apiClient.get('/gigs/pools', {
+    params,
     transformResponse: [(data) => {
       try {
         const parsed = JSON.parse(data);

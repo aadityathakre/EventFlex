@@ -209,13 +209,91 @@ const getOrganizerPools = asyncHandler(async (req, res) => {
 });
 
 // NEW: showPools - return pools created using the Pool model (organizer-created pools)
+// Supports optional query params: city and date (YYYY-MM-DD). Filters by organizer's
+// profile.city and by organizer events starting on the specified date.
 const showPools = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
+  const { city, date } = req.query;
 
-  // Return active pools created by organizers
-  const pools = await Pool.find({ status: 'active' })
-    .populate('organizer', 'name profile_image_url avatar')
-    .lean();
+  // Build aggregation pipeline to filter pools and enrich organizer info
+  const pipeline = [];
+
+  // // Only active pools
+  // pipeline.push({ $match: { status: 'active' } });
+
+  // Lookup organizer data
+  pipeline.push({
+    $lookup: {
+      from: 'users',
+      localField: 'organizer',
+      foreignField: '_id',
+      as: 'organizer'
+    }
+  });
+  pipeline.push({ $unwind: { path: '$organizer', preserveNullAndEmptyArrays: true } });
+
+  // If city filter present, lookup UserProfile and match profile.location.city
+  if (city) {
+    pipeline.push({
+      $lookup: {
+        from: 'userprofiles',
+        localField: 'organizer._id',
+        foreignField: 'user',
+        as: 'profile'
+      }
+    });
+    pipeline.push({ $unwind: { path: '$profile', preserveNullAndEmptyArrays: true } });
+    pipeline.push({
+      $match: {
+        $or: [
+          { 'profile.location.city': { $regex: city, $options: 'i' } },
+          { 'profile.location.town': { $regex: city, $options: 'i' } },
+          { 'profile.location.state': { $regex: city, $options: 'i' } }
+        ]
+      }
+    });
+  }
+
+  // If date filter present, lookup events for organizer that start on that date
+  if (date) {
+    // Parse date into a start and end for the day
+    const dateObj = new Date(date);
+    const dayStart = new Date(dateObj.setHours(0, 0, 0, 0));
+    const dayEnd = new Date(dateObj.setHours(24, 0, 0, 0));
+
+    pipeline.push({
+      $lookup: {
+        from: 'events',
+        let: { orgId: '$organizer._id' },
+        pipeline: [
+          { $match: { $expr: { $and: [ { $eq: ['$organizer', '$$orgId'] }, { $gte: ['$start_date', dayStart] }, { $lt: ['$start_date', dayEnd] } ] } } },
+          { $project: { _id: 1, name: 1, start_date: 1 } }
+        ],
+        as: 'eventsOnDate'
+      }
+    });
+
+    // Only include pools whose organizer has an event on that date
+    pipeline.push({ $match: { 'eventsOnDate.0': { $exists: true } } });
+  }
+
+  // Project fields that frontend expects
+  pipeline.push({
+    $project: {
+      _id: 1,
+      name: 1,
+      description: 1,
+      organizer: {
+        _id: '$organizer._id',
+        name: '$organizer.name',
+        profile_image_url: '$organizer.profile_image_url'
+      },
+      gigs: 1,
+      createdAt: 1
+    }
+  });
+
+  const pools = await Pool.aggregate(pipeline);
 
   // Get any existing applications by this gig for these pools
   const poolIds = pools.map(p => p._id);
@@ -233,13 +311,8 @@ const showPools = asyncHandler(async (req, res) => {
     _id: p._id,
     name: p.name,
     description: p.description || '',
-    organizer: p.organizer ? {
-      _id: p.organizer._id,
-      name: p.organizer.name,
-      profile_image_url: p.organizer.profile_image_url || p.organizer.avatar
-    } : null,
+    organizer: p.organizer || null,
     member_count: Array.isArray(p.gigs) ? p.gigs.length : 0,
-    // application status takes precedence; otherwise determine joined from gigs array
     status: applicationMap[p._id.toString()] || (Array.isArray(p.gigs) && p.gigs.some(id => id?.toString() === gigId.toString()) ? 'joined' : 'not_joined'),
     createdAt: p.createdAt
   }));
