@@ -8,6 +8,7 @@ import { Users, Plus } from 'lucide-react';
 const GigPools = () => {
   const [pools, setPools] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedPool, setSelectedPool] = useState(null);
   const [proposedRate, setProposedRate] = useState('');
@@ -17,6 +18,8 @@ const GigPools = () => {
   }, []);
 
   const fetchPools = async () => {
+    setError(null); // Clear any previous errors
+    setLoading(true);
     try {
       // Try to get user coordinates for nearby ordering; fall back to server default
       let coords = {};
@@ -28,14 +31,43 @@ const GigPools = () => {
           coords = { lng: pos.coords.longitude, lat: pos.coords.latitude };
         } catch (e) {
           // ignore geolocation errors and let backend return open pools
+          console.warn('Geolocation failed:', e);
         }
       }
 
-      const data = await gigService.getOrganizerPools(coords);
-      // apiClient response interceptor returns the ApiResponse object
-      setPools(data.data || []);
+      let organizerPools = [], generalPools = [];
+      try {
+        organizerPools = await gigService.getOrganizerPools(coords);
+      } catch (e) {
+        console.error('Failed to load organizer pools:', e);
+        toast.error('Failed to load some pools');
+      }
+
+      try {
+        generalPools = await gigService.getPools();
+      } catch (e) {
+        console.error('Failed to load general pools:', e);
+        toast.error('Failed to load some pools');
+      }
+      
+      // Combine and deduplicate pools by ID
+      const allPools = [...(organizerPools.data || []), ...(generalPools.data || [])];
+      const uniquePools = allPools.reduce((acc, pool) => {
+        if (!acc.find(p => p._id === pool._id)) {
+          acc.push(pool);
+        }
+        return acc;
+      }, []);
+
+      if (uniquePools.length === 0 && (organizerPools.length === 0 || generalPools.length === 0)) {
+        setError('Could not load all pools. Please try again later.');
+      }
+
+      setPools(uniquePools);
     } catch (error) {
       console.error('Failed to load pools', error);
+      setError('Failed to load pools. Please try again later.');
+      toast.error('Error loading pools');
     } finally {
       setLoading(false);
     }
@@ -78,6 +110,19 @@ const GigPools = () => {
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="text-gray-500">Loading pools...</div>
+          </div>
+        ) : error ? (
+          <div className="card text-center py-12">
+            <p className="text-red-500">{error}</p>
+            <button 
+              onClick={() => {
+                setLoading(true);
+                fetchPools();
+              }}
+              className="btn btn-primary mt-4"
+            >
+              Retry
+            </button>
           </div>
         ) : pools.length === 0 ? (
           <div className="card text-center py-12">
