@@ -131,55 +131,59 @@ const GigDashboard = () => {
               </div>
             </div>
 
-            {/* Skills & Certificates */}
+            {/* Compact Skills preview (show only a few skills on dashboard) */}
             <div className="card">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold dark:text-white text-gray-900">My Skills & Certificates</h2>
-                <button className="btn btn-teal">
-                  <Plus className="w-4 h-4" />
-                  Add New
-                </button>
+                <h2 className="text-xl font-bold dark:text-white text-gray-900">My Skills</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('/dashboard/gig/skills')}
+                    className="btn btn-outline"
+                  >
+                    View all
+                  </button>
+                  <button className="btn btn-teal" onClick={() => navigate('/dashboard/gig/skills')}>
+                    <Plus className="w-4 h-4" />
+                    Manage
+                  </button>
+                </div>
               </div>
-              
-              <div className="mb-6">
-                <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-3">Skills</h3>
+
+              <div className="mb-2">
+                <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-3">Top Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                  {skills.map((skill, index) => (
+                  {skills.slice(0, 3).map((skill, index) => (
                     <span
                       key={index}
-                      className={`badge ${
-                        index < 3 ? 'bg-teal text-white' : 'bg-gray-600 text-white'
-                      }`}
+                      className={`badge ${index === 0 ? 'bg-teal text-white' : 'bg-gray-600 text-white'}`}
                     >
                       {skill}
                     </span>
                   ))}
+                  {skills.length > 3 && (
+                    <span className="text-sm text-gray-500 flex items-center">+{skills.length - 3} more</span>
+                  )}
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-3">Certificates</h3>
-                <div className="space-y-3">
-                  {certificates.map((cert, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 dark:bg-dark-bg bg-gray-50 rounded-lg">
+              {/* Small certificates summary */}
+              {certificates?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-3">Certificates</h3>
+                  <div className="space-y-2">
+                    <div className="p-3 dark:bg-dark-bg bg-gray-50 rounded-lg flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {index === 0 ? (
-                          <Shield className="w-6 h-6 text-teal" />
-                        ) : (
-                          <Building className="w-6 h-6 text-teal" />
-                        )}
+                        <Shield className="w-5 h-5 text-teal" />
                         <div>
-                          <p className="font-medium dark:text-white text-gray-900">{cert.name}</p>
-                          <p className="text-xs dark:text-gray-400 text-gray-600">{cert.issuer}</p>
+                          <p className="font-medium dark:text-white text-gray-900">{certificates[0].name}</p>
+                          <p className="text-xs dark:text-gray-400 text-gray-600">{certificates[0].issuer}</p>
                         </div>
                       </div>
-                      <button>
-                        <span className="text-gray-400">⋯</span>
-                      </button>
+                      <button onClick={() => navigate('/dashboard/gig/skills')}>View</button>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Nearby Events */}

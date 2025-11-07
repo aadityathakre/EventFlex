@@ -355,6 +355,17 @@ const getWallet = asyncHandler(async (req, res) => {
       upi_id: "aditya3676",
       balance_inr: mongoose.Types.Decimal128.fromString("2000.00"),
     });
+
+    // Create an initial test payment
+    await Payment.create({
+      escrow: null,
+      payer: gigId,  // self-credit for testing
+      payee: gigId,
+      amount: mongoose.Types.Decimal128.fromString("2000.00"),
+      payment_method: "upi",
+      status: "completed",
+      upi_transaction_id: "INIT" + Date.now()
+    });
   }
 
   // Defensive check: ensure balance_inr is valid
@@ -423,15 +434,15 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
   const payments = await Payment.find({ payee: gigId })
-    .populate("escrow", "event total_amount status");
+    .populate("escrow", "event total_amount status")
+    .sort({ createdAt: -1 }); // Sort by most recent first
 
-  if (!payments || payments.length === 0) {
-    throw new ApiError(404, "No payments found");
-  }
-
-  const formattedPayments = payments.map((p) => ({
+  const formattedPayments = (payments || []).map((p) => ({
     ...p.toObject(),
     amount: parseFloat(p.amount?.toString() || "0.00"),
+    description: p.escrow?.event?.name || "Event payment",
+    type: "credit",  // All payments to gigs are credits
+    createdAt: p.createdAt,
   }));
 
   return res

@@ -30,9 +30,15 @@ const GigWallet = () => {
   const fetchPaymentHistory = async () => {
     try {
       const data = await gigService.getPaymentHistory();
-      setPaymentHistory(data.data || []);
+      const payments = data.data || [];
+      setPaymentHistory(payments.map(payment => ({
+        ...payment,
+        description: payment.description || 'Event payment',
+        type: payment.type || 'credit',
+      })));
     } catch (error) {
-      console.error('Failed to load payment history');
+      console.error('Failed to load payment history:', error);
+      toast.error('Failed to load payment history');
     }
   };
 
