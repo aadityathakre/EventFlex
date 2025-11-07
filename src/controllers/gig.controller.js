@@ -48,6 +48,40 @@ const getMyEvents = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, events, "Accepted events fetched"));
 });
 
+// 2a. Get pools where this gig's application was accepted
+const getAcceptedPools = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  // Find pool applications accepted for this gig and populate pool info
+  const applications = await PoolApplication.find({ gig: gigId, application_status: 'accepted' })
+    .populate({ path: 'pool', populate: { path: 'organizer', select: 'name profile_image_url avatar' } })
+    .lean();
+
+  const pools = applications.map(app => {
+    const pool = app.pool || {};
+    return {
+      _id: pool._id,
+      pool_name: pool.pool_name || pool.name,
+      name: pool.name || pool.pool_name,
+      description: pool.description || '',
+      organizer: pool.organizer ? {
+        _id: pool.organizer._id,
+        name: pool.organizer.name,
+        profile_image_url: pool.organizer.profile_image_url || pool.organizer.avatar
+      } : null,
+      location: pool.location || (pool.venue ? `${pool.venue.address || ''}${pool.venue.city ? ', ' + pool.venue.city : ''}` : ''),
+      venue: pool.venue || null,
+      date: pool.date || null,
+      status: pool.status || 'open',
+      applicationId: app._id,
+      application_status: app.application_status,
+      createdAt: pool.createdAt
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, pools, 'Accepted pools fetched'));
+});
+
 // 2. QR/GPS check-in
 const checkIn = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
@@ -209,91 +243,30 @@ const getOrganizerPools = asyncHandler(async (req, res) => {
 });
 
 // NEW: showPools - return pools created using the Pool model (organizer-created pools)
-// Supports optional query params: city and date (YYYY-MM-DD). Filters by organizer's
-// profile.city and by organizer events starting on the specified date.
+// Supports optional query params: city and date (YYYY-MM-DD). Filters operate on Pool schema
+// fields (venue.city and date) so filtering is performed directly on Pool documents.
 const showPools = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { city, date } = req.query;
 
-  // Build aggregation pipeline to filter pools and enrich organizer info
-  const pipeline = [];
+  // Build query based on Pool schema fields
+  const query = { status: 'open' };
 
-  // // Only active pools
-  // pipeline.push({ $match: { status: 'active' } });
-
-  // Lookup organizer data
-  pipeline.push({
-    $lookup: {
-      from: 'users',
-      localField: 'organizer',
-      foreignField: '_id',
-      as: 'organizer'
-    }
-  });
-  pipeline.push({ $unwind: { path: '$organizer', preserveNullAndEmptyArrays: true } });
-
-  // If city filter present, lookup UserProfile and match profile.location.city
   if (city) {
-    pipeline.push({
-      $lookup: {
-        from: 'userprofiles',
-        localField: 'organizer._id',
-        foreignField: 'user',
-        as: 'profile'
-      }
-    });
-    pipeline.push({ $unwind: { path: '$profile', preserveNullAndEmptyArrays: true } });
-    pipeline.push({
-      $match: {
-        $or: [
-          { 'profile.location.city': { $regex: city, $options: 'i' } },
-          { 'profile.location.town': { $regex: city, $options: 'i' } },
-          { 'profile.location.state': { $regex: city, $options: 'i' } }
-        ]
-      }
-    });
+    query['venue.city'] = { $regex: city, $options: 'i' };
   }
 
-  // If date filter present, lookup events for organizer that start on that date
   if (date) {
-    // Parse date into a start and end for the day
     const dateObj = new Date(date);
     const dayStart = new Date(dateObj.setHours(0, 0, 0, 0));
     const dayEnd = new Date(dateObj.setHours(24, 0, 0, 0));
-
-    pipeline.push({
-      $lookup: {
-        from: 'events',
-        let: { orgId: '$organizer._id' },
-        pipeline: [
-          { $match: { $expr: { $and: [ { $eq: ['$organizer', '$$orgId'] }, { $gte: ['$start_date', dayStart] }, { $lt: ['$start_date', dayEnd] } ] } } },
-          { $project: { _id: 1, name: 1, start_date: 1 } }
-        ],
-        as: 'eventsOnDate'
-      }
-    });
-
-    // Only include pools whose organizer has an event on that date
-    pipeline.push({ $match: { 'eventsOnDate.0': { $exists: true } } });
+    query.date = { $gte: dayStart, $lt: dayEnd };
   }
 
-  // Project fields that frontend expects
-  pipeline.push({
-    $project: {
-      _id: 1,
-      name: 1,
-      description: 1,
-      organizer: {
-        _id: '$organizer._id',
-        name: '$organizer.name',
-        profile_image_url: '$organizer.profile_image_url'
-      },
-      gigs: 1,
-      createdAt: 1
-    }
-  });
-
-  const pools = await Pool.aggregate(pipeline);
+  // Return pools matching the filters
+  const pools = await Pool.find(query)
+    .populate('organizer', 'name profile_image_url avatar')
+    .lean();
 
   // Get any existing applications by this gig for these pools
   const poolIds = pools.map(p => p._id);
@@ -311,9 +284,16 @@ const showPools = asyncHandler(async (req, res) => {
     _id: p._id,
     name: p.name,
     description: p.description || '',
-    organizer: p.organizer || null,
+    organizer: p.organizer ? {
+      _id: p.organizer._id,
+      name: p.organizer.name,
+      profile_image_url: p.organizer.profile_image_url || p.organizer.avatar
+    } : null,
     member_count: Array.isArray(p.gigs) ? p.gigs.length : 0,
+    // application status takes precedence; otherwise determine joined from gigs array
     status: applicationMap[p._id.toString()] || (Array.isArray(p.gigs) && p.gigs.some(id => id?.toString() === gigId.toString()) ? 'joined' : 'not_joined'),
+    date: p.date,
+    venue: p.venue,
     createdAt: p.createdAt
   }));
 
@@ -336,9 +316,10 @@ const joinPoolModel = asyncHandler(async (req, res) => {
   }
 
   // Add gig to pool members
-  pool.gigs = pool.gigs || [];
-  pool.gigs.push(gigId);
-  await pool.save();
+  // Use atomic update to avoid triggering full document validation
+  await Pool.findByIdAndUpdate(poolId, {
+    $push: { gigs: { gig: gigId, status: 'pending', appliedAt: new Date() } }
+  });
 
   // Notify organizer (optional)
   try {
@@ -1031,6 +1012,7 @@ export {
   getKYCStatus,
   debugGigData,
   getRecommendedEvents,
+  getAcceptedPools,
   getGigDashboard,
   uploadDocuments,
   uploadKycVideo,

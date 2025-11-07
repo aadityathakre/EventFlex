@@ -79,7 +79,7 @@ const Sidebar = ({ role }) => {
     } else if (role === 'gig') {
       return [
         ...commonItems,
-        { path: `/dashboard/${role}/gigs`, label: 'My Gigs', icon: Briefcase },
+        { path: `/dashboard/${role}/gigs`, label: 'My Events', icon: Briefcase },
         { path: `/dashboard/${role}/skills`, label: 'My Skills', icon: GraduationCap },
         { path: `/dashboard/${role}/wallet`, label: 'Wallet', icon: Wallet },
         { path: `/dashboard/${role}/pools`, label: 'Organizer Pools', icon: Users },

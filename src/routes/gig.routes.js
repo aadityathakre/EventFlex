@@ -24,6 +24,7 @@ import {
   joinPoolModel,
   joinPool,
   getRecommendedEvents,
+  getAcceptedPools,
 
   // Wallet & Payments
   getWallet,
@@ -80,6 +81,12 @@ router.get(
   verifyToken,
   authorizeRoles("gig"),
   getOrganizerPools
+);
+router.get(
+  "/accepted-pools",
+  verifyToken,
+  authorizeRoles("gig"),
+  getAcceptedPools
 );
 // New route to return pools created via the Pool model (organizer-created pools)
 router.get(

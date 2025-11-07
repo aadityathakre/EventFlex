@@ -49,9 +49,33 @@ const GigPools = () => {
         console.error('Failed to load general pools:', e);
         toast.error('Failed to load some pools');
       }
-      
-      // Combine and deduplicate pools by ID
-      const allPools = [...(organizerPools.data || []), ...(generalPools.data || [])];
+
+      // Ensure both results are arrays (api layer returns transformed arrays)
+      organizerPools = organizerPools || [];
+      generalPools = generalPools || [];
+
+      // Normalize pools into a consistent shape
+      const normalize = (p) => ({
+        _id: p._id,
+        name: p.name || p.pool_name || 'Untitled Pool',
+        description: p.description || '',
+        organizer: p.organizer || null,
+        venue: p.venue || null,
+        date: p.date || p.event_date || null,
+        location: p.location || (p.venue ? `${p.venue.address || ''}${p.venue.city ? ', ' + p.venue.city : ''}` : ''),
+        member_count: p.member_count ?? (p.gigs?.length || p.max_capacity || p.maxPositions || 0),
+        gigs: p.gigs || [],
+        hasJoined: !!p.hasJoined,
+        roles: p.roles || [],
+        skillsRequired: p.skillsRequired || p.skills || [],
+        applicationDeadline: p.applicationDeadline || p.application_deadline || null,
+        requirements: p.requirements || null,
+        maxPositions: p.maxPositions || p.max_capacity || null,
+        filledPositions: p.filledPositions || p.filled_positions || null,
+        raw: p,
+      });
+
+      const allPools = [...organizerPools.map(normalize), ...generalPools.map(normalize)];
       const uniquePools = allPools.reduce((acc, pool) => {
         if (!acc.find(p => p._id === pool._id)) {
           acc.push(pool);
@@ -63,7 +87,7 @@ const GigPools = () => {
         setError('Could not load all pools. Please try again later.');
       }
 
-      setPools(uniquePools);
+  setPools(uniquePools);
     } catch (error) {
       console.error('Failed to load pools', error);
       setError('Failed to load pools. Please try again later.');
@@ -88,10 +112,17 @@ const GigPools = () => {
     }
 
     try {
-      await gigService.joinPool(selectedPool._id, {
-        proposed_rate: proposedRate,
-        cover_message: 'Interested in joining this pool',
-      });
+      // Choose API depending on pool shape (Pool model vs OrganizerPool)
+      if (selectedPool.raw?.venue || selectedPool.venue) {
+        // Pool model
+        await gigService.joinPoolModel(selectedPool._id);
+      } else {
+        // OrganizerPool expects an application payload
+        await gigService.joinPool(selectedPool._id, {
+          proposed_rate: proposedRate,
+          cover_message: 'Interested in joining this pool',
+        });
+      }
       toast.success('Application submitted successfully!');
       setShowJoinModal(false);
       setSelectedPool(null);
@@ -143,9 +174,36 @@ const GigPools = () => {
                   <h3 className="text-xl font-semibold">{pool.name || pool.pool_name}</h3>
                 </div>
                 <p className="text-gray-600 mb-4">{pool.description}</p>
-                <p className="text-sm text-gray-500 mb-4">
-                  {pool.gigs?.length || 0} members
+                <p className="text-sm text-gray-500 mb-2">
+                  {pool.member_count || (pool.gigs?.length || 0)} members
                 </p>
+
+                {/* Roles, skills, deadline */}
+                {pool.roles && pool.roles.length > 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs text-gray-500 mb-1">Roles</div>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {pool.roles.map((r, i) => (
+                        <span key={i} className="text-xs px-2 py-1 bg-gray-100 rounded-full">{r.title}{r.requiredCount ? ` • ${r.requiredCount}` : ''}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {pool.skillsRequired && pool.skillsRequired.length > 0 && (
+                  <div className="mb-2">
+                    <div className="text-xs text-gray-500 mb-1">Skills</div>
+                    <div className="flex flex-wrap gap-2">
+                      {pool.skillsRequired.map((s, i) => (
+                        <span key={i} className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded-full">{s.skill || s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {pool.applicationDeadline && (
+                  <div className="text-xs text-gray-500 mb-3">Apply by: {new Date(pool.applicationDeadline).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                )}
                 <button
                   onClick={() => {
                     setSelectedPool(pool);

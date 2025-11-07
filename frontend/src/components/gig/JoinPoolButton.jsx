@@ -31,7 +31,20 @@ const JoinPoolButton = () => {
       setLoading(true);
       const response = await gigService.getOrganizerPools();
       console.log('Fetched pools:', response);
-      setPools(response || []);
+      // Normalize to stable shape (some pools come from Pool model, some from OrganizerPool)
+      const normalized = (response || []).map(p => ({
+        _id: p._id,
+        name: p.name || p.pool_name,
+        organizer: p.organizer || null,
+        hasJoined: !!p.hasJoined,
+        // mark whether this looks like a Pool-model document (has venue/date)
+        poolType: p.venue || p.date ? 'pool' : 'organizerPool',
+        roles: p.roles || [],
+        skillsRequired: p.skillsRequired || p.skills || [],
+        applicationDeadline: p.applicationDeadline || p.application_deadline || null,
+        raw: p
+      }));
+      setPools(normalized);
     } catch (error) {
       console.error('Error fetching pools:', error);
       toast.error('Failed to load pools');
@@ -44,7 +57,13 @@ const JoinPoolButton = () => {
     try {
       // Try to join the pool
       const loadingToast = toast.loading('Sending join request...');
-      await gigService.joinPool(poolId);
+      // Find pool in local cache to determine which backend endpoint to call
+      const pool = pools.find(p => p._id === poolId) || {};
+      if (pool.poolType === 'pool') {
+        await gigService.joinPoolModel(poolId);
+      } else {
+        await gigService.joinPool(poolId);
+      }
       toast.dismiss(loadingToast);
       toast.success('Join request sent successfully');
       fetchPools(); // Refresh the pools list

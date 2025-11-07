@@ -6,6 +6,7 @@ import { Calendar, MapPin, CheckCircle } from 'lucide-react';
 
 const GigEvents = () => {
   const [events, setEvents] = useState([]);
+  const [acceptedPools, setAcceptedPools] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,6 +17,12 @@ const GigEvents = () => {
     try {
       const data = await gigService.getMyEvents();
       setEvents(data.data || []);
+      try {
+        const pools = await gigService.getAcceptedPools();
+        setAcceptedPools(pools || []);
+      } catch (e) {
+        console.error('Failed to load accepted pools', e);
+      }
     } catch (error) {
       console.error('Failed to load events', error);
     } finally {
@@ -48,6 +55,23 @@ const GigEvents = () => {
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-gray-900">My Events</h1>
 
+        {acceptedPools.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold mb-4">Approved Pools</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              {acceptedPools.map((pool) => (
+                <div key={pool._id} className="card">
+                  <h3 className="text-lg font-semibold">{pool.name || pool.pool_name}</h3>
+                  <p className="text-sm text-gray-600">{pool.description}</p>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="text-xs text-gray-500">{pool.location || (pool.venue?.city ? `${pool.venue.city}` : '')}</div>
+                    <div className="text-xs text-gray-500">{pool.date ? new Date(pool.date).toLocaleDateString() : ''}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {events.length === 0 ? (
           <div className="card text-center py-12">
             <p className="text-gray-500">No events assigned yet</p>

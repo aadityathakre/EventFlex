@@ -40,6 +40,18 @@ export const gigService = {
       }
     }]
   }),
+  // Get pools where this gig was accepted (organizer approved)
+  getAcceptedPools: () => apiClient.get('/gigs/accepted-pools', {
+    transformResponse: [(data) => {
+      try {
+        const parsed = JSON.parse(data);
+        return parsed.data || [];
+      } catch (e) {
+        console.error('Error parsing accepted pools response', e);
+        return [];
+      }
+    }]
+  }),
   // Join a Pool created by organizer (Pool model)
   joinPoolModel: (poolId) => apiClient.post(`/gigs/pools/join/${poolId}`),
   // Join a specific pool

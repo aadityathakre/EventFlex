@@ -27,7 +27,34 @@ const OrganizerPools = () => {
 
       const response = await gigService.getPools(params);
       // apiClient response interceptor returns transformed data directly
-      setPools(response || []);
+      // Normalize fields so the card rendering can rely on a consistent shape
+      const normalized = (response || []).map((p) => ({
+        _id: p._id,
+        name: p.name || p.pool_name || 'Untitled Pool',
+        description: p.description || p.pool_name || '',
+        category: p.category || p.type || null,
+        pay_range: p.pay_range || p.payRange || null,
+        // For older OrganizerPool shape we expose a single location string
+        location: p.location || (p.venue ? `${p.venue.address || ''}${p.venue.city ? ', ' + p.venue.city : ''}` : ''),
+        // event_date used by UI; prefer Pool.date
+        event_date: p.date || p.event_date || null,
+        duration: p.duration || null,
+        member_count: p.member_count ?? (p.gigs?.length || p.max_capacity || p.maxPositions || 0),
+        gigs: p.gigs || [],
+        organizer: p.organizer || null,
+        hasJoined: !!p.hasJoined,
+        status: p.status || 'open',
+        venue: p.venue || null,
+        roles: p.roles || [],
+        skillsRequired: p.skillsRequired || p.skills || [],
+        applicationDeadline: p.applicationDeadline || p.application_deadline || null,
+        requirements: p.requirements || null,
+        maxPositions: p.maxPositions || p.max_capacity || null,
+        filledPositions: p.filledPositions || p.filled_positions || null,
+        raw: p
+      }));
+
+      setPools(normalized);
     } catch (error) {
       console.error('Error fetching pools:', error);
       toast.error('Failed to load organizer pools');
@@ -151,13 +178,20 @@ const OrganizerPools = () => {
                 <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">{pool.description}</p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  {pool.location && (
+                  {pool.venue?.city && (
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <MapPin className="w-4 h-4 mr-2 text-teal-500" />
+                      <span className="text-sm">{pool.venue.city}{pool.venue.address ? `, ${pool.venue.address}` : ''}</span>
+                    </div>
+                  )}
+
+                  {!pool.venue?.city && pool.location && (
                     <div className="flex items-center text-gray-600 dark:text-gray-400">
                       <MapPin className="w-4 h-4 mr-2 text-teal-500" />
                       <span className="text-sm">{pool.location}</span>
                     </div>
                   )}
-                  
+
                   {pool.event_date && (
                     <div className="flex items-center text-gray-600 dark:text-gray-400">
                       <Calendar className="w-4 h-4 mr-2 text-teal-500" />
@@ -178,6 +212,35 @@ const OrganizerPools = () => {
                       {pool.member_count ?? (pool.gigs?.length || 0)} members
                     </span>
                   </div>
+                </div>
+
+                {/* Roles / Skills / Deadline */}
+                <div className="mb-4">
+                  {pool.roles && pool.roles.length > 0 && (
+                    <div className="mb-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Roles</div>
+                      <div className="flex flex-wrap gap-2">
+                        {pool.roles.map((r, idx) => (
+                          <span key={idx} className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">{r.title}{r.requiredCount ? ` • ${r.requiredCount}` : ''}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {pool.skillsRequired && pool.skillsRequired.length > 0 && (
+                    <div className="mb-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Skills</div>
+                      <div className="flex flex-wrap gap-2">
+                        {pool.skillsRequired.map((s, idx) => (
+                          <span key={idx} className="text-xs px-2 py-1 bg-teal-50 text-teal-700 rounded-full">{s.skill || s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {pool.applicationDeadline && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Apply by: {formatDate(pool.applicationDeadline)}</div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
