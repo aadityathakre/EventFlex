@@ -16,8 +16,8 @@ const Login = () => {
     setLoading(true);
     try {
       await login(data);
-      toast.success('Login successful!');
       const user = useAuthStore.getState().user;
+      toast.success('Login successful!');
       navigate(`/dashboard/${user?.role}`);
     } catch (error) {
       console.error(error.response?.data?.message || 'Login failed');

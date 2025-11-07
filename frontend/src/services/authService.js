@@ -3,24 +3,30 @@ import apiClient from '../utils/api';
 export const authService = {
   // Register user
   register: async (formData) => {
-    // Let axios set Content-Type (including boundary) when sending FormData
     const config = {
       headers: {
-        // Let axios set the Content-Type header for FormData
         'Content-Type': 'multipart/form-data',
       },
     };
     return await apiClient.post('/users/register', formData, config);
   },
 
-  // Login user
+  // ✅ Login user (Updated for admin handling)
   login: async (credentials) => {
-    const response = await apiClient.post('/auth/users/login', credentials);
-    // apiClient returns ApiResponse { statusCode, data, message }
+    // 👇 Check if this is admin login
+    const isAdmin = credentials.email === "adityathakre1281@gmail.com";
+
+    // 👇 Hit the correct endpoint
+    const endpoint = isAdmin ? '/auth/admin/login' : '/auth/users/login';
+
+    const response = await apiClient.post(endpoint, credentials);
+
+    // ✅ Save tokens if available
     if (response?.data?.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
+
     return response;
   },
 
@@ -41,7 +47,7 @@ export const authService = {
     return await apiClient.post('/auth/users/refresh-token');
   },
 
-  // Get current user from localStorage
+  // Get current user
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
@@ -52,4 +58,3 @@ export const authService = {
     return !!localStorage.getItem('accessToken');
   },
 };
-

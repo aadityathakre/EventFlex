@@ -14,6 +14,9 @@ import GigPools from './pages/gig/Pools';
 import GigWallet from './pages/gig/Wallet';
 import GigProfile from './pages/gig/Profile';
 
+// //help pages
+import Help from './pages/help.jsx';
+
 // Organizer Pages
 import OrganizerDashboard from './pages/organizer/Dashboard';
 import OrganizerEvents from './pages/organizer/Events';
@@ -33,8 +36,9 @@ import EditEvent from './pages/host/EditEvent';
 import Organizers from './pages/host/Organizers';
 
 // Admin Pages
-import AdminDashboard from './pages/admin/Dashboard';
+// import AdminDashboard from './pages/admin/Dashboard';
 import AdminVerification from './pages/admin/Verification';
+import Dispute from './pages/admin/Disputes';
 
 // Home/Landing
 import Home from './pages/Home';
@@ -122,6 +126,9 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+      {/* help */}
+        <Route path="/help" element={<Help />} />
 
         {/* Organizer Routes */}
         <Route
@@ -273,20 +280,28 @@ function App() {
         />
 
         {/* Admin Routes */}
-        <Route
-          path="/dashboard/admin"
+        {/* <Route
+          path="/admin/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            // <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
-            </ProtectedRoute>
+            // </ProtectedRoute>
+          }
+        /> */}
+        <Route
+          path="/admin/dashboard/verification"
+          element={
+            // <ProtectedRoute allowedRoles={['admin']}>
+              <AdminVerification />
+            // </ProtectedRoute>
           }
         />
         <Route
-          path="/dashboard/admin/verification"
+          path="/admin/dashboard/disputes"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminVerification />
-            </ProtectedRoute>
+            // <ProtectedRoute allowedRoles={['admin']}>
+              <Dispute />
+            // </ProtectedRoute>
           }
         />
 

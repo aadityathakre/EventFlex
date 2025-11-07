@@ -9,6 +9,7 @@ import {
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import { useState, useEffect } from 'react';
+import Login  from '../pages/auth/Login.jsx';
 
 const Sidebar = ({ role, mobileOpen, onClose }) => {
   const location = useLocation();
@@ -27,7 +28,7 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    await navigate('/login');
   };
 
   const getNavItems = () => {
@@ -63,10 +64,10 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
       ];
     } else if (role === 'admin') {
       return [
-        { path: `/dashboard/${role}/verification`, label: 'Verification', icon: Shield },
-        { path: `/dashboard/${role}/disputes`, label: 'Disputes', icon: Scale },
-        { path: `/dashboard/${role}/notifications`, label: 'Notifications', icon: Bell },
-        { path: `/dashboard/${role}/analytics`, label: 'Analytics', icon: BarChart },
+        { path: `/${role}/dashboard/verification`, label: 'Verification', icon: Shield },
+        { path: `/${role}/dashboard/disputes`, label: 'Disputes', icon: Scale },
+        { path: `/${role}/dashboard/notifications`, label: 'Notifications', icon: Bell },
+        { path: `/${role}/dashboard/analytics`, label: 'Analytics', icon: BarChart },
       ];
     }
     return commonItems;
@@ -92,14 +93,19 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path || 
+          const isActive =
+            location.pathname === item.path ||
             (item.path !== `/dashboard/${role}` && location.pathname.startsWith(item.path));
-          
+
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`sidebar-link ${isActive ? 'active' : ''}`}
+              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 
+          ${isActive
+                  ? 'bg-teal text-white font-medium'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-card'
+                }`}
             >
               <Icon className="w-5 h-5" />
               <span>{item.label}</span>
@@ -108,15 +114,16 @@ const Sidebar = ({ role, mobileOpen, onClose }) => {
         })}
       </nav>
 
+
       {/* Help & User Section */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-        <Link
+        {/* <Link
           to="/help"
           className="sidebar-link"
         >
           <HelpCircle className="w-5 h-5" />
           <span>Help & Support</span>
-        </Link>
+        </Link> */}
 
         {/* Theme Toggle */}
         <button
