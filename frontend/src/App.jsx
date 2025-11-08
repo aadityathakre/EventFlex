@@ -1,11 +1,15 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import ProtectedRoute from './components/ProtectedRoute';
+
+// Import the Home component for testing
+import Home from './pages/Home';
 
 // Auth Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ProtectedRoute from './components/ProtectedRoute';
+import Help from './pages/help';
 
 // Gig Worker Pages
 import GigDashboard from './pages/gig/Dashboard';
@@ -17,6 +21,7 @@ import PoolDetails from './pages/gig/PoolDetails';
 import GigWallet from './pages/gig/Wallet';
 import GigProfile from './pages/gig/Profile';
 import PoolApplicationForm from './components/PoolApplicationForm';
+import Withdraw from './pages/gig/Withdraw';
 
 // Organizer Pages
 import OrganizerDashboard from './pages/organizer/Dashboard';
@@ -43,8 +48,8 @@ import Organizers from './pages/host/Organizers';
 import AdminVerification from './pages/admin/Verification';
 import Dispute from './pages/admin/Disputes';
 
-// Home/Landing
-import Home from './pages/Home';
+// // Home/Landing
+// import Home from './pages/Home';
 
 const OrganizerMessagesLazy = lazy(() => import('./pages/organizer/Messages'));
 
@@ -53,6 +58,8 @@ function App() {
     <BrowserRouter>
       <Toaster position="top-right" />
       <Routes>
+        <Route path="/" element={<Home />} />
+    
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -357,7 +364,8 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
-  );
+  )
+  ;
 }
 
 export default App;

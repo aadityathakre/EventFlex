@@ -1,23 +1,35 @@
 import React from 'react'
-import ReactDOM from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-// Initialize theme
-const theme = localStorage.getItem('theme-storage');
-if (theme) {
-  const parsed = JSON.parse(theme);
-  if (parsed.state?.theme === 'dark') {
+// Initialize theme before rendering
+try {
+  const theme = localStorage.getItem('theme-storage');
+  if (theme) {
+    const parsed = JSON.parse(theme);
+    if (parsed.state?.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  } else {
+    // Default to dark theme
     document.documentElement.classList.add('dark');
   }
-} else {
-  // Default to dark theme
+} catch (error) {
+  console.warn('Theme initialization error:', error);
+  // Ensure dark theme is applied as fallback
   document.documentElement.classList.add('dark');
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const container = document.getElementById('root')
+if (!container) throw new Error('Root container not found')
+const root = createRoot(container)
+
+root.render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
+  </React.StrictMode>
 )
 
