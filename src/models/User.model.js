@@ -102,6 +102,14 @@ const UserSchema = new mongoose.Schema(
   { timestamps: { createdAt: true, updatedAt: true } }
 );
 
+//doesnt store in DB but gives fullname when called
+UserSchema.virtual("fullName").get(function () {
+  return `${this.first_name} ${this.last_name}`;
+});
+UserSchema.set("toJSON", { virtuals: true });
+UserSchema.set("toObject", { virtuals: true });
+
+
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     return next();

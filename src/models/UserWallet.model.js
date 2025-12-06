@@ -13,12 +13,13 @@ const UserWalletSchema = new mongoose.Schema(
     upi_id: {
       type: String,
       trim: true,
-      default: "aditya233",
+      default: "00000",
     },
+
     balance_inr: {
       type: mongoose.Schema.Types.Decimal128,
       required: true,
-      default: mongoose.Types.Decimal128.fromString("0.00"),
+      default: mongoose.Types.Decimal128.fromString("1000.00"),
     },
   },
   { timestamps: { createdAt: true, updatedAt: true } }
