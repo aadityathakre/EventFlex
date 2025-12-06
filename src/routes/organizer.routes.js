@@ -2,9 +2,10 @@ import express from "express";
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import {
+  getOrganizerProfile,
   uploadOrganizerDocs,
   submitESignature,
-  verifyAadhaar,
+  verifyAadhaarOrganizer,
 
   // 👥 Pool & Team Management
   createPool,
@@ -28,7 +29,6 @@ import {
   // 🏆 Reputation & Gamification
   getLeaderboard,
   getBadges,
-  getOrganizerProfile,
   getCertificates,
 
   // 🔔 Notifications
@@ -45,11 +45,13 @@ import {
 } from "../controllers/organizer.controller.js";
 
 const router = express.Router();
+//profile
+router.get("/profile", verifyToken, authorizeRoles("organizer"), getOrganizerProfile);
 
 // 📄 Document & E-Signature Management
 router.post("/upload-docs", verifyToken, authorizeRoles("organizer"),upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
 router.post("/e-signature", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), submitESignature);
-router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyAadhaar);
+router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyAadhaarOrganizer);
 
 //
 // 👥 Pool & Team Management
@@ -81,7 +83,6 @@ router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer
 //
 router.get("/leaderboard", verifyToken, authorizeRoles("organizer"), getLeaderboard);
 router.get("/badges", verifyToken, authorizeRoles("organizer"), getBadges);
-router.get("/profile", verifyToken, authorizeRoles("organizer"), getOrganizerProfile);
 router.get("/certificates", verifyToken, authorizeRoles("organizer"), getCertificates);
 
 //

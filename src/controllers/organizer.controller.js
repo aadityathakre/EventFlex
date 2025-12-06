@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import Organizer from "../models/User.model.js";
 import Pool from "../models/Pool.model.js";
 import Event from "../models/Event.model.js";
+import KYCVerification from "../models/KYCVerification.model.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import User from "../models/User.model.js";
@@ -16,8 +17,51 @@ import Dispute from "../models/Dispute.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import UserDocument from "../models/UserDocument.model.js";
 import mongoose from "mongoose";
+import UserProfile from "../models/UserProfile.model.js";
 
-// 1. Upload Organizer Documents
+
+// 1 Organizer Profile
+export const getOrganizerProfile = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+
+  // Fetch user core data
+  const user = await User.findById(organizerId).lean();
+  if (!user) throw new ApiError(404, "Organizer not found");
+
+  // Try to fetch profile
+  let profile = await UserProfile.findOne({ user: organizerId });
+
+  // Auto-create blank profile if missing
+  if (!profile) {
+    profile = await UserProfile.create({
+      user: organizerId,
+      profile_image_url: user.avatar,
+      bank_details: user.wallet
+    });
+  }
+
+  // Merge and return
+  const mergedProfile = {
+    user: organizerId,
+    name: user.fullName || `${user.first_name} ${user.last_name}`,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    bio: profile.bio || "",
+    location: profile.location || {},
+    availability: profile.availability || {},
+    bank_details: profile.bank_details || {},
+    profile_image_url: profile.profile_image_url || user.avatar,
+    createdAt: profile.createdAt || user.createdAt,
+    updatedAt: profile.updatedAt || user.updatedAt,
+  };
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, mergedProfile, "Organizer profile fetched"));
+});
+
+// 2. Upload Organizer Documents
 export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
   const { type } = req.body;
   const localFilePath = req.files?.fileUrl?.[0]?.path;
@@ -42,7 +86,7 @@ export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
-// 2. Submit E-Signature
+// 3. Submit E-Signature
 export const submitESignature = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { type } = req.body;
@@ -78,30 +122,91 @@ const existing = await UserDocument.findOne({ user: organizerId, type: "signatur
     .json(new ApiResponse(201, signatureDoc, "E-signature submitted"));
 });
 
-// 3. Aadhaar Verification (Sandbox)  (this feature will come soon)
-export const verifyAadhaar = asyncHandler(async (req, res) => {
-  const { aadhaarNumber, otp } = req.body;
+// 4. Aadhaar Verification 
+export const verifyAadhaarOrganizer = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
+  const { aadhaar_number, otp } = req.body;
 
-  if (!aadhaarNumber || !otp) {
-    throw new ApiError(400, "Aadhaar number and OTP required");
+  if (!aadhaar_number || aadhaar_number.length !== 12 || !otp) {
+    throw new ApiError(400, "Invalid Aadhaar number or OTP required");
   }
-        // Simulated sandbox response
-  const verified = true;
-  if (!verified) throw new ApiError(403, "Aadhaar verification failed");
 
-  const organizer = await Organizer.findByIdAndUpdate(
+  // Update or create KYCVerification record
+  let verification = await KYCVerification.findOne({ user: organizerId });
+
+  if (verification) {
+    verification.aadhaar_number = aadhaar_number;
+    verification.aadhaar_verified = true;
+    verification.status = "approved";
+    verification.verified_at = new Date();
+    await verification.save();
+  } else {
+    verification = await KYCVerification.create({
+      user: organizerId,
+      aadhaar_number,
+      aadhaar_verified: true,
+      status: "approved",
+      verified_at: new Date(),
+    });
+  }
+
+  // Also update User model to reflect KYC approval
+  await User.findByIdAndUpdate(
     organizerId,
-    { aadhaarVerified: true },
+    { isVerified: true }, // or add a dedicated field like kycStatus if you prefer
     { new: true }
   );
 
   return res
     .status(200)
-    .json(new ApiResponse(200, organizer, "Aadhaar verified"));
+    .json(new ApiResponse(200, verification, "Organizer Aadhaar verified and user status updated"));
 });
 
-// 4. Create Pool
+// 5. View Wallet
+export const getWallet = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+
+  let wallet = await UserWallet.findOne({ user: organizerId });
+
+  // 🔧 Auto-create wallet if not found
+  if (!wallet) {
+    wallet = await UserWallet.create({
+      user: organizerId,
+      upi_id: "aditya233", // or generate dynamically
+      balance_inr: mongoose.Types.Decimal128.fromString("25000.00"),
+    });
+  }
+  
+
+  return res.status(200).json(
+    new ApiResponse(200, {
+      balance: wallet.balance_inr.toString(),
+      upi_id: wallet.upi_id,
+    }, "Wallet fetched")
+  );
+});
+
+// 6. Withdraw Funds
+export const withdrawFunds = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { amount, upi_id } = req.body;
+
+  const wallet = await UserWallet.findOne({ user: organizerId });
+  if (!wallet || parseFloat(wallet.balance_inr.toString()) < amount) {
+    throw new ApiError(400, "Insufficient balance");
+  }
+
+  wallet.balance_inr = parseFloat(wallet.balance_inr.toString()) - amount;
+  wallet.upi_id = upi_id || wallet.upi_id;
+  await wallet.save();
+
+  return res.status(200).json(new ApiResponse(200, wallet, "Withdrawal successful"));
+});
+
+
+
+
+//  Create Pool
 export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { name, description } = req.body;
@@ -117,7 +222,7 @@ export const createPool = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, pool, "Pool created successfully !"));
 });
 
-// 5. Manage Pool (Add/Remove Gigs)
+//  Manage Pool (Add/Remove Gigs)
 export const managePool = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { gigs } = req.body;
@@ -129,7 +234,7 @@ export const managePool = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, pool, "Pool updated"));
 });
 
-// 6. View Pool Details
+//  View Pool Details
 export const getPoolDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -144,7 +249,7 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, pool, "Pool details fetched"));
 });
 
-// 7. Chat with Gig (Stub)
+//  Chat with Gig (Stub)
 export const chatWithGig = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { gigId } = req.params;
@@ -179,7 +284,7 @@ export const chatWithGig = asyncHandler(async (req, res) => {
   );
 });
 
-// 8. Create Event
+//  Create Event
 export const createEvent = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const {
@@ -208,7 +313,7 @@ export const createEvent = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, event, "Event created successfully"));
 });
 
-// 9. Edit Event
+//  Edit Event
 export const editEvent = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
@@ -219,7 +324,7 @@ export const editEvent = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, event, "Event updated"));
 });
 
-// 10. View Event Details
+//  View Event Details
 export const getEventDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -235,7 +340,7 @@ export const getEventDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event details fetched"));
 });
 
-// 11. Live Event Tracking
+//  Live Event Tracking
 export const getLiveEventTracking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -254,7 +359,7 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, attendance, "Live attendance data"));
 });
 
-// 12. Mark Event Complete
+//  Mark Event Complete
 export const markEventComplete = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -269,48 +374,6 @@ export const markEventComplete = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, event, "Event marked as complete"));
-});
-
-
-// 13. View Wallet
-export const getWallet = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-
-  let wallet = await UserWallet.findOne({ user: organizerId });
-
-  // 🔧 Auto-create wallet if not found
-  if (!wallet) {
-    wallet = await UserWallet.create({
-      user: organizerId,
-      upi_id: "aditya233", // or generate dynamically
-      balance_inr: mongoose.Types.Decimal128.fromString("25000.00"),
-    });
-  }
-  
-
-  return res.status(200).json(
-    new ApiResponse(200, {
-      balance: wallet.balance_inr.toString(),
-      upi_id: wallet.upi_id,
-    }, "Wallet fetched")
-  );
-});
-
-// 14. Withdraw Funds
-export const withdrawFunds = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-  const { amount, upi_id } = req.body;
-
-  const wallet = await UserWallet.findOne({ user: organizerId });
-  if (!wallet || parseFloat(wallet.balance_inr.toString()) < amount) {
-    throw new ApiError(400, "Insufficient balance");
-  }
-
-  wallet.balance_inr = parseFloat(wallet.balance_inr.toString()) - amount;
-  wallet.upi_id = upi_id || wallet.upi_id;
-  await wallet.save();
-
-  return res.status(200).json(new ApiResponse(200, wallet, "Withdrawal successful"));
 });
 
 
@@ -369,16 +432,6 @@ export const getBadges = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { badge }, "Badge status fetched"));
 });
 
-// 19. Organizer Profile
-export const getOrganizerProfile = asyncHandler(async (req, res) => {
-  const organizer = await Organizer.findById(req.user._id).select(
-    "-password -__v"
-  );
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, organizer, "Profile fetched"));
-});
 
 // 20. Certificates (this feature will come soon)
 export const getCertificates = asyncHandler(async (req, res) => {

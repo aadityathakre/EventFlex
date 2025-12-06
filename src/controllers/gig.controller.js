@@ -328,9 +328,127 @@ const uploadDocuments = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
+// 10.  Aadhaar verification 
+ const verifyAadhaar = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { aadhaar_number, otp } = req.body;
+
+  if (!aadhaar_number || aadhaar_number.length !== 12 || !otp) {
+    throw new ApiError(400, "Invalid Aadhaar number or OTP required");
+  }
+
+  // Update or create KYC record
+  let verification = await KYCVerification.findOne({ user: userId });
+  if (verification) {
+    verification.aadhaar_number = aadhaar_number;
+    verification.aadhaar_verified = true;
+    verification.status = "approved";
+    verification.verified_at = new Date();
+    await verification.save();
+  } else {
+    verification = await KYCVerification.create({
+      user: userId,
+      aadhaar_number,
+      aadhaar_verified: true,
+      status: "approved",
+      verified_at: new Date(),
+    });
+  }
+
+  // Update User quick flag
+  await User.findByIdAndUpdate(
+    userId,
+    { isVerified: true, isActive: true }, // fast check flags
+    { new: true }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, verification, "Aadhaar verified, user activated"));
+});
 
 
-//  View accepted events
+// 11. View nearby events
+const getNearbyEvents = asyncHandler(async (req, res) => {
+  const { coordinates } = req.body; // [lng, lat]
+
+  const events = await Event.find({
+    location: {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates,
+        },
+        $maxDistance: 10000, // 10km radius
+      },
+    },
+    status: "published",
+  })
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, events, "Nearby events fetched"));
+});
+
+// 12.  View nearby organizer pools
+const getOrganizerPools = asyncHandler(async (req, res) => {
+  const { coordinates } = req.body;
+
+  const pools = await OrganizerPool.find({
+    location: {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates,
+        },
+        $maxDistance: 10000,
+      },
+    },
+    status: "open", // ✅ match schema
+  }).select("-organizer");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
+});
+
+// 13.  Join a specific pool
+const joinPool = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { poolId } = req.params;
+  const { proposed_rate, cover_message } = req.body;
+
+  const pool = await OrganizerPool.findById(poolId);
+  if (!pool) {
+    throw new ApiError(404, "Pool not found");
+  }
+
+  const existingApplication = await PoolApplication.findOne({
+    gig: gigId,
+    pool: poolId,
+  });
+  if (existingApplication) {
+    return res
+    .status(200)
+    .json(new ApiResponse(201, existingApplication, "GiG  already in this pool"));
+  }
+
+  const application = await PoolApplication.create({
+    gig: gigId,
+    pool: poolId,
+    proposed_rate: mongoose.Types.Decimal128.fromString(
+      proposed_rate.toString()
+    ),
+    cover_message,
+  });
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, application, "Pool application submitted"));
+});
+
+
+//  14. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
   const gigObjectId = req.user._id; 
 
@@ -419,84 +537,7 @@ const getAttendanceHistory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, history, "Attendance history fetched"));
 });
 
-//  View nearby events
-const getNearbyEvents = asyncHandler(async (req, res) => {
-  const { coordinates } = req.body; // [lng, lat]
 
-  const events = await Event.find({
-    location: {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates,
-        },
-        $maxDistance: 10000, // 10km radius
-      },
-    },
-    status: "published",
-  })
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, events, "Nearby events fetched"));
-});
-
-//  View nearby organizer pools
-const getOrganizerPools = asyncHandler(async (req, res) => {
-  const { coordinates } = req.body;
-
-  const pools = await OrganizerPool.find({
-    location: {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates,
-        },
-        $maxDistance: 10000,
-      },
-    },
-    status: "open", // ✅ match schema
-  }).select("-organizer");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
-});
-
-//  Join a specific pool
-const joinPool = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-  const { poolId } = req.params;
-  const { proposed_rate, cover_message } = req.body;
-
-  const pool = await OrganizerPool.findById(poolId);
-  if (!pool) {
-    throw new ApiError(404, "Pool not found");
-  }
-
-  const existingApplication = await PoolApplication.findOne({
-    gig: gigId,
-    pool: poolId,
-  });
-  if (existingApplication) {
-    return res
-    .status(200)
-    .json(new ApiResponse(201, existingApplication, "GiG  already in this pool"));
-  }
-
-  const application = await PoolApplication.create({
-    gig: gigId,
-    pool: poolId,
-    proposed_rate: mongoose.Types.Decimal128.fromString(
-      proposed_rate.toString()
-    ),
-    cover_message,
-  });
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, application, "Pool application submitted"));
-});
 
 //  View AI-predicted no-show risk
 const getWellnessScore = asyncHandler(async (req, res) => {
@@ -734,6 +775,8 @@ const getGigDashboard = asyncHandler(async (req, res) => {
   );
 });
 
+
+//upload kyc video
 const uploadKycVideo = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const videoUrl = req.files?.videoUrl?.[0]?.path;
@@ -784,42 +827,6 @@ const conversations = await Conversation.find({
     .json(new ApiResponse(200, conversations, "Conversations fetched"));
 });
 
-// Aadhaar verification  (not currently in feature)
-const verifyAadhaar = asyncHandler(async (req, res) => {
-  const { aadhaarNumber, otp } = req.body;
-  const userId = req.user._id;
-
-  if (!aadhaarNumber || !otp) {
-    throw new ApiError(400, "Aadhaar number and OTP are required");
-  }
-
-  const response = await axios.post(
-    "https://sandbox.aadhaarkyc.io/v1/verify",
-    {
-      aadhaar_number: aadhaarNumber,
-      otp,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.AADHAAR_SANDBOX_TOKEN}`,
-      },
-    }
-  );
-
-  if (!response.data.success) {
-    throw new ApiError(403, "Aadhaar verification failed");
-  }
-
-  const user = await User.findById(userId);
-  user.verificationStatus = "verified";
-  user.aadhaarDetails = response.data.details;
-  await user.save({ validateBeforeSave: false });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, response.data.details, "Aadhaar verified"));
-});
-
 
 export {
   getNearbyEvents,
@@ -830,6 +837,7 @@ export {
   getAttendanceHistory,
   getWallet,
   withdraw,
+  verifyAadhaar,
   getPaymentHistory,
   getWellnessScore,
   getReminders,
@@ -852,5 +860,5 @@ export {
   uploadDocuments,
   uploadKycVideo,
   createWallet,
-  verifyAadhaar,
+  
 };
