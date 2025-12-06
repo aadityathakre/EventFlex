@@ -13,7 +13,6 @@ const AdminSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
     },
     is_active: {
       type: Boolean,

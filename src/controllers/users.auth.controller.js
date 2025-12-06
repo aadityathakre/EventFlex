@@ -26,13 +26,85 @@ const generateAccessAndRefreshTokens = async (userId) => {
   }
 };
 
-// 🚪 User Login
+//register user
+export const registerUser = asyncHandler(async (req, res) => {
+
+  // 1. get input data
+  const {
+    email,
+    phone,
+    password,
+    role,
+    first_name,
+    last_name,
+  } = req.body;
+
+  // 2. Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new ApiError(400, "Invalid email format");
+  }
+
+  // 3. Validate phone number (Indian format)
+  const phoneRegex = /^[6-9]\d{9}$/;
+  if (!phoneRegex.test(phone)) {
+    throw new ApiError(400, "Invalid phone number format");
+  }
+
+  // 4. Validate password strength
+  if (password.length < 5) {
+    throw new ApiError(400, "Password must be at least 5 characters long");
+  }
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+  if (!passwordRegex.test(password)) {
+    throw new ApiError(400, "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character");
+  }
+
+
+  // 5. Validate role
+  const validRoles = ["gig", "organizer", "host"];
+  if (!validRoles.includes(role)) {
+    throw new ApiError(400, "Invalid role provided");
+  }
+
+  // 6. Check if user already exists
+  const existingUser = await User.findOne({email});
+  if (existingUser) {
+    throw new ApiError(409, "User with provided email already exists");
+  }
+
+  //universal role id
+  const universal_role_id = `${role}-${Date.now()}`;
+
+  // 7. Create user
+  const user = await User.create({
+    email,
+    phone,
+    password,
+    role,
+    first_name,
+    last_name,
+    universal_role_id
+  });
+
+  // 8. check user 
+  const createdUser = await User.findById(user._id).select("-password -refreshToken");
+  if (!createdUser) {
+    throw new ApiError(500, "User registration failed");
+  }
+  
+  // 9. Respond
+  return res
+  .status(201)
+  .json(
+    new ApiResponse(201, createdUser, "User registered successfully")
+  );
+});
+
+// User Login
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    throw new ApiError(400, "Email and password are required");
-  }
 
   const user = await User.findOne({ email });
   if (!user || !(await user.isPasswordCorrect(password))) {
@@ -130,3 +202,4 @@ export const logoutUser = asyncHandler(async (req, res) => {
     .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, `${ req.user.role} logged out successfully`));
 });
+

@@ -14,48 +14,7 @@ import Payment from "../models/Payment.model.js";
 import Event from "../models/Event.model.js";
 import WellnessInteraction from "../models/WellnessInteraction.model.js";
 
-// 1. 🔐 Admin Registration
-export const adminRegister = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
 
-  if (!email || !password) {
-    throw new ApiError(400, "Email and password are required");
-  }
-
-  const existingAdmin = await Admin.findOne({ email });
-  if (existingAdmin) {
-    throw new ApiError(409, "Admin already exists with this email");
-  }
-
-  const newAdmin = await Admin.create({ email, password });
-
-  const accessToken = newAdmin.generateAccessToken();
-  const refreshToken = newAdmin.generateRefreshToken();
-
-  newAdmin.refreshToken = refreshToken;
-  newAdmin.last_action_type = "register";
-  newAdmin.last_action_at = new Date();
-  await newAdmin.save({ validateBeforeSave: false });
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-
-  const registeredAdmin = await Admin.findById(newAdmin._id).select("-password -refreshToken");
-
-  return res
-    .status(201)
-    .cookie("refreshToken", refreshToken, options)
-    .cookie("accessToken", accessToken, options)
-    .json(
-      new ApiResponse(
-        201,
-        { admin: registeredAdmin, accessToken, refreshToken },
-        "Admin registered successfully"
-      )
-    );
-});
 
 // 2. 🔐 View All Roles
 export const getAllRoles = asyncHandler(async (req, res) => {
@@ -271,4 +230,36 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
     })
   );
   return res.status(200).json(new ApiResponse(200, leaderboard, "Leaderboard with wellness fetched"));
+});
+
+// 20.  Soft delete user (admin only)
+export const softDeleteUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  await user.softDelete();
+  
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "User soft deleted successfully"));
+});
+
+// 21. Restore user (admin only)
+export const restoreUser = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  
+  await user.restore();
+  
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User restored successfully"));
 });

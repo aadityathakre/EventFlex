@@ -1,0 +1,12 @@
+
+  // 7. Handle avatar upload
+  const avatarLocalPath = req.files?.avatar?.[0]?.path;
+  let avatarUrl = null;
+
+  if (avatarLocalPath) {
+    const avatarUpload = await uploadOnCloudinary(avatarLocalPath);
+    if (!avatarUpload?.url) {
+      throw new ApiError(500, "Avatar upload failed");
+    }
+    avatarUrl = avatarUpload.url;
+  }

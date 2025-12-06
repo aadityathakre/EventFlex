@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  adminRegister,
   adminLogin,
   refreshAdminAccessToken,
   logoutAdmin,
@@ -8,6 +9,7 @@ import { verifyAdminToken } from "../middlewares/admin.middleware.js";
 const router = express.Router();
 
 // 🔐 Auth & Access Control
+router.post("/register", adminRegister);
 router.post("/login", adminLogin);
 router.post("/refresh-token", refreshAdminAccessToken);
 router.post("/logout", verifyAdminToken, logoutAdmin);

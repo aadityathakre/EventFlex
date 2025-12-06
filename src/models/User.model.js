@@ -16,12 +16,10 @@ const UserSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
       minLength: 5,
     },
 
@@ -31,6 +29,7 @@ const UserSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
     first_name: {
       type: String,
       required: true,
@@ -46,22 +45,21 @@ const UserSchema = new mongoose.Schema(
     },
 
     wallet: {
-      address: { type: String },
+      address: { type: String, default: "" },
       privateKey: { type: String, select: false },
       createdAt: { type: Date },
     },
 
     avatar: {
       type: String,
-      required: true,
+      default:
+        "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
     },
 
     universal_role_id: {
       type: String,
       required: true,
       unique: true,
-      minLength: 4,
-      maxLength: 18,
     },
 
     isVerified: {
@@ -98,6 +96,7 @@ const UserSchema = new mongoose.Schema(
     digital_signature: {
       type: String,
       trim: true,
+      default: "",
     },
   },
   { timestamps: { createdAt: true, updatedAt: true } }
@@ -132,12 +131,6 @@ UserSchema.methods.generateRefreshToken = function () {
     expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
   });
 };
-
-// Add compound indexes for common queries
-UserSchema.index({ role: 1, isVerified: 1 });
-UserSchema.index({ email: 1, role: 1 });
-UserSchema.index({ phone: 1, role: 1 });
-UserSchema.index({ universal_role_id: 1, role: 1 });
 
 // Apply soft delete middleware
 softDelete(UserSchema);

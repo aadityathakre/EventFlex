@@ -1,6 +1,5 @@
 import express from "express";
 import {
-  adminRegister,
   getAllRoles,
   banUser,
   unbanUser,
@@ -20,18 +19,13 @@ import {
   getEventAnalytics,
   getPaymentAnalytics,
   getLeaderboard,
+  softDeleteUser,
+  restoreUser,
 } from "../controllers/admin.controller.js";
 import { verifyAdminToken } from "../middlewares/admin.middleware.js";
 import { authorizeRoles } from "../middlewares/auth.middleware.js";
-import {
-  softDeleteUser,
-  restoreUser,
-} from "../controllers/user.controller.js";
 
 const router = express.Router();
-
-// 🔐 Auth & Access Control
-router.post("/register", adminRegister);
 
 // 🧑‍💼 Role & User Management
 router.get("/roles", verifyAdminToken, getAllRoles);

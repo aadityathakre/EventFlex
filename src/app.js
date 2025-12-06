@@ -21,9 +21,6 @@ app.use(
 app.use(sanitizeInput);
 app.use(rateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
 
-//registration and login route
-import userRoutes from "./routes/user.routes.js";
-app.use("/api/v1/users", userRoutes);
 
 // users auth route
 import authRoutes from "./routes/users.auth.routes.js";
@@ -48,6 +45,18 @@ app.use("/api/v1/auth/admin", adminAuthRoutes);
 //admin router
 import adminRoutes from "./routes/admin.routes.js";
 app.use("/api/v1/admin", adminRoutes);
+
+
+
+//blockchain rutes
+import blockchainRoutes from './routes/blockchain.routes.js';
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', blockchain: process.env.BLOCKCHAIN_ENABLED === 'true' });
+});
+// Routes
+app.use('/api/blockchain', blockchainRoutes);
+
+
 
 
 
