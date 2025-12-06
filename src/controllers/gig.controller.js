@@ -4,7 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import EventAttendance from "../models/EventAttendance.model.js";
 import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
-import Pool from "../models/Pool.model.js"
+import Pool from "../models/Pool.model.js";
 import PoolApplication from "../models/PoolApplication.model.js";
 import PoolMember from "../models/PoolMember.model.js";
 import UserWallet from "../models/UserWallet.model.js";
@@ -29,7 +29,6 @@ import { ethers } from "ethers";
 import axios from "axios";
 import mongoose from "mongoose";
 import { ObjectId } from "mongodb";
-
 
 
 // 1. View profile //
@@ -820,6 +819,7 @@ const verifyAadhaar = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, response.data.details, "Aadhaar verified"));
 });
+
 
 export {
   getNearbyEvents,
