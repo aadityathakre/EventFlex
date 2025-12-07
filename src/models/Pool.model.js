@@ -1,44 +1,17 @@
 import mongoose from "mongoose";
+import User from "./User.model.js"
+import Event from "./Event.model.js";
 
 const PoolSchema = new mongoose.Schema(
   {
-    organizer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 50,
-    },
-    gigs: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
-    description: {
-      type: String,
-      trim: true,
-      maxlength: 300,
-    },
-    status: {
-      type: String,
-      enum: ["active", "archived"],
-      default: "active",
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
+    organizer: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    event: { type: mongoose.Schema.Types.ObjectId, ref: "Event" }, // NEW
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true, maxlength: 300 },
+    gigs: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // gig workers
+    status: { type: String, enum: ["active", "archived"], default: "active" },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 // Optional: Index for fast pool lookup by organizer

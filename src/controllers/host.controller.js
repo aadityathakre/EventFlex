@@ -252,7 +252,7 @@ export const editEvent = asyncHandler(async (req, res) => {
 // 8. View Event Details
 export const getEventDetails = asyncHandler(async (req, res) => {
   const eventId = req.params.id;
-  const event = await Event.findById(eventId).populate("host organizer gigs");
+  const event = await Event.findById(eventId).populate("host organizer");
 
   if (!event) throw new ApiError(404, "Event not found");
 

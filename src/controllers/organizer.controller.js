@@ -18,6 +18,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import UserDocument from "../models/UserDocument.model.js";
 import mongoose from "mongoose";
 import UserProfile from "../models/UserProfile.model.js";
+import OrganizerPool from "../models/OrganizerPool.model.js";
 
 
 // 1 Organizer Profile
@@ -203,44 +204,48 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, wallet, "Withdrawal successful"));
 });
 
-
-
-
-//  Create Pool
+// 7. Create Pool
 export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const { name, description } = req.body;
+  const { name,eventId, description } = req.body;
 
   const pool = await Pool.create({
     organizer: organizerId,
+    event:eventId,
     name,
     description,
+    status :"active"
   });
+
+  
 
   return res
     .status(201)
     .json(new ApiResponse(201, pool, "Pool created successfully !"));
 });
 
-//  Manage Pool (Add/Remove Gigs)
+// 8. Manage Pool (Add/Remove Gigs)
 export const managePool = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { gigs } = req.body;
+  const { gigs, orgPoolId } = req.body;
 
   const pool = await Pool.findByIdAndUpdate(id, { gigs }, { new: true });
-
   if (!pool) throw new ApiError(404, "Pool not found");
-
+  const orgPool = await OrganizerPool.findById(orgPoolId);
+  if(pool.gigs.length > orgPool.max_capacity){
+    pool.status="archived";
+    pool.save();
+  }
   return res.status(200).json(new ApiResponse(200, pool, "Pool updated"));
 });
-
-//  View Pool Details
+  
+// 9. View Pool Details
 export const getPoolDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const pool = await Pool.findById(id)
-    .populate("gigs", "name avatar badges")
-    .select("-__v");
+  .populate("gigs", "first_name last_name avatar badges")
+  .select("-__v");
 
   if (!pool) throw new ApiError(404, "Pool not found");
 
@@ -249,7 +254,7 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, pool, "Pool details fetched"));
 });
 
-//  Chat with Gig (Stub)
+// 10. Chat with Gig (Stub)
 export const chatWithGig = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { gigId } = req.params;
@@ -284,53 +289,12 @@ export const chatWithGig = asyncHandler(async (req, res) => {
   );
 });
 
-//  Create Event
-export const createEvent = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-  const {
-    title,
-    description,
-    event_type,
-    start_date,
-    end_date,
-    location,
-    budget
-  } = req.body;
-
-  const event = await Event.create({
-    title,
-    description,
-    event_type,
-    start_date: new Date(start_date),
-    end_date: new Date(end_date),
-    location,
-    budget: mongoose.Types.Decimal128.fromString(budget.toString()),
-    organizer: organizerId
-  });
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, event, "Event created successfully"));
-});
-
-//  Edit Event
-export const editEvent = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const updates = req.body;
-
-  const event = await Event.findByIdAndUpdate(id, updates, { new: true });
-  if (!event) throw new ApiError(404, "Event not found");
-
-  return res.status(200).json(new ApiResponse(200, event, "Event updated"));
-});
-
-//  View Event Details
+// 11. View Event Details
 export const getEventDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const event = await Event.findById(id)
     .populate("organizer", "name email")
-    .populate("gigs", "name avatar")
     .select("-__v");
 
   if (!event) throw new ApiError(404, "Event not found");
@@ -339,6 +303,52 @@ export const getEventDetails = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, event, "Event details fetched"));
 });
+
+// 12. Payment History
+export const getPaymentHistory = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const payments = await Escrow.find({ organizer: organizerId }).select("-__v");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, payments, "Payment history fetched"));
+});
+
+// 13. Simulate Payout
+export const simulatePayout = asyncHandler(async (req, res) => {
+  const { escrowId } = req.params;
+  const escrow = await Escrow.findById(escrowId);
+
+  if (!escrow || escrow.status !== "released") {
+    throw new ApiError(400, "Escrow not ready for payout");
+  }
+
+  return res.status(200).json(new ApiResponse(200, escrow, "Payout simulated"));
+});
+
+// 14. Predict No-show Risk for Gig
+export const getNoShowRisk = asyncHandler(async (req, res) => {
+  const { gigId } = req.params;
+  const gig = await User.findById(gigId);
+
+  if (!gig) throw new ApiError(404, "Gig user not found");
+
+  return res.status(200).json(new ApiResponse(200, {
+    gigId,
+    noShowRisk: gig.noShowRisk || 0,
+  }, "No-show risk fetched"));
+});
+
+
+// 15. Get Organizer Wellness Score
+export const getWellnessScore = asyncHandler(async (req, res) => {
+  const organizer = await User.findById(req.user._id);
+
+  return res.status(200).json(new ApiResponse(200, {
+    wellnessScore: organizer.wellnessScore || 100,
+  }, "Wellness score fetched"));
+});
+
 
 //  Live Event Tracking
 export const getLiveEventTracking = asyncHandler(async (req, res) => {
@@ -377,31 +387,6 @@ export const markEventComplete = asyncHandler(async (req, res) => {
 });
 
 
-// 15. Payment History
-export const getPaymentHistory = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-  const payments = await Escrow.find({ organizer: organizerId }).select("-__v");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, payments, "Payment history fetched"));
-});
-
-// 16. Simulate Payout
-export const simulatePayout = asyncHandler(async (req, res) => {
-  const { escrowId } = req.params;
-  const escrow = await Escrow.findById(escrowId);
-
-  if (!escrow || escrow.status !== "in_progress") {
-    throw new ApiError(400, "Escrow not ready for payout");
-  }
-
-  escrow.status = "released";
-  await escrow.save();
-
-  return res.status(200).json(new ApiResponse(200, escrow, "Payout simulated"));
-});
-
 // 17. Leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
   const topOrganizers = await Rating.aggregate([
@@ -431,7 +416,6 @@ export const getBadges = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, { badge }, "Badge status fetched"));
 });
-
 
 // 20. Certificates (this feature will come soon)
 export const getCertificates = asyncHandler(async (req, res) => {
@@ -484,24 +468,3 @@ export const getDisputes = asyncHandler(async (req, res) => {
 });
 
 
-// 25. Get Organizer Wellness Score
-export const getWellnessScore = asyncHandler(async (req, res) => {
-  const organizer = await User.findById(req.user._id);
-
-  return res.status(200).json(new ApiResponse(200, {
-    wellnessScore: organizer.wellnessScore || 100,
-  }, "Wellness score fetched"));
-});
-
-// 26. Predict No-show Risk for Gig
-export const getNoShowRisk = asyncHandler(async (req, res) => {
-  const { gigId } = req.params;
-  const gig = await User.findById(gigId);
-
-  if (!gig) throw new ApiError(404, "Gig user not found");
-
-  return res.status(200).json(new ApiResponse(200, {
-    gigId,
-    noShowRisk: gig.noShowRisk || 0,
-  }, "No-show risk fetched"));
-});

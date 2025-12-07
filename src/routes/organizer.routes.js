@@ -14,8 +14,6 @@ import {
   chatWithGig,
 
   // 📅 Event Management
-  createEvent,
-  editEvent,
   getEventDetails,
   getLiveEventTracking,
   markEventComplete,
@@ -62,10 +60,15 @@ router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetail
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 
 //
+// 🧠 Wellness & Analytics
+//
+router.get("/wellness-score", verifyToken, authorizeRoles("organizer"), getWellnessScore);
+router.get("/no-show-risk/:gigId", verifyToken, authorizeRoles("organizer"), getNoShowRisk);
+
+
+//
 // 📅 Event Management
 //
-router.post("/events/create", verifyToken, authorizeRoles("organizer"), createEvent);
-router.put("/events/:id/edit", verifyToken, authorizeRoles("organizer"), editEvent);
 router.get("/events/:id", verifyToken, authorizeRoles("organizer"), getEventDetails);
 router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
 router.post("/events/complete/:id", verifyToken, authorizeRoles("organizer"), markEventComplete);
@@ -97,10 +100,5 @@ router.put("/notifications/:id/read", verifyToken, authorizeRoles("organizer"), 
 router.post("/disputes/:eventId", verifyToken, authorizeRoles("organizer"), raiseDispute);
 router.get("/disputes", verifyToken, authorizeRoles("organizer"), getDisputes);
 
-//
-// 🧠 Wellness & Analytics
-//
-router.get("/wellness-score", verifyToken, authorizeRoles("organizer"), getWellnessScore);
-router.get("/no-show-risk/:gigId", verifyToken, authorizeRoles("organizer"), getNoShowRisk);
 
 export default router;

@@ -4,94 +4,39 @@ import { softDelete } from "../middlewares/softDelete.middleware.js";
 
 const EventSchema = new mongoose.Schema(
   {
-    // 1. Host reference (existing)
     host: {
       type: Schema.Types.ObjectId,
       ref: "User", // role = "host"
-      required: false, // now optional
+      required: true,
       index: true,
     },
-
-    // 2. Organizer reference (new)
     organizer: {
       type: Schema.Types.ObjectId,
       ref: "User", // role = "organizer"
-      required: false, // optional to support dual creation
+      required: false, // assigned later
       index: true,
     },
-
-    // 3. Event metadata
-    title: {
-      type: String,
-      required: true,
-      default: "Reception",
-      trim: true,
-    },
-    description: {
-      type: String,
-      default: "wedding reception",
-      trim: true,
-    },
+    title: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
     event_type: {
       type: String,
-      enum: [
-        "function",
-        "corporate",
-        "festival",
-        "exhibition",
-        "hackathon",
-        "workshop",
-        "webinar",
-        "networking",
-        "fundraiser",
-        "retreat",
-      ],
-      required: true,
-      default: "function",
-    },
-    start_date: {
-      type: Date,
+      enum: ["function","corporate","festival","exhibition","hackathon","workshop","webinar","networking","fundraiser","retreat"],
       required: true,
     },
-    end_date: {
-      type: Date,
-      required: true,
-    },
+    start_date: { type: Date, required: true },
+    end_date: { type: Date, required: true },
     location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number],
-        required: true,
-      },
+      type: { type: String, enum: ["Point"], default: "Point" },
+      coordinates: { type: [Number], required: true }, // [longitude, latitude]
     },
-
-    // 4. Budget
-    budget: {
-      type: mongoose.Types.Decimal128,
-      required: true,
-    },
-
-    // 5. Status
+    budget: { type: mongoose.Types.Decimal128, required: true },
     status: {
       type: String,
       enum: ["published", "in_progress", "completed"],
       default: "published",
-      required: true,
     },
-
-    // 6. Gigs assigned (new)
-    gigs: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User", // role = "gig"
-      },
-    ],
   },
-  { timestamps: { createdAt: true, updatedAt: true } }
+  { timestamps: true }
 );
 EventSchema.index({ location: "2dsphere" });
 

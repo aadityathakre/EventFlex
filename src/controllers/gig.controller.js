@@ -367,8 +367,20 @@ const uploadDocuments = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, verification, "Aadhaar verified, user activated"));
 });
 
+// 11. get kyc status
+const getKYCStatus = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
 
-// 11. View nearby events
+  const kyc = await KYCVerification.findOne({ user: gigId });
+
+  if (!kyc) {
+    throw new ApiError(404, "KYC record not found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, kyc, "KYC status fetched"));
+});
+
+// 12. View nearby events
 const getNearbyEvents = asyncHandler(async (req, res) => {
   const { coordinates } = req.body; // [lng, lat]
 
@@ -390,7 +402,9 @@ const getNearbyEvents = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, events, "Nearby events fetched"));
 });
 
-// 12.  View nearby organizer pools
+
+
+// View nearby organizer pools
 const getOrganizerPools = asyncHandler(async (req, res) => {
   const { coordinates } = req.body;
 
@@ -412,7 +426,7 @@ const getOrganizerPools = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, pools, "Nearby pools fetched"));
 });
 
-// 13.  Join a specific pool
+// Join a specific pool
 const joinPool = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { poolId } = req.params;
@@ -448,7 +462,7 @@ const joinPool = asyncHandler(async (req, res) => {
 });
 
 
-//  14. View accepted events
+//  View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
   const gigObjectId = req.user._id; 
 
@@ -467,57 +481,75 @@ const getMyEvents = asyncHandler(async (req, res) => {
 });
 
 //  QR/GPS check-in
-const checkIn = asyncHandler(async (req, res) => {
+ const checkIn = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { eventId } = req.params;
 
   const event = await Event.findById(eventId);
-  if (!event) {
-    throw new ApiError(404, "Event not found");
+  if (!event) throw new ApiError(404, "Event not found");
+
+  // Validate gig assignment via pools
+  const pool = await Pool.findOne({ event: eventId, gigs: gigId });
+  if (!pool) {
+    return res.status(403).json(new ApiResponse(403, null, "Gig not assigned to this event"));
   }
 
-  // Validate that gig is assigned to this event
-  if (!event.gigs.includes(gigId)) {
-   return res
-    .status(403)
-    .json(new ApiResponse(403, null, "Gig not assigned to this event"));
-  }
-
-  // Validate event status
-  if (event.status !== "in_progress") {
-    throw new ApiError(400, "Event is not in progress. Cannot check in.");
-  }
-
-  // Validate event date
+  // Validate event status and dates
+  if (event.status !== "in_progress") throw new ApiError(400, "Event is not in progress");
   const now = new Date();
-  if (now < event.start_date) {
-    throw new ApiError(400, "Event has not started yet");
-  }
-  if (now > event.end_date) {
-    throw new ApiError(400, "Event has already ended");
-  }
+  if (now < event.start_date) throw new ApiError(400, "Event has not started yet");
+  if (now > event.end_date) throw new ApiError(400, "Event has already ended");
 
-  const alreadyCheckedIn = await EventAttendance.findOne({
-    gig: gigId,
-    event: eventId,
-  });
-
+  // Prevent duplicate check-in
+  const alreadyCheckedIn = await EventAttendance.findOne({ gig: gigId, event: eventId });
   if (alreadyCheckedIn) {
-    return res
-    .status(200)
-    .json(new ApiResponse(200, alreadyCheckedIn, "User Already checked in"));
+    return res.status(200).json(new ApiResponse(200, alreadyCheckedIn, "User already checked in"));
   }
 
+  // Create attendance record
   const attendance = await EventAttendance.create({
     gig: gigId,
     event: eventId,
-    check_in_time: new Date(),
+    check_in_time: now,
     status: "checked_in",
   });
 
+  return res.status(201).json(new ApiResponse(201, attendance, "Check-in successful"));
+});
+
+//check out 
+ const checkOut = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { eventId } = req.params;
+
+  // Find existing attendance record
+  const attendance = await EventAttendance.findOne({ gig: gigId, event: eventId });
+  if (!attendance) {
+    throw new ApiError(404, "Attendance record not found");
+  }
+
+  // Prevent duplicate checkout
+  if (attendance.check_out_time) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, attendance, "Gig already checked out"));
+  }
+
+  // Set checkout time
+  attendance.check_out_time = new Date();
+
+  // Calculate hours worked
+  if (attendance.check_in_time && attendance.check_out_time) {
+    const msWorked = attendance.check_out_time - attendance.check_in_time;
+    const hours = msWorked / (1000 * 60 * 60); // convert ms → hours
+    attendance.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+  }
+
+  await attendance.save();
+
   return res
-    .status(201)
-    .json(new ApiResponse(201, attendance, "Check-in successful"));
+    .status(200)
+    .json(new ApiResponse(200, attendance, "Check-out successful, hours worked updated"));
 });
 
 //  View attendance history
@@ -536,8 +568,6 @@ const getAttendanceHistory = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, history, "Attendance history fetched"));
 });
-
-
 
 //  View AI-predicted no-show risk
 const getWellnessScore = asyncHandler(async (req, res) => {
@@ -704,19 +734,6 @@ const getLeaderboard = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, score, "Leaderboard data fetched"));
 });
 
-//  get kyc status
-const getKYCStatus = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const kyc = await KYCVerification.findOne({ user: gigId });
-
-  if (!kyc) {
-    throw new ApiError(404, "KYC record not found");
-  }
-
-  return res.status(200).json(new ApiResponse(200, kyc, "KYC status fetched"));
-});
-
 //  Debugging endpoint to fetch gig data
 const debugGigData = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -834,6 +851,7 @@ export {
   joinPool,
   getMyEvents,
   checkIn,
+  checkOut,
   getAttendanceHistory,
   getWallet,
   withdraw,

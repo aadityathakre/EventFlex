@@ -15,6 +15,7 @@ import {
   // Events & Attendance
   getMyEvents,
   checkIn,
+  checkOut,
   getAttendanceHistory,
   getNearbyEvents,
   getOrganizerPools,
@@ -58,7 +59,23 @@ const router = express.Router();
 // 📅 Events & Attendance
 //
 router.get("/my-events", verifyToken, authorizeRoles("gig"), getMyEvents);
-router.post("/check-in/:eventId", verifyToken, authorizeRoles("gig"), checkIn);
+
+// Gig check-in for an event
+router.post(
+  "/check-in/:eventId",
+  verifyToken,
+  authorizeRoles("gig"),
+  checkIn
+);
+
+// Gig check-out for an event
+router.post(
+  "/check-out/:eventId",
+  verifyToken,
+  authorizeRoles("gig"),
+  checkOut
+);
+
 router.get(
   "/attendance-history",
   verifyToken,
