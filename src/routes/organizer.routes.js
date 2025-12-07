@@ -17,7 +17,6 @@ import {
   // 📅 Event Management
   getEventDetails,
   getLiveEventTracking,
-  markEventComplete,
 
   // 💰 Wallet & Escrow
   getWallet,
@@ -27,8 +26,8 @@ import {
 
   // 🏆 Reputation & Gamification
   getLeaderboard,
-  getBadges,
-  getCertificates,
+  getOrganizerBadges,
+  
 
   // 🔔 Notifications
   getNotifications,
@@ -73,7 +72,7 @@ router.get("/no-show-risk/:gigId", verifyToken, authorizeRoles("organizer"), get
 //
 router.get("/events/:id", verifyToken, authorizeRoles("organizer"), getEventDetails);
 router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
-router.post("/events/complete/:id", verifyToken, authorizeRoles("organizer"), markEventComplete);
+
 
 //
 // 💰 Wallet & Escrow
@@ -87,8 +86,7 @@ router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer
 // 🏆 Reputation & Gamification
 //
 router.get("/leaderboard", verifyToken, authorizeRoles("organizer"), getLeaderboard);
-router.get("/badges", verifyToken, authorizeRoles("organizer"), getBadges);
-router.get("/certificates", verifyToken, authorizeRoles("organizer"), getCertificates);
+router.get("/badges", verifyToken, authorizeRoles("organizer"), getOrganizerBadges);
 
 //
 // 🔔 Notifications

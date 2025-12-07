@@ -740,6 +740,23 @@ const uploadKycVideo = asyncHandler(async (req, res) => {
     );
 });
 
+// 25. View leaderboard position
+const getLeaderboard = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const score = await Feedback.findOne({ gig: gigId })
+
+  if (!score) {
+    throw new ApiError(404, "FeedBack not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, score, "Leaderboard data fetched"));
+});
+
+
+
 //  Send message in chat
 const sendMessage = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
@@ -795,25 +812,6 @@ const getNotifications = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, notifications, "Notifications fetched"));
 });
-
-//  View leaderboard position
-const getLeaderboard = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const score = await ReputationScore.findOne({ user: gigId }).select(
-    "last_updated"
-  );
-  if (!score) {
-    throw new ApiError(404, "Reputation score not found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, score, "Leaderboard data fetched"));
-});
-
-
-
 
 export {
   getNearbyEvents,

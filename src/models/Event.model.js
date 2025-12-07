@@ -20,7 +20,18 @@ const EventSchema = new mongoose.Schema(
     description: { type: String, trim: true },
     event_type: {
       type: String,
-      enum: ["function","corporate","festival","exhibition","hackathon","workshop","webinar","networking","fundraiser","retreat"],
+      enum: [
+        "function",
+        "corporate",
+        "festival",
+        "exhibition",
+        "hackathon",
+        "workshop",
+        "webinar",
+        "networking",
+        "fundraiser",
+        "retreat",
+      ],
       required: true,
     },
     start_date: { type: Date, required: true },
@@ -62,26 +73,23 @@ EventSchema.pre("save", function (next) {
 });
 
 // Add validation for status transitions
-EventSchema.pre("findOneAndUpdate", function (next) {
+EventSchema.pre("findOneAndUpdate", async function (next) {
   const update = this.getUpdate();
-
   if (update.status) {
+    const docToUpdate = await this.model.findOne(this.getQuery());
+    if (!docToUpdate) return next(new Error("Event not found"));
+
     const validTransitions = {
       published: ["in_progress"],
       in_progress: ["completed"],
-      completed: [], // No transitions from completed
+      completed: []
     };
 
-    const currentStatus = this.getQuery().status || "published";
+    const currentStatus = docToUpdate.status;
     if (!validTransitions[currentStatus]?.includes(update.status)) {
-      return next(
-        new Error(
-          `Invalid status transition from ${currentStatus} to ${update.status}`
-        )
-      );
+      return next(new Error(`Invalid status transition from ${currentStatus} to ${update.status}`));
     }
   }
-
   next();
 });
 

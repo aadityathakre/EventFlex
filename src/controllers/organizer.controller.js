@@ -20,6 +20,8 @@ import mongoose from "mongoose";
 import UserProfile from "../models/UserProfile.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
 import PoolApplication from "../models/PoolApplication.model.js"
+import Badge from "../models/Badge.model.js";
+import UserBadge from "../models/UserBadge.model.js";
 
 // 1 Organizer Profile
 export const getOrganizerProfile = asyncHandler(async (req, res) => {
@@ -406,7 +408,7 @@ export const getDisputes = asyncHandler(async (req, res) => {
 });
 
 
-//  Live Event Tracking
+// 18. Live Event Tracking
 export const getLiveEventTracking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -425,25 +427,50 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, attendance, "Live attendance data"));
 });
 
-//  Mark Event Complete
-export const markEventComplete = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+// 19. Badges
+export const getOrganizerBadges = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
 
-  const event = await Event.findByIdAndUpdate(
-    id,
-    { status: "completed" },
-    { new: true }
+  // 1) Count how many events this organizer has completed
+  const completedEventsCount = await Event.countDocuments({
+    organizer: organizerId,
+    status: "completed",
+  });
+
+  // 2) Find all eligible badges (threshold <= completed events)
+  const eligibleBadges = await Badge.find({
+    min_events: { $lte: completedEventsCount },
+  });
+
+  // 3) Award badges if not already owned
+  for (const badge of eligibleBadges) {
+    const alreadyHasBadge = await UserBadge.findOne({
+      user: organizerId,
+      badge: badge._id,
+    });
+    if (!alreadyHasBadge) {
+      await UserBadge.create({
+        user: organizerId,
+        badge: badge._id,
+      });
+    }
+  }
+
+  // 4) Fetch all badges the organizer currently has
+  const badges = await UserBadge.find({ user: organizerId })
+    .populate("badge", "badge_name min_events")
+    .select("createdAt");
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { badges, completedEventsCount },
+      "Organizer badges fetched successfully"
+    )
   );
-
-  if (!event) throw new ApiError(404, "Event not found");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, event, "Event marked as complete"));
 });
 
-
-// 17. Leaderboard
+// 20. Leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
   const topOrganizers = await Rating.aggregate([
     { $match: { review_type: "host_to_organizer" } },
@@ -457,29 +484,9 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, topOrganizers, "Leaderboard fetched"));
 });
 
-// 18. Badges
-export const getBadges = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-  const eventsCount = await Event.countDocuments({ organizer: organizerId });
 
-  let badge = "None";
-  if (eventsCount >= 50) badge = "Elite";
-  else if (eventsCount >= 20) badge = "Pro";
-  else if (eventsCount >= 5) badge = "Rising Star";
-  else badge = "Beginner";
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { badge }, "Badge status fetched"));
-});
-
-// 20. Certificates (this feature will come soon)
-export const getCertificates = asyncHandler(async (req, res) => {
-  // Placeholder for blockchain certificate logic
-  return res.status(200).json(new ApiResponse(200, [], "Certificates fetched"));
-});
-
-// 21. Get Notifications
+//  Get Notifications
 export const getNotifications = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const notifications = await Notification.find({ user: organizerId }).sort({ createdAt: -1 });
@@ -487,7 +494,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, notifications, "Notifications fetched"));
 });
 
-// 22. Mark Notification as Read
+//  Mark Notification as Read
 export const markNotificationRead = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updated = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
