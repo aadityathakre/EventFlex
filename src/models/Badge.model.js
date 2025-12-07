@@ -12,11 +12,7 @@ const BadgeSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
-    },
-    kyc_required: {
-      type: Boolean,
-      default: false,
-    },
+    }
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );

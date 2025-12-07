@@ -9,9 +9,10 @@ import {
 
   // 👥 Pool & Team Management
   createPool,
-  managePool,
   getPoolDetails,
   chatWithGig,
+  getPoolApplications,
+  reviewApplication,
 
   // 📅 Event Management
   getEventDetails,
@@ -55,9 +56,10 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 // 👥 Pool & Team Management
 //
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
-router.put("/pools/manage/:id", verifyToken, authorizeRoles("organizer"), managePool);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
+router.get("/pools/:poolId/applications", verifyToken, authorizeRoles("organizer"), getPoolApplications);
+router.post("/applications/:applicationId/review", verifyToken, authorizeRoles("organizer"), reviewApplication);
 
 //
 // 🧠 Wellness & Analytics

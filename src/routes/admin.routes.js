@@ -3,6 +3,7 @@ import {
   getAllRoles,
   banUser,
   unbanUser,
+  debugGigData,
   getPendingKYC,
   approveKYC,
   rejectKYC,
@@ -43,6 +44,14 @@ router.put(
   "/restore/:userId",
   verifyAdminToken,
   restoreUser
+);
+
+//debug gig
+router.get(
+  "/debug/gig/:id",
+  verifyAdminToken,
+  authorizeRoles("admin"),
+  debugGigData
 );
 
 // ✅ Verification & Compliance

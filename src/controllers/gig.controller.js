@@ -6,11 +6,8 @@ import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
 import Pool from "../models/Pool.model.js";
 import PoolApplication from "../models/PoolApplication.model.js";
-import PoolMember from "../models/PoolMember.model.js";
 import UserWallet from "../models/UserWallet.model.js";
 import Payment from "../models/Payment.model.js";
-import BehavioralAnalytics from "../models/BehavioralAnalytics.model.js";
-import WellnessInteraction from "../models/WellnessInteraction.model.js";
 import UserProfile from "../models/UserProfile.model.js";
 import UserBadge from "../models/UserBadge.model.js";
 import ReputationScore from "../models/ReputationScore.model.js";
@@ -23,12 +20,12 @@ import EscrowContract from "../models/EscrowContract.model.js";
 import Feedback from "../models/Feedback.model.js";
 import User from "../models/User.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
-import RecommendedEvent from "../models/RecommendedEvents.model.js";
 import UserDocument from "../models/UserDocument.model.js";
 import { ethers } from "ethers";
 import axios from "axios";
 import mongoose from "mongoose";
 import { ObjectId } from "mongodb";
+import Badge from "../models/Badge.model.js"
 
 
 // 1. View profile //
@@ -402,37 +399,24 @@ const getNearbyEvents = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, events, "Nearby events fetched"));
 });
 
-
-
-// View nearby organizer pools
+// 13. View nearby organizer pools
 const getOrganizerPools = asyncHandler(async (req, res) => {
-  const { coordinates } = req.body;
+  const {poolId} =req.params;
 
-  const pools = await OrganizerPool.find({
-    location: {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates,
-        },
-        $maxDistance: 10000,
-      },
-    },
-    status: "open", // ✅ match schema
-  }).select("-organizer");
+  const pools = await Pool.find({_id :poolId, status:"active"}).select("-organizer");
 
   return res
     .status(200)
     .json(new ApiResponse(200, pools, "Nearby pools fetched"));
 });
 
-// Join a specific pool
+// 14. Join a specific pool
 const joinPool = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { poolId } = req.params;
   const { proposed_rate, cover_message } = req.body;
 
-  const pool = await OrganizerPool.findById(poolId);
+  const pool = await Pool.findById(poolId);
   if (!pool) {
     throw new ApiError(404, "Pool not found");
   }
@@ -461,13 +445,12 @@ const joinPool = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, application, "Pool application submitted"));
 });
 
-
-//  View accepted events
+// 15. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
   const gigObjectId = req.user._id; 
 
   console.log("Gig ObjectId:", gigObjectId);
-  const events = await Event.find({ gigs: gigObjectId }).select("-__v");
+  const events = await Pool.find({ gigs: gigObjectId }).select("-__v");
 
   if (!events || events.length === 0) {
    return res
@@ -480,33 +463,54 @@ const getMyEvents = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, events, "Accepted events fetched"));
 });
 
-//  QR/GPS check-in
- const checkIn = asyncHandler(async (req, res) => {
+// 16. QR/GPS check-in
+const checkIn = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { eventId } = req.params;
 
   const event = await Event.findById(eventId);
   if (!event) throw new ApiError(404, "Event not found");
 
-  // Validate gig assignment via pools
+  const now = new Date();
+
+  //  Validate gig assignment via pools
   const pool = await Pool.findOne({ event: eventId, gigs: gigId });
   if (!pool) {
-    return res.status(403).json(new ApiResponse(403, null, "Gig not assigned to this event"));
+    return res
+      .status(403)
+      .json(new ApiResponse(403, null, "Gig not assigned to this event"));
   }
 
-  // Validate event status and dates
-  if (event.status !== "in_progress") throw new ApiError(400, "Event is not in progress");
-  const now = new Date();
+  //  Auto-transition event status if published and within time window
+  if (
+    event.status === "published" &&
+    event.start_date <= now &&
+    event.end_date > now
+  ) {
+    event.status = "in_progress";
+    await event.save();
+  }
+
+  //  Validate event status and dates AFTER transition
+  if (event.status !== "in_progress") {
+    throw new ApiError(400, "Event is not in progress. Cannot check in.");
+  }
+
   if (now < event.start_date) throw new ApiError(400, "Event has not started yet");
   if (now > event.end_date) throw new ApiError(400, "Event has already ended");
 
   // Prevent duplicate check-in
-  const alreadyCheckedIn = await EventAttendance.findOne({ gig: gigId, event: eventId });
+  const alreadyCheckedIn = await EventAttendance.findOne({
+    gig: gigId,
+    event: eventId,
+  });
   if (alreadyCheckedIn) {
-    return res.status(200).json(new ApiResponse(200, alreadyCheckedIn, "User already checked in"));
+    return res
+      .status(200)
+      .json(new ApiResponse(200, alreadyCheckedIn, "User already checked in"));
   }
 
-  // Create attendance record
+  //  Create attendance record
   const attendance = await EventAttendance.create({
     gig: gigId,
     event: eventId,
@@ -514,45 +518,75 @@ const getMyEvents = asyncHandler(async (req, res) => {
     status: "checked_in",
   });
 
-  return res.status(201).json(new ApiResponse(201, attendance, "Check-in successful"));
+  return res
+    .status(201)
+    .json(new ApiResponse(201, attendance, "Check-in successful"));
 });
 
-//check out 
- const checkOut = asyncHandler(async (req, res) => {
+// 17. check out 
+const checkOut = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { eventId } = req.params;
 
-  // Find existing attendance record
+  // 1) Load attendance for this gig-event
   const attendance = await EventAttendance.findOne({ gig: gigId, event: eventId });
-  if (!attendance) {
-    throw new ApiError(404, "Attendance record not found");
-  }
+  if (!attendance) throw new ApiError(404, "Attendance record not found");
 
-  // Prevent duplicate checkout
+  // 2) Prevent duplicate checkout (do not modify past data)
   if (attendance.check_out_time) {
     return res
       .status(200)
       .json(new ApiResponse(200, attendance, "Gig already checked out"));
   }
 
-  // Set checkout time
+  // 3) Set checkout time for THIS event only
   attendance.check_out_time = new Date();
 
-  // Calculate hours worked
+  // 4) Calculate hours worked (stored as Decimal128)
   if (attendance.check_in_time && attendance.check_out_time) {
     const msWorked = attendance.check_out_time - attendance.check_in_time;
-    const hours = msWorked / (1000 * 60 * 60); // convert ms → hours
+    const hours = msWorked / (1000 * 60 * 60);
     attendance.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
   }
 
   await attendance.save();
 
+  // 5) Badge awarding (progress-based, no past attendance updates)
+  // Count completed events for this gig (check_out_time exists)
+  const completedEventsCount = await EventAttendance.countDocuments({
+    gig: gigId,
+    check_out_time: { $exists: true, $ne: null },
+  });
+
+  // Find all badges where min_events threshold is met
+  const eligibleBadges = await Badge.find({
+    min_events: { $lte: completedEventsCount },
+  });
+
+  // Award new badges only (prevent duplicates); enforce KYC when required
+  for (const badge of eligibleBadges) {
+    const alreadyHasBadge = await UserBadge.findOne({ user: gigId, badge: badge._id });
+    if (alreadyHasBadge) continue;
+
+    await UserBadge.create({
+      user: gigId,
+      badge: badge._id,
+      // awarded_at is in timestamps; if you prefer explicit, add field to schema
+    });
+  }
+
   return res
     .status(200)
-    .json(new ApiResponse(200, attendance, "Check-out successful, hours worked updated"));
+    .json(
+      new ApiResponse(
+        200,
+        attendance,
+        "Check-out successful, hours worked updated, badges awarded if eligible"
+      )
+    );
 });
 
-//  View attendance history
+// 18.  View attendance history
 const getAttendanceHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
@@ -569,66 +603,7 @@ const getAttendanceHistory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, history, "Attendance history fetched"));
 });
 
-//  View AI-predicted no-show risk
-const getWellnessScore = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const score = await BehavioralAnalytics.findOne({ user: gigId });
-  if (!score) {
-    throw new ApiError(404, "No behavioral analytics found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, score, "Wellness score fetched"));
-});
-
-//  Get rest/hydration reminders
-const getReminders = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const reminders = await WellnessInteraction.find({ user: gigId })
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .select("ai_response wellness_score createdAt");
-
-  if (!reminders || reminders.length === 0) {
-    throw new ApiError(404, "No wellness reminders found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, reminders, "Wellness reminders fetched"));
-});
-
-//  Send message in chat
-const sendMessage = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-  const { conversationId } = req.params;
-  const { message_text } = req.body;
-
-  const conversation = await Conversation.findById(conversationId);
- if (
-  !conversation ||
-  !conversation.participants.some(
-    (p) => p.userId?.toString() === gigId.toString()
-  )
-) {
-  throw new ApiError(403, "Access denied to this conversation");
-}
-
-
-  const message = await Message.create({
-    conversation: conversationId,
-    sender: gigId,
-    message_text,
-  });
-
-  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
-});
-
-
-// Raise dispute for an event
+// 19. Raise dispute for an event
 const raiseDispute = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { eventId } = req.params;
@@ -647,43 +622,16 @@ const raiseDispute = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
 });
 
-//  Get notifications
-const getNotifications = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const notifications = await Notification.find({ user: gigId }).sort({
-    createdAt: -1,
-  });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, notifications, "Notifications fetched"));
-});
-
-
-//  View earned badges
-const getBadges = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const badges = await UserBadge.find({ user: gigId })
-    .populate("badge", "name description icon_url")
-    .select("awarded_at");
-
-  return res.status(200).json(new ApiResponse(200, badges, "Badges fetched"));
-});
-
-//  Simulate payout from escrow (for testing)
+// 20. Simulate payout from escrow (for testing)
 const simulatePayout = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { escrowId } = req.params;
-  console.log(typeof gigId, typeof escrowId);
+
   const escrow = await EscrowContract.findOne({
-    _id: "68f07d7c2620923b5bf1f50b",
-    gig: gigId,
-    status: "funded",
+    _id: escrowId,
+    status: "released",
   });
 
-  console.log(typeof escrowId, typeof gigId);
   if (!escrow) {
     throw new ApiError(404, "Escrow not found or already released");
   }
@@ -696,7 +644,18 @@ const simulatePayout = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, escrow, "Payout simulated"));
 });
 
-//  Submit event feedback
+// 21. View earned badges
+const getBadges = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const badges = await UserBadge.find({ user: gigId })
+    .populate("badge", "name description icon_url")
+    .select("awarded_at");
+
+  return res.status(200).json(new ApiResponse(200, badges, "Badges fetched"));
+});
+
+// 22. Submit event feedback
 const submitFeedback = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
   const { eventId } = req.params;
@@ -718,49 +677,7 @@ const submitFeedback = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, feedback, "Feedback submitted"));
 });
 
-//  View leaderboard position
-const getLeaderboard = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const score = await ReputationScore.findOne({ user: gigId }).select(
-    "last_updated"
-  );
-  if (!score) {
-    throw new ApiError(404, "Reputation score not found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, score, "Leaderboard data fetched"));
-});
-
-//  Debugging endpoint to fetch gig data
-const debugGigData = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const user = await User.findById(id);
-  const attendance = await EventAttendance.find({ gig: id });
-  const wallet = await UserWallet.findOne({ user: id });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user, attendance, wallet }, "Gig debug data"));
-});
-
-//  get recommended events
-const getRecommendedEvents = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-
-  const recommendations = await RecommendedEvent.find({ gig: gigId })
-    .populate("event")
-    .sort({ score: -1 });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, recommendations, "Recommended events fetched"));
-});
-
-//  get gig dashboard
+// 23. get gig dashboard
 const getGigDashboard = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
@@ -772,7 +689,7 @@ const getGigDashboard = asyncHandler(async (req, res) => {
   ]);
 
   const totalEvents = attendance.length;
-  const totalEarnings = wallet?.balance || 0;
+  const totalEarnings = wallet?.balance_inr || 0;
   const averageRating =
     feedbacks.length > 0
       ? feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length
@@ -792,8 +709,7 @@ const getGigDashboard = asyncHandler(async (req, res) => {
   );
 });
 
-
-//upload kyc video
+// 24. upload kyc video
 const uploadKycVideo = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const videoUrl = req.files?.videoUrl?.[0]?.path;
@@ -824,17 +740,40 @@ const uploadKycVideo = asyncHandler(async (req, res) => {
     );
 });
 
+//  Send message in chat
+const sendMessage = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { conversationId } = req.params;
+  const { message_text } = req.body;
+
+  const conversation = await Conversation.findById(conversationId);
+ if (
+  !conversation ||
+  !conversation.participants.some(
+    (p) => p.userId?.toString() === gigId.toString()
+  )
+) {
+  throw new ApiError(403, "Access denied to this conversation");
+}
+
+
+  const message = await Message.create({
+    conversation: conversationId,
+    sender: gigId,
+    message_text,
+  });
+
+  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
 //  List chat threads
 const getConversations = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
 const conversations = await Conversation.find({
-  $or: [
-    { "participants.gig": gigId },
-    { "participants.organizer": gigId }
-  ]
-})
-    .populate("event", "name date location")
+  "participants.gig": gigId 
+
+}).populate("event", "name date location")
     .populate("pool", "name")
     .sort({ createdAt: -1 });
 
@@ -843,6 +782,37 @@ const conversations = await Conversation.find({
     .status(200)
     .json(new ApiResponse(200, conversations, "Conversations fetched"));
 });
+
+//  Get notifications
+const getNotifications = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const notifications = await Notification.find({ user: gigId }).sort({
+    createdAt: -1,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, notifications, "Notifications fetched"));
+});
+
+//  View leaderboard position
+const getLeaderboard = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const score = await ReputationScore.findOne({ user: gigId }).select(
+    "last_updated"
+  );
+  if (!score) {
+    throw new ApiError(404, "Reputation score not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, score, "Leaderboard data fetched"));
+});
+
+
 
 
 export {
@@ -857,8 +827,6 @@ export {
   withdraw,
   verifyAadhaar,
   getPaymentHistory,
-  getWellnessScore,
-  getReminders,
   getProfile,
   updateProfile,
   getBadges,
@@ -872,8 +840,6 @@ export {
   submitFeedback,
   deleteProfileImage,
   getKYCStatus,
-  debugGigData,
-  getRecommendedEvents,
   getGigDashboard,
   uploadDocuments,
   uploadKycVideo,

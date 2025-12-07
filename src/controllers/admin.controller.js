@@ -12,7 +12,6 @@ import EscrowContract from "../models/EscrowContract.model.js";
 import Notification from "../models/Notification.model.js";
 import Payment from "../models/Payment.model.js";
 import Event from "../models/Event.model.js";
-import WellnessInteraction from "../models/WellnessInteraction.model.js";
 
 
 
@@ -262,4 +261,17 @@ export const restoreUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, user, "User restored successfully"));
+});
+
+//  Debugging endpoint to fetch gig data
+export const debugGigData = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const user = await User.findById(id);
+  const attendance = await EventAttendance.find({ gig: id });
+  const wallet = await UserWallet.findOne({ user: id });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { user, attendance, wallet }, "Gig debug data"));
 });

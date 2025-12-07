@@ -7,15 +7,13 @@ const PoolApplicationSchema = new mongoose.Schema(
   {
     pool: {
       type: Schema.Types.ObjectId,
-      ref: "OrganizerPool",
+      ref: "Pool",
       required: true,
-      index: true,
     },
     gig: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
     application_status: {
       type: String,

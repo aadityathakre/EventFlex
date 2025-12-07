@@ -10,7 +10,6 @@ import {
 
   // Dashboard & Debug
   getGigDashboard,
-  debugGigData,
 
   // Events & Attendance
   getMyEvents,
@@ -20,7 +19,6 @@ import {
   getNearbyEvents,
   getOrganizerPools,
   joinPool,
-  getRecommendedEvents,
 
   // Wallet & Payments
   getWallet,
@@ -29,9 +27,6 @@ import {
   createWallet,
   simulatePayout,
 
-  // Wellness & Reminders
-  getWellnessScore,
-  getReminders,
 
   // Profile & Badges
   getProfile,
@@ -89,19 +84,12 @@ router.get(
   getNearbyEvents
 );
 router.get(
-  "/organizer-pools",
+  "/organizer-pools/:poolId",
   verifyToken,
   authorizeRoles("gig"),
   getOrganizerPools
 );
 router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
-
-router.get(
-  "/recommended-events",
-  verifyToken,
-  authorizeRoles("gig"),
-  getRecommendedEvents
-);
 
 //
 // 💰 Wallet & Payments
@@ -122,18 +110,6 @@ router.post(
   simulatePayout
 );
 
-//
-// 🧠 Wellness & Reminders
-//
-router.get(
-  "/wellness-score",
-  verifyToken,
-  authorizeRoles("gig"),
-  getWellnessScore
-);
-router.get("/reminders", verifyToken, authorizeRoles("gig"), getReminders);
-
-//
 // 👤 Profile & Badges
 //
 router.get("/profile", verifyToken, authorizeRoles("gig"), getProfile);
@@ -224,11 +200,6 @@ router.get("/kyc-status", verifyToken, authorizeRoles("gig"), getKYCStatus);
 // 📊 Dashboard & Debug
 //
 router.get("/dashboard", verifyToken, authorizeRoles("gig"), getGigDashboard);
-router.get(
-  "/debug/gig/:id",
-  verifyToken,
-  authorizeRoles("admin"),
-  debugGigData
-);
+
 
 export default router;

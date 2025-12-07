@@ -19,7 +19,7 @@ import UserDocument from "../models/UserDocument.model.js";
 import mongoose from "mongoose";
 import UserProfile from "../models/UserProfile.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
-
+import PoolApplication from "../models/PoolApplication.model.js"
 
 // 1 Organizer Profile
 export const getOrganizerProfile = asyncHandler(async (req, res) => {
@@ -224,22 +224,54 @@ export const createPool = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, pool, "Pool created successfully !"));
 });
 
-// 8. Manage Pool (Add/Remove Gigs)
-export const managePool = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { gigs, orgPoolId } = req.body;
+// 8 .check pool applications
+export const getPoolApplications = asyncHandler(async (req, res) => {
+  const { poolId } = req.params;
+  const applications = await PoolApplication.find({ pool: poolId, application_status: "pending" })
+    .populate("gig", "first_name last_name avatar fullName")
+    .select("-__v");
+  return res.status(200).json(new ApiResponse(200, applications, "Pending applications fetched"));
+});
 
-  const pool = await Pool.findByIdAndUpdate(id, { gigs }, { new: true });
-  if (!pool) throw new ApiError(404, "Pool not found");
+//9. review and approve gigs
+export const reviewApplication = asyncHandler(async (req, res) => {
+  const { applicationId } = req.params;
+  const { action, orgPoolId } = req.body; // "approve" or "reject"
+
+  const application = await PoolApplication.findById(applicationId);
+  if (!application) throw new ApiError(404, "Application not found");
+
+  const pool = await Pool.findById(application.pool);
   const orgPool = await OrganizerPool.findById(orgPoolId);
-  if(pool.gigs.length > orgPool.max_capacity){
-    pool.status="archived";
-    pool.save();
+
+  if (action === "approve") {
+    // Check capacity
+    if (pool.gigs.length >= orgPool.max_capacity) {
+      pool.status = "archived";
+      await pool.save();
+      throw new ApiError(400, "Pool capacity reached, cannot add more gigs");
+    }
+
+    application.application_status = "accepted";
+    await application.save();
+
+    // Add gig to pool
+    pool.gigs.push(application.gig);
+    await pool.save();
+
+    return res.status(200).json(new ApiResponse(200, application, "Gig approved and added to pool"));
   }
-  return res.status(200).json(new ApiResponse(200, pool, "Pool updated"));
+
+  if (action === "reject") {
+    application.status = "rejected";
+    await application.save();
+    return res.status(200).json(new ApiResponse(200, application, "Gig application rejected"));
+  }
+
+  throw new ApiError(400, "Invalid action");
 });
   
-// 9. View Pool Details
+// 10. View Pool Details
 export const getPoolDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -254,7 +286,7 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, pool, "Pool details fetched"));
 });
 
-// 10. Chat with Gig (Stub)
+// 11. Chat with Gig (Stub)
 export const chatWithGig = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { gigId } = req.params;
@@ -347,6 +379,30 @@ export const getWellnessScore = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, {
     wellnessScore: organizer.wellnessScore || 100,
   }, "Wellness score fetched"));
+});
+
+// 16. Raise Dispute
+export const raiseDispute = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { eventId } = req.params;
+  const { gigId, reason } = req.body;
+
+  const dispute = await Dispute.create({
+    event: eventId,
+    gig: gigId,
+    reason,
+  });
+
+  return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
+});
+
+// 17. View Disputes
+export const getDisputes = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+
+  const disputes = await Dispute.find({}).populate("event", "title date").populate("gig", "name");
+
+  return res.status(200).json(new ApiResponse(200, disputes, "Disputes fetched"));
 });
 
 
@@ -442,29 +498,5 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
 });
 
-
-// 23. Raise Dispute
-export const raiseDispute = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-  const { eventId } = req.params;
-  const { gigId, reason } = req.body;
-
-  const dispute = await Dispute.create({
-    event: eventId,
-    gig: gigId,
-    reason,
-  });
-
-  return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
-});
-
-// 24. View Disputes
-export const getDisputes = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-
-  const disputes = await Dispute.find({}).populate("event", "title date").populate("gig", "name");
-
-  return res.status(200).json(new ApiResponse(200, disputes, "Disputes fetched"));
-});
 
 
