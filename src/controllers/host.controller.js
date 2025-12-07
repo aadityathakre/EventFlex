@@ -13,7 +13,6 @@ import UserWallet from "../models/UserWallet.model.js";
 import RatingReview from "../models/RatingReview.model.js";
 import Feedback from "../models/Feedback.model.js";
 import UserBadge from "../models/UserBadge.model.js";
-import Badge from "../models/Badge.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import User from "../models/User.model.js";
 import mongoose from "mongoose";

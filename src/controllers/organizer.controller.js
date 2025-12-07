@@ -1,7 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import Organizer from "../models/User.model.js";
 import Pool from "../models/Pool.model.js";
 import Event from "../models/Event.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";

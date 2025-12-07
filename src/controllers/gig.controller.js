@@ -3,14 +3,12 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import EventAttendance from "../models/EventAttendance.model.js";
 import Event from "../models/Event.model.js";
-import OrganizerPool from "../models/OrganizerPool.model.js";
 import Pool from "../models/Pool.model.js";
 import PoolApplication from "../models/PoolApplication.model.js";
 import UserWallet from "../models/UserWallet.model.js";
 import Payment from "../models/Payment.model.js";
 import UserProfile from "../models/UserProfile.model.js";
 import UserBadge from "../models/UserBadge.model.js";
-import ReputationScore from "../models/ReputationScore.model.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import Dispute from "../models/Dispute.model.js";
@@ -22,9 +20,7 @@ import User from "../models/User.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import UserDocument from "../models/UserDocument.model.js";
 import { ethers } from "ethers";
-import axios from "axios";
 import mongoose from "mongoose";
-import { ObjectId } from "mongodb";
 import Badge from "../models/Badge.model.js"
 
 

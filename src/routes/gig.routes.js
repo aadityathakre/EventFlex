@@ -8,7 +8,7 @@ import {
   uploadKycVideo,
   getKYCStatus,
 
-  // Dashboard & Debug
+  // Dashboard 
   getGigDashboard,
 
   // Events & Attendance
