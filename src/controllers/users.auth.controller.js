@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import User from "../models/User.model.js";
 import jwt from "jsonwebtoken";
+import  {sendOtpMail}  from "../utils/mail.js";
 
 // generate Access And Refresh Tokens
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -203,3 +204,121 @@ export const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, `${ req.user.role} logged out successfully`));
 });
 
+// Send OTP for password reset
+export const sendOTP = asyncHandler(async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "User does not exist with this email"));
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetOTP = otp;
+    user.otpExpires = Date.now() + 5 * 60 * 1000;
+    user.isOTPVerified = false;
+    await user.save();
+    await sendOtpMail(email, otp);
+    return res.status(200).json(new ApiResponse(200, "Otp sent to the user"));
+  } catch (error) {
+    return res.status(400).json(new ApiResponse(400, error));
+  }
+});
+
+// Verify OTP
+export const verifyOtp = asyncHandler(async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "User does not exist with this email"));
+    }
+
+    if (user.resetOTP != otp || user.otpExpires < Date.now()) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "Invalid or expired otp"));
+    }
+
+    user.isOTPVerified = true;
+    user.resetOTP = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Otp verified successfully"));
+  } catch (error) {
+    return res.status(400).json(new ApiResponse(400, error));
+  }
+});
+
+// Reset Password
+export const resetPassword = asyncHandler(async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    const user = await User.findOne({ email });
+    if (!user || !user.isOTPVerified) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "User does not exist with this email"));
+    }
+    user.password = newPassword;
+    await user.save();
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Password reset successfully"));
+  } catch (error) {
+    return res.status(400).json(new ApiResponse(400, error));
+  }
+});
+
+// Google OAuth Authentication
+export const googleAuth = asyncHandler(async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json(new ApiResponse(400, "User not found"));
+    }
+      const accessToken = user.generateAccessToken();
+      const refreshToken = user.generateRefreshToken();
+
+      user.refreshToken = refreshToken;
+      await user.save({ validateBeforeSave: false });
+
+      const options = {
+        httpOnly: true,
+        secure: true,
+      };
+
+      const loggedInUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+      );
+      const msg = `${user.role} logged in successfully`;
+      return res
+        .status(200)
+        .cookie("refreshToken", refreshToken, options)
+        .cookie("accessToken", accessToken, options)
+        .json(
+          new ApiResponse(
+            200,
+            { user: loggedInUser, accessToken, refreshToken },
+            msg
+          )
+        );
+    
+  } catch (error) {
+    console.error("Google Auth error:", error);
+    return res.status(500).json(new ApiResponse(500, error.message));
+  }
+});

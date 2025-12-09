@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -72,6 +72,7 @@ app.use((req, res, next) => {
 
 // Global error handler
 app.use(errorHandler);
+
 
 //export
 export { app };
