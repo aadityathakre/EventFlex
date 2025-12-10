@@ -222,7 +222,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
     user.otpExpires = Date.now() + 5 * 60 * 1000;
     user.isOTPVerified = false;
     await user.save();
-    await sendOtpMail(email, otp);
+    await sendOtpMail(email, otp, user.first_name);
     return res.status(200).json(new ApiResponse(200, "Otp sent to the user"));
   } catch (error) {
     return res.status(400).json(new ApiResponse(400, error));

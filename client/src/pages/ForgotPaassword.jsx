@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { serverURL } from "../App";
-import axios from "axios"
+import axios from "axios";
 
 function ForgotPassword() {
   const [step, setStep] = useState(1);
@@ -10,7 +10,8 @@ function ForgotPassword() {
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [checkNewPassword, setCheckNewPassword] = useState("");
-  const [error, setError] = useState(""); 
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // states for eye toggle
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -19,54 +20,67 @@ function ForgotPassword() {
   const navigate = useNavigate();
 
   // Step 1: Send OTP
-const handleSendOTP = async (e) => {
-  e.preventDefault();
-  try {
-    await axios.post(`${serverURL}/auth/users/send-otp`, 
-      { email }, 
-      { withCredentials: true}
-    );
-    setStep(2);
-  } catch (err) {
-    console.log("Send OTP error:", err.response?.data);
-    setError(err.response?.data?.message || "Failed to send OTP");
-  }
-};
+  const handleSendOTP = async (email) => {
+    try {
+      await axios.post(
+        `${serverURL}/auth/users/send-otp`,
+        { email },
+        { withCredentials: true }
+      );
+      setStep(2);
+    } catch (err) {
+      console.log("Send OTP error:", err.response?.data);
+      setError(err.response?.data?.message || "Failed to send OTP");
+    }
+  };
 
-// Step 2: Verify OTP
-const handleCheckOtp = async (e) => {
-  e.preventDefault();
-  try {
-    await axios.post(`${serverURL}/auth/users/verify-otp`, 
-      { email, otp }, 
-      { withCredentials: true }
-    );
-    setStep(3);
-  } catch (err) {
-    console.log("Verify OTP error:", err.response?.data);
-    setError(err.response?.data?.message || "Invalid OTP");
-  }
-};
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return; // prevent double submit
+    setLoading(true);
 
-// Step 3: Reset Password
-const handleUpdatePassword = async (e) => {
-  e.preventDefault();
-  if (newPassword !== checkNewPassword) {
-    setError("Passwords do not match!");
-    return;
-  }
-  try {
-    await axios.post(`${serverURL}/auth/users/reset-password`, 
-      { email, newPassword }, 
-      { withCredentials: true}
-    );
-    navigate("/login");
-  } catch (err) {
-    console.log("Reset error:", err.response?.data);
-    setError(err.response?.data?.message || "Failed to reset password");
-  }
-};
+    try {
+      await handleSendOTP(email);
+    } finally {
+      setLoading(false); // re-enable after request completes
+    }
+  };
 
+  // Step 2: Verify OTP
+  const handleCheckOtp = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(
+        `${serverURL}/auth/users/verify-otp`,
+        { email, otp },
+        { withCredentials: true }
+      );
+      setStep(3);
+    } catch (err) {
+      console.log("Verify OTP error:", err.response?.data);
+      setError(err.response?.data?.message || "Invalid OTP");
+    }
+  };
+
+  // Step 3: Reset Password
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== checkNewPassword) {
+      setError("Passwords do not match!");
+      return;
+    }
+    try {
+      await axios.post(
+        `${serverURL}/auth/users/reset-password`,
+        { email, newPassword },
+        { withCredentials: true }
+      );
+      navigate("/login");
+    } catch (err) {
+      console.log("Reset error:", err.response?.data);
+      setError(err.response?.data?.message || "Failed to reset password");
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
@@ -84,7 +98,7 @@ const handleUpdatePassword = async (e) => {
 
         {/* Step 1: Email */}
         {step === 1 && (
-          <form className="space-y-4" onSubmit={handleSendOTP}>
+          <form className="space-y-4" onSubmit={onSubmit}>
             <input
               type="email"
               required
@@ -95,9 +109,11 @@ const handleUpdatePassword = async (e) => {
             />
             <button
               type="submit"
-              className="w-full bg-black cursor-pointer text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-800 transition-all duration-300"
+              disabled={loading}
+              className={`w-full font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 
+                ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-black text-white hover:bg-gray-800 cursor-pointer"}`}
             >
-              Send OTP
+              {loading ? "Sending..." : "Send OTP"}
             </button>
           </form>
         )}
@@ -132,9 +148,7 @@ const handleUpdatePassword = async (e) => {
                 required
                 placeholder="New Password"
                 value={newPassword}
-
                 onChange={(e) => {
-                  
                   setNewPassword(e.target.value);
                   setError(""); // clear error when typing
                 }}
@@ -180,8 +194,9 @@ const handleUpdatePassword = async (e) => {
             {/* Error message */}
             {error && <p className="text-black text-sm">{error}</p>}
 
-            <button className="bg-black text-white hover:bg-gray-800 cursor-pointer w-full font-semibold py-2 px-4 rounded-lg shadow-md">Update password</button>
-
+            <button className="bg-black text-white hover:bg-gray-800 cursor-pointer w-full font-semibold py-2 px-4 rounded-lg shadow-md">
+              Update password
+            </button>
           </form>
         )}
 
