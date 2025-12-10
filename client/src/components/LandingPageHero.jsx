@@ -3,10 +3,10 @@ import NavigationBar from './NavigationBar';
 import HeroSearch from './HeroSearch';
 import './LandingPageHero.scss';
 
-const LandingPageHero = () => {
+const LandingPageHero = ({ onOpenAuth }) => {
   return (
     <section className="landing-hero">
-      <NavigationBar />
+      <NavigationBar onOpenAuth={onOpenAuth} />
 
       <div className="hero-content">
         <div className="hero-container">

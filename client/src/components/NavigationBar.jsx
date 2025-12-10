@@ -2,7 +2,13 @@ import React from 'react';
 import ButtonPrimary from './ButtonPrimary';
 import './NavigationBar.scss';
 
-const NavigationBar = () => {
+const NavigationBar = ({ onOpenAuth }) => {
+  const handleBookVenue = () => {
+    if (onOpenAuth) {
+      onOpenAuth('register');
+    }
+  };
+
   return (
     <nav className="navigation-bar">
       <div className="nav-container">
@@ -17,7 +23,7 @@ const NavigationBar = () => {
         </div>
 
         <div className="nav-cta">
-          <ButtonPrimary>Book your Venue</ButtonPrimary>
+          <ButtonPrimary onClick={handleBookVenue}>Book your Venue</ButtonPrimary>
         </div>
       </div>
     </nav>
