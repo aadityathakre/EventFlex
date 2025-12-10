@@ -51,10 +51,10 @@ function Login() {
 };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-100 via-orange-10 to-red-10 px-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 rounded-2xl px-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl  shadow-2xl p-8">
         {/* Title */}
-        <h1 className="text-4xl font-extrabold text-center text-red-600 mb-2">
+        <h1 className="text-4xl font-extrabold text-center text-black mb-2">
           Event Flex
         </h1>
         <p className="text-center text-gray-600 mb-6">
@@ -86,7 +86,7 @@ function Login() {
             onChange={(e) => setEmail(e.target.value)}
             value={email}
             placeholder="Email"
-            className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
+            className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none"
           />
 
           {/* Password with toggle */}
@@ -98,11 +98,11 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               value={password}
               placeholder="Password"
-              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none pr-10"
+              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none pr-10"
             />
             <span
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500 hover:text-red-500"
+              className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500 hover:text-gray-600"
             >
               {showPassword ? (
                 <AiOutlineEyeInvisible className="text-xl" />
@@ -115,23 +115,29 @@ function Login() {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full cursor-pointer bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-all duration-300"
+            className="w-full cursor-pointer bg-black text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-800 transition-all duration-300"
           >
             Login
           </button>
-          {err && <p className="text-red-500 text-sm mt-2">{err}</p>}
+          {err && <p className="text-black text-sm mt-2">{err}</p>}
         </form>
         
-        <div className="text-right cursor-pointer text-red-500 hover:underline" onClick={()=>navigate("/forgot-password")}>
-          Forget Password
-        </div>
+        <div className="flex justify-end">
+  <span
+    className="cursor-pointer text-sm text-black hover:underline"
+    onClick={() => navigate("/forgot-password")}
+  >
+    Forget Password
+  </span>
+</div>
+
 
         {/* Footer */}
         <p className="text-center text-gray-500 mt-6 text-sm">
-          Don’t have an account?{" "}
-          <p onClick={() => navigate("/register")} className="cursor-pointer text-red-500 hover:underline">
+          Don’t have an account?{" "} <br />
+          <span onClick={() => navigate("/register")} className="cursor-pointer text-black hover:underline">
             Register here 
-          </p>
+          </span>
         </p>
       </div>
     </div>

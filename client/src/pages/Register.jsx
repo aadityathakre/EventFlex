@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-import { redirect, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../App";
-import { set } from "mongoose";
 
 function Register() {
   const [showPassword, setShowPassword] = useState(false);
@@ -16,37 +15,39 @@ function Register() {
   const [err, setErr] = useState("");
   const navigate = useNavigate();
 
-const handleRegister = async (e) => {
-  e.preventDefault(); // prevent page reload
-  try {
-    const result = await axios.post(
-      `${serverURL}/auth/users/register`,
-      { first_name, last_name, email, password, phone, role },
-      { withCredentials: true }
-    );
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    try {
+      const result = await axios.post(
+        `${serverURL}/auth/users/register`,
+        { first_name, last_name, email, password, phone, role },
+        { withCredentials: true }
+      );
 
-    setEmail("");
-    setFirst_name("");
-    setLast_name("");
-    setPassword("");
-    setPhone("");
-    setRole("gig");
-    if (result.status === 200) {
-      console.log("Registration successful:", result.data);
-      navigate("/login");
-    } else {
-      console.log("Unexpected response:", result);
+      setEmail("");
+      setFirst_name("");
+      setLast_name("");
+      setPassword("");
+      setPhone("");
+      setRole("gig");
+
+      if (result.status === 200) {
+        console.log("Registration successful:", result.data);
+        navigate("/login");
+      } else {
+        console.log("Unexpected response:", result);
+      }
+    } catch (error) {
+      setErr(error.response?.data?.message || "Registration failed");
+      console.error("Registration error:", error.response?.data || error.message);
     }
-  } catch (error) {
-    setErr(error.response.data.message  || "Registration failed");
-    console.error("Registration error:", error.response?.data || error.message);
-  }
-};
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-100 via-orange-200 to-red-200 px-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl  shadow-2xl p-8">
         {/* Title */}
-        <h1 className="text-4xl font-extrabold text-center text-red-600 mb-2">
+        <h1 className="text-4xl font-extrabold text-center text-black mb-2">
           Event Flex
         </h1>
         <p className="text-center text-gray-600 mb-6">
@@ -55,54 +56,67 @@ const handleRegister = async (e) => {
 
         {/* Form */}
         <form className="space-y-4" onSubmit={handleRegister}>
+          {/* Role Selection */}
+          <div className="flex justify-between mb-4 " >
+            {["organizer", "gig", "host"].map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRole(r)}
+                className={`flex-1 py-2 mx-1 cursor-pointer rounded-lg font-semibold border ${
+                  role === r ? "bg-black text-white" : "bg-white text-gray-600"
+                } hover:bg-gray-800 transition  duration-100`}
+              >
+                {r.charAt(0).toUpperCase() + r.slice(1)}
+              </button>
+            ))}
+          </div>
 
-         <select
-            name="role"
-            onChange={(e) => {
-              if(e.target.value!="selectRole"){
-                setRole(e.target.value)
-              }}
-            }
-            value={role}
-            required
-            className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
-          >
-           
-            <option value="gig">GIG</option>
-            <option value="organizer">Organizer</option>
-            <option value="host">Host</option>
-          </select>
-
-          <input
-            type="text"
-            name="first_name"
-            required
-            onChange={(e) => setFirst_name(e.target.value)}
-            value={first_name}
-            placeholder="First Name"
-            className="w-1/2 px-4 py-2 m-auto m-4 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
-          />
+          {/* Name Fields */}
+          <div className="flex gap-4">
             <input
-            type="text"
-            name="last_name"
-            required
-            onChange={(e) => setLast_name(e.target.value)}
-            value={last_name}
-            placeholder="Last Name"
-            className="w-1/2 px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
-          />
+              type="text"
+              name="first_name"
+              required
+              onChange={(e) => setFirst_name(e.target.value)}
+              value={first_name}
+              placeholder="First Name"
+              className="w-1/2 px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none"
+            />
+            <input
+              type="text"
+              name="last_name"
+              required
+              onChange={(e) => setLast_name(e.target.value)}
+              value={last_name}
+              placeholder="Last Name"
+              className="w-1/2 px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none"
+            />
+          </div>
 
+          {/* Email */}
           <input
             type="email"
             name="email"
             required
             onChange={(e) => setEmail(e.target.value)}
             value={email}
-            placeholder="Email"
-            className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
+            placeholder="Your email"
+            className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none"
           />
 
-          {/* Password with toggle */}
+          {/* Phone */}
+          <input
+            type="tel"
+            name="phone"
+            required
+            onChange={(e) => setPhone(e.target.value)}
+            value={phone}
+            placeholder="Your phone"
+            className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none"
+          />
+
+          {/* Password */}
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -111,11 +125,11 @@ const handleRegister = async (e) => {
               onChange={(e) => setPassword(e.target.value)}
               value={password}
               placeholder="Password"
-              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none pr-10"
+              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none pr-10"
             />
             <span
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500 hover:text-red-500"
+              className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-black hover:text-gray-600"
             >
               {showPassword ? (
                 <AiOutlineEyeInvisible className="text-xl" />
@@ -125,25 +139,16 @@ const handleRegister = async (e) => {
             </span>
           </div>
 
-          <input
-            type="tel"
-            name="phone"
-            required
-            onChange={(e) => setPhone(e.target.value)}
-            value={phone}
-            placeholder="Phone Number"
-            className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
-          />
-         
-
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-red-500 text-white cursor-pointer font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-all duration-300"
+            className="w-full bg-black text-white cursor-pointer font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-800 transition-all duration-300"
           >
-            Register
+            Signup
           </button>
-          {err && <p className="text-red-500 text-center">{err}</p>}
+
+          {/* Error Message */}
+          {err && <p className="text-black text-center">{err}</p>}
         </form>
 
         {/* Footer */}
@@ -151,7 +156,7 @@ const handleRegister = async (e) => {
           Already have an account?{" "}
           <span
             onClick={() => navigate("/login")}
-            className="text-red-500 hover:underline cursor-pointer"
+            className="text-black hover:underline cursor-pointer"
           >
             Login
           </span>

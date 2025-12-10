@@ -69,10 +69,10 @@ const handleUpdatePassword = async (e) => {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-100 via-orange-10 to-red-10 px-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-8">
         {/* Title */}
-        <h1 className="text-4xl font-extrabold text-center text-red-600 mb-2">
+        <h1 className="text-4xl font-extrabold text-center text-black mb-2">
           Event Flex
         </h1>
         <p className="text-center text-gray-600 mb-6">
@@ -80,6 +80,7 @@ const handleUpdatePassword = async (e) => {
           {step === 2 && "Enter the OTP sent to your email"}
           {step === 3 && "Set your new password"}
         </p>
+        {error && <p className="text-black text-sm mb-4">{error}</p>}
 
         {/* Step 1: Email */}
         {step === 1 && (
@@ -90,11 +91,11 @@ const handleUpdatePassword = async (e) => {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
+              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none"
             />
             <button
               type="submit"
-              className="w-full bg-red-500 cursor-pointer text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-all duration-300"
+              className="w-full bg-black cursor-pointer text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-800 transition-all duration-300"
             >
               Send OTP
             </button>
@@ -110,11 +111,11 @@ const handleUpdatePassword = async (e) => {
               placeholder="Enter OTP"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none"
+              className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none"
             />
             <button
               type="submit"
-              className="w-full bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition-all duration-300"
+              className="w-full bg-black text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-800 transition-all duration-300"
             >
               Verify OTP
             </button>
@@ -137,11 +138,11 @@ const handleUpdatePassword = async (e) => {
                   setNewPassword(e.target.value);
                   setError(""); // clear error when typing
                 }}
-                className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none pr-10"
+                className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none pr-10"
               />
               <span
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500 hover:text-red-500"
+                className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500 hover:text-gray-600"
               >
                 {showNewPassword ? (
                   <AiOutlineEyeInvisible className="text-xl" />
@@ -162,11 +163,11 @@ const handleUpdatePassword = async (e) => {
                   setCheckNewPassword(e.target.value);
                   setError(""); // clear error when typing
                 }}
-                className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-400 focus:outline-none pr-10"
+                className="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-gray-300 focus:outline-none pr-10"
               />
               <span
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500 hover:text-red-500"
+                className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-500 hover:text-gray-600"
               >
                 {showConfirmPassword ? (
                   <AiOutlineEyeInvisible className="text-xl" />
@@ -177,16 +178,16 @@ const handleUpdatePassword = async (e) => {
             </div>
 
             {/* Error message */}
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-black text-sm">{error}</p>}
 
-            <button className="bg-red-500 text-white hover:bg-red-600 cursor-pointer w-full font-semibold py-2 px-4 rounded-lg shadow-md">Update password</button>
+            <button className="bg-black text-white hover:bg-gray-800 cursor-pointer w-full font-semibold py-2 px-4 rounded-lg shadow-md">Update password</button>
 
           </form>
         )}
 
         {/* Back to Login */}
         <div
-          className="text-right cursor-pointer text-red-500 hover:underline mt-4"
+          className="text-right cursor-pointer text-black hover:underline mt-4"
           onClick={() => navigate("/login")}
         >
           Back to Login
