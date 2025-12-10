@@ -2,10 +2,10 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './Sidebar.scss';
 
-const Sidebar = ({ user = { name: 'Iswaran', role: 'ORG' } }) => {
+const Sidebar = ({ user = { name: 'Iswaran', role: 'ORG' }, menuItems }) => {
   const location = useLocation();
 
-  const menuItems = [
+  const defaultMenuItems = [
     {
       id: 'dashboard',
       label: 'Dashboard',
@@ -77,6 +77,8 @@ const Sidebar = ({ user = { name: 'Iswaran', role: 'ORG' } }) => {
     },
   ];
 
+  const items = menuItems || defaultMenuItems;
+
   const getInitials = (name) => {
     return name
       .split(' ')
@@ -94,7 +96,7 @@ const Sidebar = ({ user = { name: 'Iswaran', role: 'ORG' } }) => {
         </div>
 
         <nav className="sidebar-nav">
-          {menuItems.map((item) => (
+          {items.map((item) => (
             <Link
               key={item.id}
               to={item.path}
