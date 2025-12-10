@@ -1,0 +1,37 @@
+@import '../../styles/variables';
+
+.gig-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background-color: $color-background-light;
+
+  .dashboard-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: $spacing-2xl;
+
+    h1 {
+      font-family: $font-family-primary;
+      font-size: $font-size-section-title;
+      font-weight: $font-weight-extrabold;
+      color: $color-text-primary;
+      margin: 0 0 $spacing-xl 0;
+    }
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    .dashboard-content {
+      margin-left: 240px;
+      padding: $spacing-xl;
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    flex-direction: column;
+
+    .dashboard-content {
+      margin-left: 0;
+      padding: $spacing-md;
+    }
+  }
+}
