@@ -3,8 +3,11 @@
 .auth-dialog {
   .auth-header {
     background-color: $color-background;
-    padding: $spacing-xl $spacing-2xl;
+    padding: $spacing-4xl $spacing-2xl $spacing-lg $spacing-2xl;
     border-radius: $border-radius-2xl $border-radius-2xl 0 0;
+    display: flex;
+    align-items: flex-end;
+    min-height: 140px;
 
     .auth-title {
       font-family: $font-family-primary;
@@ -178,7 +181,8 @@
 
   @media (max-width: $breakpoint-mobile) {
     .auth-header {
-      padding: $spacing-lg $spacing-md;
+      padding: $spacing-2xl $spacing-md $spacing-md $spacing-md;
+      min-height: 100px;
 
       .auth-title {
         font-size: $font-size-large;
