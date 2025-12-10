@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Event from '../../components/Event';
 import './Events.scss';
 
 function HostEvents() {
+  const navigate = useNavigate();
+
   // Sample events data
   const events = [
     {
@@ -32,7 +35,7 @@ function HostEvents() {
   };
 
   const handleCreateEvent = () => {
-    console.log('Create new event');
+    navigate('/host/events/create');
   };
 
   return (

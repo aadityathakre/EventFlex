@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
+import SendInvitationDialog from '../../components/SendInvitationDialog';
 import './FindOrganizers.scss';
 
 function FindOrganizers() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [selectedOrganizer, setSelectedOrganizer] = useState(null);
+
+  // Sample events for the dropdown
+  const events = [
+    { id: 1, title: 'Wedding #1' },
+    { id: 2, title: 'Wedding #2' },
+    { id: 3, title: 'Corporate Event' },
+  ];
 
   // Sample organizers data
   const organizers = [
@@ -34,7 +44,13 @@ function FindOrganizers() {
   };
 
   const handleInvite = (organizer) => {
-    console.log('Invite organizer:', organizer);
+    setSelectedOrganizer(organizer);
+    setInviteDialogOpen(true);
+  };
+
+  const handleCloseInviteDialog = () => {
+    setInviteDialogOpen(false);
+    setSelectedOrganizer(null);
   };
 
   const filteredOrganizers = organizers.filter((org) =>
@@ -97,6 +113,13 @@ function FindOrganizers() {
           ))}
         </div>
       </div>
+
+      <SendInvitationDialog
+        isOpen={inviteDialogOpen}
+        onClose={handleCloseInviteDialog}
+        organizer={selectedOrganizer}
+        events={events}
+      />
     </div>
   );
 }
