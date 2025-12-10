@@ -46,6 +46,9 @@ app.use("/api/v1/auth/admin", adminAuthRoutes);
 import adminRoutes from "./routes/admin.routes.js";
 app.use("/api/v1/admin", adminRoutes);
 
+//payment routes
+import paymentRoutes from "./routes/razorpay.routes.js";
+app.use("/api/v1/payments", paymentRoutes);
 
 
 //blockchain rutes

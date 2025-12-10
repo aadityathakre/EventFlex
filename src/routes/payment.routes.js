@@ -1,4 +1,4 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 const paymentController = require('../controllers/payment.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
