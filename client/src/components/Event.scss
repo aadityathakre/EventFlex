@@ -1,0 +1,304 @@
+@import '../styles/variables';
+
+.event-card {
+  background-color: $color-white;
+  border: 1px solid $color-border;
+  border-radius: $border-radius-xl;
+  padding: $spacing-xl;
+  transition: all $transition-base;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .event-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: $spacing-xl;
+    align-items: start;
+    margin-bottom: $spacing-lg;
+  }
+
+  .event-main {
+    .event-title {
+      font-family: $font-family-primary;
+      font-size: $font-size-xlarge;
+      font-weight: $font-weight-bold;
+      color: $color-text-primary;
+      margin: 0 0 $spacing-md 0;
+    }
+
+    .event-description {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
+      margin: 0;
+      line-height: 1.6;
+    }
+  }
+
+  .event-details {
+    display: contents;
+  }
+
+  .event-time,
+  .event-location {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+
+    .detail-label {
+      font-family: $font-family-primary;
+      font-size: $font-size-small;
+      font-weight: $font-weight-medium;
+      color: $color-text-light;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+  }
+
+  .arrow-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: $spacing-xs;
+    color: $color-text-primary;
+    transition: transform $transition-base;
+
+    &:hover {
+      transform: translateX(4px);
+    }
+  }
+
+  .event-footer {
+    padding-top: $spacing-lg;
+    border-top: 1px solid $color-border;
+  }
+
+  // Pools View
+  .pools-view,
+  .organizers-view {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .pools-info,
+    .organizers-info {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-medium;
+      color: $color-text-secondary;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .manage-button {
+      background: none;
+      border: none;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+      cursor: pointer;
+      transition: color $transition-base;
+
+      &:hover {
+        color: $color-primary-dark;
+      }
+    }
+  }
+
+  // Available Gigs View
+  .available-gigs-view {
+    .organizer-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: $spacing-lg;
+
+      .organizer-label {
+        font-family: $font-family-primary;
+        font-size: $font-size-small;
+        font-weight: $font-weight-medium;
+        color: $color-text-light;
+        text-transform: uppercase;
+      }
+
+      .organizer-details {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+
+        .organizer-name {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-text-primary;
+        }
+
+        .organizer-rating {
+          display: flex;
+          gap: 2px;
+
+          .star {
+            font-size: $font-size-large;
+            color: $color-text-light;
+
+            &.filled {
+              color: #FFD700;
+            }
+          }
+        }
+      }
+    }
+
+    .gigs-available-label {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-medium;
+      color: $color-text-secondary;
+      margin-bottom: $spacing-md;
+    }
+
+    .gigs-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-lg;
+
+      .gig-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: $spacing-xl;
+
+        .gig-info {
+          flex: 1;
+
+          .gig-title {
+            font-family: $font-family-primary;
+            font-size: $font-size-large;
+            font-weight: $font-weight-bold;
+            color: $color-text-primary;
+            margin: 0 0 $spacing-xs 0;
+          }
+
+          .gig-description {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-secondary;
+            margin: 0 0 $spacing-xs 0;
+            line-height: 1.5;
+          }
+
+          .gig-applied {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: #4CAF50;
+            font-weight: $font-weight-medium;
+            margin: 0;
+          }
+        }
+
+        .apply-button {
+          background-color: $color-secondary;
+          color: $color-white;
+          border: none;
+          border-radius: $border-radius-md;
+          padding: $spacing-sm $spacing-xl;
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          cursor: pointer;
+          transition: all $transition-base;
+          white-space: nowrap;
+
+          &:hover {
+            background-color: $color-primary-dark;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+          }
+        }
+      }
+    }
+  }
+
+  // Gigs View
+  .gigs-view {
+    .your-gigs-label {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-medium;
+      color: $color-text-secondary;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: $spacing-md;
+    }
+
+    .gigs-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $spacing-sm;
+
+      .gig-pill {
+        background-color: $color-background;
+        color: $color-text-primary;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-medium;
+        padding: $spacing-sm $spacing-lg;
+        border-radius: $border-radius-full;
+        border: 1px solid $color-border;
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-desktop) {
+    .event-header {
+      grid-template-columns: 1fr;
+      gap: $spacing-lg;
+
+      .event-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-lg;
+      }
+
+      .arrow-button {
+        display: none;
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    padding: $spacing-md;
+
+    .event-header {
+      gap: $spacing-md;
+
+      .event-details {
+        grid-template-columns: 1fr;
+        gap: $spacing-md;
+      }
+    }
+
+    .available-gigs-view {
+      .gigs-list {
+        .gig-item {
+          flex-direction: column;
+          gap: $spacing-md;
+
+          .apply-button {
+            width: 100%;
+          }
+        }
+      }
+    }
+  }
+}

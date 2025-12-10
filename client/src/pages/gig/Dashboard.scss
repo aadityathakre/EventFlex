@@ -17,6 +17,12 @@
       color: $color-text-primary;
       margin: 0 0 $spacing-xl 0;
     }
+
+    .events-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-lg;
+    }
   }
 
   @media (max-width: $breakpoint-tablet) {
