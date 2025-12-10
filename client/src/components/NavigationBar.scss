@@ -1,0 +1,68 @@
+@import '../styles/variables';
+
+.navigation-bar {
+  background-color: $color-background-light;
+  padding: $spacing-lg 0;
+  border-bottom: 1px solid $color-border;
+
+  .nav-container {
+    max-width: $container-max-width;
+    margin: 0 auto;
+    padding: 0 $container-padding;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-xl;
+  }
+
+  .nav-logo {
+    .logo-text {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-bold;
+      color: $color-white;
+      background-color: $color-secondary;
+      padding: $spacing-xs $spacing-md;
+      letter-spacing: 1px;
+    }
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2xl;
+    flex: 1;
+    justify-content: center;
+
+    .nav-link {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-medium;
+      color: $color-text-secondary;
+      text-decoration: none;
+      transition: color $transition-base;
+      white-space: nowrap;
+
+      &:hover {
+        color: $color-text-primary;
+      }
+    }
+  }
+
+  .nav-cta {
+    flex-shrink: 0;
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    .nav-links {
+      display: none;
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .nav-container {
+      flex-direction: column;
+      gap: $spacing-md;
+    }
+  }
+}

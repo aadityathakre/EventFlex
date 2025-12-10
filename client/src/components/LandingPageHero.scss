@@ -1,0 +1,60 @@
+@import '../styles/variables';
+
+.landing-hero {
+  background-color: $color-background-light;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+
+  .hero-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: $spacing-3xl 0;
+    background-color: $color-background-light;
+  }
+
+  .hero-container {
+    max-width: $container-max-width;
+    margin: 0 auto;
+    padding: 0 $container-padding;
+    width: 100%;
+  }
+
+  .hero-title {
+    font-family: $font-family-primary;
+    font-size: $font-size-hero;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-primary;
+    line-height: 1.2;
+    margin: 0 0 $spacing-3xl 0;
+    text-align: left;
+  }
+
+  .hero-search-wrapper {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    .hero-title {
+      font-size: $font-size-section-title;
+      text-align: center;
+    }
+
+    .hero-search-wrapper {
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .hero-content {
+      padding: $spacing-xl 0;
+    }
+
+    .hero-title {
+      font-size: 32px;
+      margin-bottom: $spacing-xl;
+    }
+  }
+}

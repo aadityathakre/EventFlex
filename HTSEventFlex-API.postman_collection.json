@@ -1,0 +1,2221 @@
+{
+	"info": {
+		"_postman_id": "htseventflex-api-collection",
+		"name": "HTSEventFlex API",
+		"description": "Complete API collection for HTSEventFlex platform - Event management with blockchain integration",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{accessToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "eventId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "poolId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "User Authentication",
+					"item": [
+						{
+							"name": "Register User",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+91 98765 43210\",\n  \"password\": \"password123\",\n  \"role\": \"gig\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/users/register",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "users", "register"]
+								},
+								"description": "Register new user. Role can be: gig, organizer, or host"
+							},
+							"response": []
+						},
+						{
+							"name": "Login User",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('accessToken', jsonData.data.accessToken);",
+											"    pm.collectionVariables.set('refreshToken', jsonData.data.refreshToken);",
+											"    pm.collectionVariables.set('userId', jsonData.data.user._id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/users/login",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "users", "login"]
+								},
+								"description": "Login user with email and password only. Role is NOT required - it's stored in the user record."
+							},
+							"response": []
+						},
+						{
+							"name": "Refresh Access Token",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/users/refresh-token",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "users", "refresh-token"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Logout User",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/users/logout",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "users", "logout"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Admin Authentication",
+					"item": [
+						{
+							"name": "Register Admin",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"username\": \"admin\",\n  \"email\": \"admin@htseventflex.com\",\n  \"password\": \"admin123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/admin/register",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "admin", "register"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Login Admin",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"admin@htseventflex.com\",\n  \"password\": \"admin123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/admin/login",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "auth", "admin", "login"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "2. Gig Worker",
+			"item": [
+				{
+					"name": "Dashboard & Profile",
+					"item": [
+						{
+							"name": "Get Dashboard",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/dashboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "dashboard"]
+								},
+								"description": "Get gig worker dashboard with stats"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Profile",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "profile"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Profile",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"bio\": \"Experienced event professional\",\n  \"location\": {\"city\": \"Mumbai\", \"state\": \"Maharashtra\"},\n  \"availability\": {\"days\": [\"Monday\", \"Tuesday\", \"Wednesday\"]},\n  \"bank_details\": {\"account_number\": \"1234567890\", \"ifsc\": \"SBIN0001234\"}\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "profile"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Profile Image",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "avatar",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/profile-image",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "profile-image"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Profile Image",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/profile-image",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "profile-image"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "KYC & Verification",
+					"item": [
+						{
+							"name": "Verify Aadhaar",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"aadhaar_number\": \"123456789012\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/aadhaar/verify",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "aadhaar", "verify"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Upload Documents",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "fileUrl",
+											"type": "file",
+											"src": []
+										},
+										{
+											"key": "type",
+											"value": "aadhaar",
+											"type": "text",
+											"description": "aadhaar, pan, selfie, or signature"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/upload-documents",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "upload-documents"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Upload KYC Video",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "videoUrl",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/kyc/video",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "kyc", "video"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get KYC Status",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/kyc-status",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "kyc-status"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Events & Attendance",
+					"item": [
+						{
+							"name": "Get My Events",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/my-events",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "my-events"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Nearby Events",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/nearby-events?latitude=19.0760&longitude=72.8777&distance=10",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "nearby-events"],
+									"query": [
+										{
+											"key": "latitude",
+											"value": "19.0760"
+										},
+										{
+											"key": "longitude",
+											"value": "72.8777"
+										},
+										{
+											"key": "distance",
+											"value": "10",
+											"description": "in kilometers"
+										},
+										{
+											"key": "event_type",
+											"value": "corporate",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Check In",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/check-in/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "check-in", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Check Out",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/check-out/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "check-out", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Attendance History",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/attendance-history",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "attendance-history"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Pools",
+					"item": [
+						{
+							"name": "Get Organizer Pools",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/organizer-pools/{{poolId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "organizer-pools", "{{poolId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Join Pool",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"cover_message\": \"I have 3 years of experience\",\n  \"proposed_rate\": 1500\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/join-pool/{{poolId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "join-pool", "{{poolId}}"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Wallet & Payments",
+					"item": [
+						{
+							"name": "Get Wallet",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/wallet",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "wallet"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create Wallet",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/wallet/create",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "wallet", "create"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Withdraw",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"amount\": 1000,\n  \"payment_method\": \"upi\",\n  \"upi_id\": \"user@upi\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/withdraw",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "withdraw"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payment History",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/payment-history",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "payment-history"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Simulate Payout",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/simulate-payout/:escrowId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "simulate-payout", ":escrowId"],
+									"variable": [
+										{
+											"key": "escrowId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Communication",
+					"item": [
+						{
+							"name": "Get Conversations",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/conversations",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "conversations"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Send Message",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"message_text\": \"Hello, I have a question about the event\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/message/:conversationId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "message", ":conversationId"],
+									"variable": [
+										{
+											"key": "conversationId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Notifications",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/notifications",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "notifications"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Reputation & Badges",
+					"item": [
+						{
+							"name": "Get Badges",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/badges",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "badges"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Leaderboard",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/leaderboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "leaderboard"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Disputes & Feedback",
+					"item": [
+						{
+							"name": "Raise Dispute",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Payment not received for completed work\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/raise-dispute/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "raise-dispute", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Submit Feedback",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"rating\": 5,\n  \"comment\": \"Great event, well organized\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/gigs/feedback/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "gigs", "feedback", "{{eventId}}"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "3. Host",
+			"item": [
+				{
+					"name": "Dashboard & Profile",
+					"item": [
+						{
+							"name": "Get Dashboard",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/dashboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "dashboard"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Profile",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "profile"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "KYC & Documents",
+					"item": [
+						{
+							"name": "Upload Documents",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "fileUrl",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/upload-docs",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "upload-docs"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Submit E-Signature",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "fileUrl",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/e-signature",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "e-signature"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Aadhaar",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"aadhaar_number\": \"123456789012\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/aadhaar/verify",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "aadhaar", "verify"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Events",
+					"item": [
+						{
+							"name": "Create Event",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Tech Conference 2024\",\n  \"description\": \"Annual technology conference\",\n  \"event_type\": \"corporate\",\n  \"start_date\": \"2024-03-15T10:00:00Z\",\n  \"end_date\": \"2024-03-17T18:00:00Z\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [72.8777, 19.0760]\n  },\n  \"budget\": 50000\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/events/create",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "events", "create"]
+								},
+								"description": "Event types: function, corporate, festival, exhibition, hackathon, workshop, webinar, networking, fundraiser, retreat"
+							},
+							"response": []
+						},
+						{
+							"name": "Edit Event",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Tech Conference 2024 - Updated\",\n  \"budget\": 60000\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/events/edit/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "events", "edit", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Details",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/events/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "events", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Events",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/events",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "events"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Complete Event",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/events/complete/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "events", "complete", "{{eventId}}"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Organizer Management",
+					"item": [
+						{
+							"name": "Invite Organizer",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"organizerId\": \"organizer_user_id\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/invite-organizer",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "invite-organizer"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Approve Organizer",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/approve-organizer/:id",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "approve-organizer", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Assigned Organizers",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/organizers",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "organizers"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Start Chat with Organizer",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"organizerId\": \"organizer_user_id\",\n  \"eventId\": \"{{eventId}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/chat",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "chat"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Payments & Escrow",
+					"item": [
+						{
+							"name": "Deposit to Escrow",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"eventId\": \"{{eventId}}\",\n  \"total_amount\": 50000,\n  \"organizer_percentage\": 20,\n  \"gigs_percentage\": 70\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/payment/deposit",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "payment", "deposit"]
+								},
+								"description": "Platform fee is auto-calculated (100 - organizer% - gigs%)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Escrow Status",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/payment/status/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "payment", "status", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Attendance",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/verify-attendance/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "verify-attendance", "{{eventId}}"]
+								},
+								"description": "Verifies attendance and triggers payment release"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Wallet Balance",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/wallet/balance",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "wallet", "balance"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Reviews & Reputation",
+					"item": [
+						{
+							"name": "Get Leaderboard",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/leaderboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "leaderboard"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create Rating/Review",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reviewee\": \"organizer_user_id\",\n  \"eventId\": \"{{eventId}}\",\n  \"rating\": 4.5,\n  \"review_text\": \"Great organizer, highly professional\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/reviews/rating",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "reviews", "rating"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create Feedback",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"gigId\": \"gig_user_id\",\n  \"eventId\": \"{{eventId}}\",\n  \"rating\": 5,\n  \"comment\": \"Excellent work\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/host/reviews/feedback",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "host", "reviews", "feedback"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "4. Organizer",
+			"item": [
+				{
+					"name": "Profile & KYC",
+					"item": [
+						{
+							"name": "Get Profile",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "profile"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Upload Documents",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "fileUrl",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/upload-docs",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "upload-docs"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Submit E-Signature",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "fileUrl",
+											"type": "file",
+											"src": []
+										}
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/e-signature",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "e-signature"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Aadhaar",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"aadhaar_number\": \"123456789012\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/aadhaar/verify",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "aadhaar", "verify"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Pool Management",
+					"item": [
+						{
+							"name": "Create Pool",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Tech Conference Team\",\n  \"description\": \"Team for managing tech conference operations\",\n  \"event\": \"{{eventId}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/pools/create",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "pools", "create"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Pool Details",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/pools/{{poolId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "pools", "{{poolId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Pool Applications",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/pools/{{poolId}}/applications",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "pools", "{{poolId}}", "applications"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Review Application",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"application_status\": \"accepted\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/applications/:applicationId/review",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "applications", ":applicationId", "review"],
+									"variable": [
+										{
+											"key": "applicationId",
+											"value": "",
+											"description": "accepted or rejected"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Chat with Gig",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"message\": \"Welcome to the team!\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/pools/chat/:gigId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "pools", "chat", ":gigId"],
+									"variable": [
+										{
+											"key": "gigId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Event Management",
+					"item": [
+						{
+							"name": "Get Event Details",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/events/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "events", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Live Event Tracking",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/events/live/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "events", "live", "{{eventId}}"]
+								},
+								"description": "Real-time attendance tracking"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Wallet & Payments",
+					"item": [
+						{
+							"name": "Get Wallet",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/wallet",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "wallet"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Withdraw Funds",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"amount\": 5000,\n  \"payment_method\": \"upi\",\n  \"upi_id\": \"organizer@upi\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/withdraw",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "withdraw"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payment History",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/payment-history",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "payment-history"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Simulate Payout",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/simulate-payout/:escrowId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "simulate-payout", ":escrowId"],
+									"variable": [
+										{
+											"key": "escrowId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Wellness & Analytics",
+					"item": [
+						{
+							"name": "Get Wellness Score",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/wellness-score",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "wellness-score"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get No-Show Risk",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/no-show-risk/:gigId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "no-show-risk", ":gigId"],
+									"variable": [
+										{
+											"key": "gigId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Reputation",
+					"item": [
+						{
+							"name": "Get Leaderboard",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/leaderboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "leaderboard"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Badges",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/badges",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "badges"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Notifications & Disputes",
+					"item": [
+						{
+							"name": "Get Notifications",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/notifications",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "notifications"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Mark Notification Read",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/notifications/:id/read",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "notifications", ":id", "read"],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Raise Dispute",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Issue with event payment distribution\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/disputes/{{eventId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "disputes", "{{eventId}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Disputes",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/organizer/disputes",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "organizer", "disputes"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "5. Admin",
+			"item": [
+				{
+					"name": "User Management",
+					"item": [
+						{
+							"name": "Get All Roles",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/roles",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "roles"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Ban User",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/ban-user/:userid",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "ban-user", ":userid"],
+									"variable": [
+										{
+											"key": "userid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Unban User",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/unban-user/:userid",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "unban-user", ":userid"],
+									"variable": [
+										{
+											"key": "userid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Soft Delete User",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/soft-delete/:userId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "soft-delete", ":userId"],
+									"variable": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Restore User",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/restore/:userId",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "restore", ":userId"],
+									"variable": [
+										{
+											"key": "userId",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Debug Gig Data",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/debug/gig/:id",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "debug", "gig", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "KYC Management",
+					"item": [
+						{
+							"name": "Get Pending KYC",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/kyc/pending",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "kyc", "pending"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Approve KYC",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/kyc/approve/:userid",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "kyc", "approve", ":userid"],
+									"variable": [
+										{
+											"key": "userid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Reject KYC",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Documents unclear or invalid\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/kyc/reject/:userid",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "kyc", "reject", ":userid"],
+									"variable": [
+										{
+											"key": "userid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get User Documents",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/documents/:userid",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "documents", ":userid"],
+									"variable": [
+										{
+											"key": "userid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Verify E-Signature",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/e-signature/verify/:userid",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "e-signature", "verify", ":userid"],
+									"variable": [
+										{
+											"key": "userid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Badge Management",
+					"item": [
+						{
+							"name": "Create Badge",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"badge_name\": \"Reliable Worker\",\n  \"min_events\": 10\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/badges/create",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "badges", "create"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Dispute Management",
+					"item": [
+						{
+							"name": "Get All Disputes",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/disputes",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "disputes"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Resolve Dispute",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"resolution\": \"resolved\",\n  \"resolution_notes\": \"Payment has been processed manually\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/disputes/resolve/:id",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "disputes", "resolve", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Audit & Logs",
+					"item": [
+						{
+							"name": "Get Audit Logs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/audit-logs",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "audit-logs"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Notifications",
+					"item": [
+						{
+							"name": "Broadcast Message",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"type\": \"system\",\n  \"message\": \"Platform maintenance scheduled for tomorrow\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/broadcast",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "broadcast"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Notify User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"type\": \"system\",\n  \"message\": \"Your KYC has been approved\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/notify/:userid",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "notify", ":userid"],
+									"variable": [
+										{
+											"key": "userid",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Notifications",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/notifications",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "notifications"]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Analytics",
+					"item": [
+						{
+							"name": "Get User Analytics",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/analytics/users",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "analytics", "users"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Analytics",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/analytics/events",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "analytics", "events"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payment Analytics",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/analytics/payments",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "analytics", "payments"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Leaderboard",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/leaderboard",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "admin", "leaderboard"]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "6. Blockchain",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Gig Profile (Blockchain)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"universalId\": \"UNI123456\",\n  \"profileHash\": \"QmHash123...\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/blockchain/profile/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "blockchain", "profile", "create"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile (Blockchain)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/blockchain/profile/:address",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "blockchain", "profile", ":address"],
+							"variable": [
+								{
+									"key": "address",
+									"value": "0x..."
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mint Badge (Blockchain)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"to\": \"0x...\",\n  \"skillName\": \"Event Management\",\n  \"category\": \"Professional\",\n  \"metadataURI\": \"ipfs://...\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/blockchain/badge/mint",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "blockchain", "badge", "mint"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Badges (Blockchain)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/blockchain/badge/:address",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "blockchain", "badge", ":address"],
+							"variable": [
+								{
+									"key": "address",
+									"value": "0x..."
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Submit Review (Blockchain)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reviewee\": \"0x...\",\n  \"rating\": 5,\n  \"reviewText\": \"Excellent work\",\n  \"eventId\": \"event123\",\n  \"reviewType\": \"gig_to_organizer\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/blockchain/reputation/review",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "blockchain", "reputation", "review"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reputation (Blockchain)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/blockchain/reputation/:address",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "blockchain", "reputation", ":address"],
+							"variable": [
+								{
+									"key": "address",
+									"value": "0x..."
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Escrow (Blockchain)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"organizer\": \"0x...\",\n  \"organizerPerc\": 20,\n  \"gigsPerc\": 70,\n  \"platformPerc\": 10,\n  \"eventId\": \"event123\",\n  \"amountMatic\": \"100\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/blockchain/escrow/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "blockchain", "escrow", "create"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

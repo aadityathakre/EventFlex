@@ -5,12 +5,16 @@ import Login from "./pages/login.jsx";
 import ForgotPassword from "./pages/ForgotPaassword.jsx";
 import { Router, Routes, Route } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
+import Landing from "./pages/Landing.jsx";
 
 export const serverURL = "http://localhost:8080/api/v1";
 
 function App() {
   return (
     < Routes>
+
+      <Route path="/" element={<Landing />} />
+
       <Route path='/register' element={<Register/>} />
       <Route path='/login' element={<Login/>} />
       <Route path='/forgot-password' element={<ForgotPassword/>} />

@@ -1,0 +1,33 @@
+@import '../styles/variables';
+
+.button-primary {
+  background-color: $color-primary;
+  color: $color-white;
+  font-family: $font-family-primary;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  padding: $spacing-md $spacing-xl;
+  border: none;
+  border-radius: $border-radius-lg;
+  cursor: pointer;
+  transition: background-color $transition-base;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: $color-primary-dark;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:focus {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+}
