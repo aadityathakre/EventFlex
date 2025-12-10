@@ -31,15 +31,14 @@ function Register() {
       setPhone("");
       setRole("gig");
 
-      if (result.status === 200) {
-        console.log("Registration successful:", result.data);
-        navigate("/login");
-      } else {
-        console.log("Unexpected response:", result);
-      }
+      console.log("Registration successful:", result.data);
+      navigate("/login");
     } catch (error) {
       setErr(error.response?.data?.message || "Registration failed");
-      console.error("Registration error:", error.response?.data || error.message);
+      console.error(
+        "Registration error:",
+        error.response?.data || error.message
+      );
     }
   };
 
@@ -57,7 +56,7 @@ function Register() {
         {/* Form */}
         <form className="space-y-4" onSubmit={handleRegister}>
           {/* Role Selection */}
-          <div className="flex justify-between mb-4 " >
+          <div className="flex justify-between mb-4 ">
             {["organizer", "gig", "host"].map((r) => (
               <button
                 key={r}
