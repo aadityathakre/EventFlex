@@ -31,6 +31,8 @@
     overflow: hidden;
     transition: transform $transition-base;
     cursor: pointer;
+    text-decoration: none;
+    display: block;
 
     &:hover {
       transform: translateY(-4px);

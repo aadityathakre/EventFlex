@@ -1,17 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { EVENT_CATEGORIES } from '../constants';
 import './HeroSearch.scss';
 
 const HeroSearch = () => {
-  const [selectedCategory, setSelectedCategory] = useState('Wedding');
+  const [selectedCategory, setSelectedCategory] = useState(EVENT_CATEGORIES[0].label);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category.label);
+    setIsDropdownOpen(false);
+  };
+
+  const handleSearch = () => {
+    console.log('Searching for:', { category: selectedCategory, query: searchQuery });
+  };
 
   return (
     <div className="hero-search">
-      <div className="search-category">
-        <button className="category-button">
+      <div className="search-category" ref={dropdownRef}>
+        <button
+          className="category-button"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        >
           <span className="category-text">{selectedCategory}</span>
           <svg
-            className="dropdown-icon"
+            className={`dropdown-icon ${isDropdownOpen ? 'open' : ''}`}
             width="20"
             height="20"
             viewBox="0 0 20 20"
@@ -27,6 +53,20 @@ const HeroSearch = () => {
             />
           </svg>
         </button>
+
+        {isDropdownOpen && (
+          <div className="category-dropdown">
+            {EVENT_CATEGORIES.map((category) => (
+              <button
+                key={category.id}
+                className={`dropdown-item ${selectedCategory === category.label ? 'active' : ''}`}
+                onClick={() => handleCategorySelect(category)}
+              >
+                {category.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="search-divider"></div>
@@ -38,10 +78,11 @@ const HeroSearch = () => {
           placeholder="Find your Venue"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
         />
       </div>
 
-      <button className="search-button">
+      <button className="search-button" onClick={handleSearch}>
         <svg
           width="24"
           height="24"

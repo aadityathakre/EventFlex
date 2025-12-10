@@ -1,27 +1,20 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { FEATURED_ACTIVITIES } from '../constants';
 import './LandingPageFeaturedActivitiesSection.scss';
 
 const LandingPageFeaturedActivitiesSection = () => {
-  const activities = [
-    { name: 'Networking' },
-    { name: 'Birthday' },
-    { name: 'Outdoor' },
-    { name: 'Workshop' },
-    { name: 'Conference' },
-    { name: 'Dinner Party' },
-  ];
-
   return (
     <section className="featured-activities-section">
       <div className="featured-activities-container">
         <h2 className="section-title">FEATURED ACTIVITIES</h2>
 
         <div className="activities-grid">
-          {activities.map((activity, index) => (
-            <div key={index} className="activity-card">
+          {FEATURED_ACTIVITIES.map((activity) => (
+            <Link key={activity.id} to={activity.link} className="activity-card">
               <div className="activity-image-placeholder"></div>
               <div className="activity-name">{activity.name}</div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

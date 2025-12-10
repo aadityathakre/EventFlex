@@ -50,18 +50,22 @@
     }
   }
 
+  .venues-grid-wrapper {
+    position: relative;
+  }
+
   .venues-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: $spacing-xl;
-    position: relative;
-    align-items: start;
 
     .venue-card {
       background-color: $color-card-bg;
       border-radius: $border-radius-xl;
       overflow: hidden;
       transition: transform $transition-base;
+      text-decoration: none;
+      display: block;
 
       &:hover {
         transform: translateY(-4px);
@@ -93,45 +97,56 @@
         }
       }
     }
+  }
 
-    .next-button {
-      position: absolute;
-      right: -20px;
-      top: 50%;
-      transform: translateY(-50%);
-      background-color: $color-white;
-      border: none;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      transition: all $transition-base;
-      color: $color-text-primary;
+  .next-button,
+  .prev-button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: $color-white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all $transition-base;
+    color: $color-text-primary;
+    z-index: 10;
 
-      &:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        transform: translateY(-50%) scale(1.05);
-      }
-
-      &:active {
-        transform: translateY(-50%) scale(0.95);
-      }
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-50%) scale(1.05);
     }
+
+    &:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+  }
+
+  .prev-button {
+    left: -30px;
+  }
+
+  .next-button {
+    right: -30px;
   }
 
   @media (max-width: $breakpoint-desktop) {
     .venues-grid {
       grid-template-columns: repeat(2, 1fr);
+    }
 
-      .next-button {
-        position: static;
-        transform: none;
-        margin: $spacing-xl auto 0;
-      }
+    .prev-button {
+      left: 0;
+    }
+
+    .next-button {
+      right: 0;
     }
   }
 

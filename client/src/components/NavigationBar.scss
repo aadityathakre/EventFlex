@@ -4,6 +4,10 @@
   background-color: $color-background-light;
   padding: $spacing-lg 0;
   border-bottom: 1px solid $color-border;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 
   .nav-container {
     max-width: $container-max-width;
