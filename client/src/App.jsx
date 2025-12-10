@@ -14,6 +14,7 @@ import HostDashboard from "./pages/host/Dashboard.jsx";
 import FindOrganizers from "./pages/host/FindOrganizers.jsx";
 import HostEvents from "./pages/host/Events.jsx";
 import CreateEvent from "./pages/host/CreateEvent.jsx";
+import EventDetails from "./pages/host/EventDetails.jsx";
 import HostMessages from "./pages/host/Messages.jsx";
 import HostWallet from "./pages/host/Wallet.jsx";
 
@@ -39,6 +40,7 @@ function App() {
         <Route path="find-organizers" element={<FindOrganizers />} />
         <Route path="events" element={<HostEvents />} />
         <Route path="events/create" element={<CreateEvent />} />
+        <Route path="events/:id" element={<EventDetails />} />
         <Route path="messages" element={<HostMessages />} />
         <Route path="wallet" element={<HostWallet />} />
       </Route>

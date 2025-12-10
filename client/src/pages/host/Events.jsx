@@ -9,6 +9,7 @@ function HostEvents() {
   // Sample events data
   const events = [
     {
+      id: 1,
       title: 'Wedding #1',
       description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris vel rhoncus magna. Suspendisse augue arcu, euismod a sapien sed, imperdiet facilisis ex.',
       startDate: '23 Nov 2025',
@@ -19,6 +20,7 @@ function HostEvents() {
       organizers: 0,
     },
     {
+      id: 2,
       title: 'Wedding #2',
       description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris vel rhoncus magna. Suspendisse augue arcu, euismod a sapien sed, imperdiet facilisis ex.',
       startDate: '23 Nov 2025',
@@ -30,8 +32,12 @@ function HostEvents() {
     },
   ];
 
+  const handleEventClick = (event) => {
+    navigate(`/host/events/${event.id}`);
+  };
+
   const handleManage = (event) => {
-    console.log('Manage event:', event);
+    navigate(`/host/events/${event.id}`);
   };
 
   const handleCreateEvent = () => {
@@ -48,12 +54,13 @@ function HostEvents() {
       </div>
 
       <div className="events-list">
-        {events.map((event, index) => (
+        {events.map((event) => (
           <Event
-            key={index}
+            key={event.id}
             event={event}
             viewType="organizers"
             onManage={handleManage}
+            onClick={handleEventClick}
           />
         ))}
       </div>
