@@ -3,12 +3,12 @@
 .auth-dialog {
   .auth-header {
     background-color: $color-background;
-    padding: $spacing-3xl $spacing-2xl;
+    padding: $spacing-xl $spacing-2xl;
     border-radius: $border-radius-2xl $border-radius-2xl 0 0;
 
     .auth-title {
       font-family: $font-family-primary;
-      font-size: $font-size-section-title;
+      font-size: $font-size-xlarge;
       font-weight: $font-weight-extrabold;
       color: $color-text-primary;
       margin: 0;
@@ -16,11 +16,11 @@
   }
 
   .auth-body {
-    padding: $spacing-2xl;
+    padding: $spacing-xl $spacing-2xl;
   }
 
   .role-selection {
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-lg;
 
     .role-label {
       font-family: $font-family-primary;
@@ -28,18 +28,18 @@
       font-weight: $font-weight-medium;
       color: $color-text-secondary;
       display: block;
-      margin-bottom: $spacing-md;
+      margin-bottom: $spacing-sm;
     }
 
     .role-buttons {
       display: flex;
-      gap: $spacing-md;
+      gap: $spacing-sm;
       flex-wrap: wrap;
 
       .role-button {
         flex: 1;
-        min-width: 120px;
-        padding: $spacing-md $spacing-lg;
+        min-width: 100px;
+        padding: $spacing-sm $spacing-md;
         font-family: $font-family-primary;
         font-size: $font-size-base;
         font-weight: $font-weight-semibold;
@@ -66,22 +66,22 @@
   .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: $spacing-md;
-    margin-bottom: $spacing-md;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-sm;
   }
 
   .form-group {
-    margin-bottom: $spacing-md;
+    margin-bottom: $spacing-sm;
 
     .form-input {
       width: 100%;
-      padding: $spacing-lg;
+      padding: $spacing-md;
       font-family: $font-family-primary;
       font-size: $font-size-base;
       color: $color-text-primary;
       background-color: $color-white;
       border: 2px solid $color-border;
-      border-radius: $border-radius-lg;
+      border-radius: $border-radius-md;
       transition: all $transition-base;
 
       &::placeholder {
@@ -101,17 +101,18 @@
 
   .submit-button {
     width: 100%;
-    padding: $spacing-lg;
+    padding: $spacing-md;
     font-family: $font-family-primary;
     font-size: $font-size-base;
     font-weight: $font-weight-semibold;
     color: $color-white;
     background-color: $color-secondary;
     border: none;
-    border-radius: $border-radius-lg;
+    border-radius: $border-radius-md;
     cursor: pointer;
     transition: all $transition-base;
-    margin-bottom: $spacing-md;
+    margin-bottom: $spacing-sm;
+    margin-top: $spacing-sm;
 
     &:hover {
       background-color: $color-primary-dark;
@@ -126,17 +127,17 @@
 
   .google-button {
     width: 100%;
-    padding: $spacing-lg;
+    padding: $spacing-md;
     font-family: $font-family-primary;
     font-size: $font-size-base;
     font-weight: $font-weight-semibold;
     color: $color-text-secondary;
     background-color: $color-white;
     border: 2px solid $color-border;
-    border-radius: $border-radius-lg;
+    border-radius: $border-radius-md;
     cursor: pointer;
     transition: all $transition-base;
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-md;
 
     &:hover {
       border-color: $color-text-secondary;
@@ -177,15 +178,15 @@
 
   @media (max-width: $breakpoint-mobile) {
     .auth-header {
-      padding: $spacing-xl $spacing-lg;
+      padding: $spacing-lg $spacing-md;
 
       .auth-title {
-        font-size: $font-size-xlarge;
+        font-size: $font-size-large;
       }
     }
 
     .auth-body {
-      padding: $spacing-lg;
+      padding: $spacing-md;
     }
 
     .form-row {
