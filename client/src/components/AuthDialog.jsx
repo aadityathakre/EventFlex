@@ -37,9 +37,9 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
   useEffect(() => {
     if (user) {
       const roleRoutes = {
-        gig: '/gig/dashboard',
-        organizer: '/organizer/dashboard',
-        host: '/host/dashboard',
+        gig: '/gig',
+        organizer: '/organizer',
+        host: '/host',
       };
 
       const route = roleRoutes[user.role] || '/';

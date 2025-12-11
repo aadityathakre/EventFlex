@@ -3,7 +3,7 @@ import "./app.css";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/login.jsx";
 import ForgotPassword from "./pages/ForgotPaassword.jsx";
-import { Router, Routes, Route } from "react-router-dom";
+import { Router, Routes, Route, Navigate } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
 import Landing from "./pages/Landing.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
@@ -54,6 +54,7 @@ function App() {
 
       {/* Gig pages */}
       <Route path="/gig" element={<GigLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<GigDashboard />} />
         <Route path="nearby-events" element={<FindNearbyEvents />} />
         <Route path="my-events" element={<GigEvents />} />
@@ -65,6 +66,7 @@ function App() {
 
       {/* Host pages */}
       <Route path="/host" element={<HostLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<HostDashboard />} />
         <Route path="find-organizers" element={<FindOrganizers />} />
         <Route path="events" element={<HostEvents />} />
@@ -76,6 +78,7 @@ function App() {
 
       {/* Organizer pages */}
       <Route path="/organizer" element={<OrganizerLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<OrganizerDashboard />} />
         <Route path="applications" element={<OrganizerApplications />} />
         <Route path="events" element={<OrganizerEvents />} />

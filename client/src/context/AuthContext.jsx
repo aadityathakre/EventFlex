@@ -47,7 +47,9 @@ export const AuthProvider = ({ children }) => {
         { withCredentials: true }
       );
 
-      setUser(result.data.user);
+      // Extract user from response.data.data.user
+      const userData = result.data.data?.user || result.data.user;
+      setUser(userData);
       return { success: true, data: result.data };
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Registration failed';
@@ -66,8 +68,14 @@ export const AuthProvider = ({ children }) => {
         { withCredentials: true }
       );
 
-      setUser(result.data.user);
-      return { success: true, data: result.data };
+      // Extract user from response.data.data.user
+      const userData = result.data.data?.user || result.data.user;
+
+      // Tokens are automatically stored in httpOnly cookies by the backend
+      // Access and refresh tokens are in result.data.data.accessToken and result.data.data.refreshToken
+
+      setUser(userData);
+      return { success: true, data: result.data, user: userData };
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Login failed';
       setError(errorMessage);
@@ -88,8 +96,10 @@ export const AuthProvider = ({ children }) => {
         { withCredentials: true }
       );
 
-      setUser(result.data.user);
-      return { success: true, data: result.data };
+      // Extract user from response.data.data.user
+      const userData = result.data.data?.user || result.data.user;
+      setUser(userData);
+      return { success: true, data: result.data, user: userData };
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || 'Google authentication failed';
       setError(errorMessage);
