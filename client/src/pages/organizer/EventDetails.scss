@@ -1,0 +1,348 @@
+@import '../../styles/variables';
+
+.organizer-event-details {
+  .event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-2xl;
+
+    .back-button {
+      display: flex;
+      align-items: center;
+      gap: $spacing-xs;
+      background: none;
+      border: none;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-medium;
+      color: $color-text-primary;
+      cursor: pointer;
+      padding: $spacing-sm;
+      transition: all $transition-base;
+
+      &:hover {
+        color: $color-primary;
+      }
+
+      svg {
+        flex-shrink: 0;
+      }
+    }
+
+    .create-team-button {
+      padding: $spacing-md $spacing-lg;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      color: $color-white;
+      background-color: $color-secondary;
+      border: none;
+      border-radius: $border-radius-md;
+      cursor: pointer;
+      transition: all $transition-base;
+
+      &:hover {
+        background-color: $color-primary-dark;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+
+  .event-info {
+    margin-bottom: $spacing-3xl;
+
+    .event-title-section {
+      margin-bottom: $spacing-xl;
+
+      h1 {
+        font-family: $font-family-primary;
+        font-size: $font-size-section-title;
+        font-weight: $font-weight-extrabold;
+        color: $color-text-primary;
+        margin: 0 0 $spacing-md 0;
+      }
+
+      .event-description {
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        color: $color-text-secondary;
+        margin: 0;
+        max-width: 600px;
+      }
+    }
+
+    .event-details-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: $spacing-2xl;
+
+      .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+
+        .detail-label {
+          font-family: $font-family-primary;
+          font-size: $font-size-small;
+          font-weight: $font-weight-medium;
+          color: $color-text-secondary;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-text-primary;
+        }
+      }
+    }
+  }
+
+  .tabs-section {
+    .tabs {
+      display: flex;
+      gap: $spacing-xl;
+      border-bottom: 2px solid $color-border;
+      margin-bottom: $spacing-xl;
+
+      .tab {
+        background: none;
+        border: none;
+        font-family: $font-family-primary;
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-text-secondary;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: $spacing-md 0;
+        cursor: pointer;
+        position: relative;
+        transition: all $transition-base;
+
+        &:hover {
+          color: $color-text-primary;
+        }
+
+        &.active {
+          color: $color-text-primary;
+
+          &::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: $color-text-primary;
+          }
+        }
+      }
+    }
+
+    .tab-content {
+      .teams-list,
+      .applications-list {
+        .team-row,
+        .application-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: $spacing-lg 0;
+          border-bottom: 1px solid $color-border;
+
+          &:last-of-type {
+            border-bottom: none;
+          }
+
+          .team-info,
+          .application-info {
+            display: flex;
+            align-items: center;
+            gap: $spacing-md;
+
+            .team-avatar,
+            .application-avatar {
+              width: 48px;
+              height: 48px;
+              border-radius: 50%;
+              background-color: $color-background;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-shrink: 0;
+
+              .avatar-text {
+                font-family: $font-family-primary;
+                font-size: $font-size-base;
+                font-weight: $font-weight-bold;
+                color: $color-text-primary;
+              }
+            }
+
+            .team-name,
+            .application-name {
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              font-weight: $font-weight-semibold;
+              color: $color-text-primary;
+            }
+          }
+
+          .team-actions,
+          .application-actions {
+            display: flex;
+            align-items: center;
+            gap: $spacing-md;
+
+            .members-count {
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              color: $color-text-secondary;
+              margin-right: $spacing-md;
+            }
+
+            .action-button {
+              background: none;
+              border: none;
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              font-weight: $font-weight-medium;
+              cursor: pointer;
+              padding: $spacing-xs $spacing-sm;
+              border-radius: $border-radius-sm;
+              transition: all $transition-base;
+              white-space: nowrap;
+
+              &.chat,
+              &.view-application,
+              &.accept {
+                color: $color-text-primary;
+
+                &:hover {
+                  background-color: $color-background;
+                }
+              }
+
+              &.remove,
+              &.reject {
+                color: #D32F2F;
+
+                &:hover {
+                  background-color: #FFEBEE;
+                }
+              }
+            }
+          }
+        }
+
+        .find-gig-workers-button {
+          margin-top: $spacing-xl;
+          padding: $spacing-md $spacing-lg;
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-white;
+          background-color: $color-secondary;
+          border: none;
+          border-radius: $border-radius-md;
+          cursor: pointer;
+          transition: all $transition-base;
+
+          &:hover {
+            background-color: $color-primary-dark;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+        }
+      }
+
+      .manage-content {
+        padding: $spacing-2xl 0;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        color: $color-text-secondary;
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-desktop) {
+    .event-info {
+      .event-details-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .event-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $spacing-md;
+
+      .create-team-button {
+        width: 100%;
+      }
+    }
+
+    .event-info {
+      .event-title-section {
+        h1 {
+          font-size: $font-size-large;
+        }
+      }
+
+      .event-details-grid {
+        grid-template-columns: 1fr;
+        gap: $spacing-lg;
+      }
+    }
+
+    .tabs-section {
+      .tabs {
+        gap: $spacing-md;
+        overflow-x: auto;
+
+        .tab {
+          white-space: nowrap;
+        }
+      }
+
+      .tab-content {
+        .teams-list,
+        .applications-list {
+          .team-row,
+          .application-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: $spacing-md;
+
+            .team-actions,
+            .application-actions {
+              width: 100%;
+              flex-direction: column;
+              align-items: stretch;
+
+              .action-button {
+                width: 100%;
+                text-align: left;
+                padding: $spacing-sm;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

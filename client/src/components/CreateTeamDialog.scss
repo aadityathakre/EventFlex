@@ -1,0 +1,128 @@
+@import '../styles/variables';
+
+.create-team-dialog {
+  .dialog-header {
+    background-color: $color-background;
+    padding: $spacing-4xl $spacing-2xl $spacing-lg $spacing-2xl;
+    border-radius: $border-radius-2xl $border-radius-2xl 0 0;
+    display: flex;
+    align-items: flex-end;
+    min-height: 140px;
+
+    .dialog-title {
+      font-family: $font-family-primary;
+      font-size: $font-size-xlarge;
+      font-weight: $font-weight-extrabold;
+      color: $color-text-primary;
+      margin: 0;
+    }
+  }
+
+  .dialog-body {
+    padding: $spacing-xl $spacing-2xl;
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
+
+      .form-group {
+        margin-bottom: $spacing-sm;
+
+        .form-input,
+        .form-textarea {
+          width: 100%;
+          padding: $spacing-md;
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          color: $color-text-primary;
+          background-color: $color-white;
+          border: 2px solid $color-border;
+          border-radius: $border-radius-md;
+          transition: all $transition-base;
+
+          &::placeholder {
+            color: $color-text-secondary;
+          }
+
+          &:focus {
+            outline: none;
+            border-color: $color-primary;
+          }
+
+          &:hover {
+            border-color: $color-text-light;
+          }
+        }
+
+        .form-textarea {
+          resize: vertical;
+          min-height: 120px;
+        }
+      }
+
+      .submit-button {
+        width: 100%;
+        padding: $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $color-white;
+        background-color: $color-secondary;
+        border: none;
+        border-radius: $border-radius-md;
+        cursor: pointer;
+        transition: all $transition-base;
+        margin-top: $spacing-sm;
+
+        &:hover {
+          background-color: $color-primary-dark;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
+      }
+
+      .cancel-button {
+        width: 100%;
+        padding: $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $color-text-secondary;
+        background-color: $color-white;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-md;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover {
+          border-color: $color-text-secondary;
+          background-color: $color-background;
+        }
+
+        &:active {
+          transform: scale(0.98);
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .dialog-header {
+      padding: $spacing-2xl $spacing-md $spacing-md $spacing-md;
+      min-height: 100px;
+
+      .dialog-title {
+        font-size: $font-size-large;
+      }
+    }
+
+    .dialog-body {
+      padding: $spacing-md;
+    }
+  }
+}

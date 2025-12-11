@@ -1,0 +1,212 @@
+@import '../styles/variables';
+
+.view-application-dialog {
+  max-width: 900px;
+
+  .dialog-content {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    min-height: 600px;
+
+    .applicant-sidebar {
+      background-color: $color-background;
+      padding: $spacing-2xl;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-xl;
+
+      .sidebar-title {
+        font-family: $font-family-primary;
+        font-size: $font-size-xlarge;
+        font-weight: $font-weight-extrabold;
+        color: $color-text-primary;
+        margin: 0;
+      }
+
+      .applicant-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: $spacing-md;
+
+        .applicant-avatar {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background-color: $color-white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .avatar-text {
+            font-family: $font-family-primary;
+            font-size: $font-size-xlarge;
+            font-weight: $font-weight-bold;
+            color: $color-text-primary;
+          }
+        }
+
+        .applicant-name {
+          font-family: $font-family-primary;
+          font-size: $font-size-large;
+          font-weight: $font-weight-semibold;
+          color: $color-text-primary;
+          margin: 0;
+        }
+      }
+
+      .applicant-details {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-lg;
+
+        .detail-section {
+          display: flex;
+          flex-direction: column;
+          gap: $spacing-xs;
+
+          .detail-label {
+            font-family: $font-family-primary;
+            font-size: $font-size-small;
+            font-weight: $font-weight-semibold;
+            color: $color-text-secondary;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .detail-value {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-medium;
+            color: $color-text-primary;
+          }
+
+          .rating-stars {
+            display: flex;
+            gap: $spacing-xs;
+
+            .star {
+              font-size: $font-size-large;
+              color: $color-border;
+
+              &.filled {
+                color: #FFC107;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .application-main {
+      background-color: $color-white;
+      padding: $spacing-2xl;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+
+      .application-section {
+        .section-title {
+          font-family: $font-family-primary;
+          font-size: $font-size-small;
+          font-weight: $font-weight-semibold;
+          color: $color-text-secondary;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin: 0 0 $spacing-xl 0;
+        }
+
+        .application-detail {
+          margin-bottom: $spacing-xl;
+
+          .detail-label {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-medium;
+            color: $color-text-secondary;
+            display: block;
+            margin-bottom: $spacing-xs;
+          }
+
+          .detail-value {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-semibold;
+            color: $color-text-primary;
+
+            &.large {
+              font-size: $font-size-xlarge;
+              font-weight: $font-weight-bold;
+            }
+          }
+
+          .detail-text {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-primary;
+            line-height: 1.6;
+            margin: 0;
+          }
+        }
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: $spacing-md;
+
+        .reject-button,
+        .accept-button {
+          flex: 1;
+          padding: $spacing-md $spacing-lg;
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          border: none;
+          border-radius: $border-radius-md;
+          cursor: pointer;
+          transition: all $transition-base;
+        }
+
+        .reject-button {
+          color: $color-text-primary;
+          background-color: $color-white;
+          border: 2px solid $color-border;
+
+          &:hover {
+            border-color: $color-text-secondary;
+            background-color: $color-background;
+          }
+
+          &:active {
+            transform: scale(0.98);
+          }
+        }
+
+        .accept-button {
+          color: $color-white;
+          background-color: $color-secondary;
+
+          &:hover {
+            background-color: $color-primary-dark;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    .dialog-content {
+      grid-template-columns: 1fr;
+
+      .applicant-sidebar {
+        border-bottom: 1px solid $color-border;
+      }
+    }
+  }
+}
