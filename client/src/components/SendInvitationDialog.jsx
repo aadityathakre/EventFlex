@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Dialog from './Dialog';
+import { inviteOrganizer } from '../api/host';
 import './SendInvitationDialog.scss';
 
 const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
@@ -10,6 +11,8 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
     location: '',
     maxCapacity: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleInputChange = (e) => {
     setFormData({
@@ -18,10 +21,53 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Send invitation:', { organizer, ...formData });
-    onClose();
+
+    if (!organizer) {
+      setError('No organizer selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      // Prepare invitation data - match backend field names
+      const invitationData = {
+        organizerId: organizer._id || organizer.id,
+        eventId: formData.eventId,
+        pool_name: `Pool for ${organizer.name}`, // Generate a pool name
+        required_skills: formData.requiredSkills.split(',').map(s => s.trim()).filter(s => s),
+        pay_range: formData.payRange,
+        location: {
+          type: "Point",
+          coordinates: formData.location.split(',').map(coord => parseFloat(coord.trim()))
+        },
+        max_capacity: parseInt(formData.maxCapacity, 10),
+      };
+
+      console.log('Sending invitation:', invitationData);
+
+      await inviteOrganizer(invitationData);
+
+      // Reset form and close dialog
+      setFormData({
+        eventId: '',
+        requiredSkills: '',
+        payRange: '',
+        location: '',
+        maxCapacity: '',
+      });
+
+      alert('Invitation sent successfully!');
+      onClose();
+    } catch (err) {
+      console.error('Error sending invitation:', err);
+      setError(err.response?.data?.message || 'Failed to send invitation');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getInitials = (name) => {
@@ -49,6 +95,19 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
           </div>
         )}
 
+        {error && (
+          <div className="error-message" style={{
+            padding: '10px',
+            marginBottom: '15px',
+            backgroundColor: '#fee',
+            border: '1px solid #fcc',
+            borderRadius: '4px',
+            color: '#c33'
+          }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <select
@@ -57,6 +116,7 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
               onChange={handleInputChange}
               className="form-select"
               required
+              disabled={loading}
             >
               <option value="">Select event</option>
               {events.map((event) => (
@@ -74,11 +134,12 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
             <input
               type="text"
               name="requiredSkills"
-              placeholder="Required skills"
+              placeholder="Required skills (comma-separated)"
               value={formData.requiredSkills}
               onChange={handleInputChange}
               className="form-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -91,6 +152,7 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
               onChange={handleInputChange}
               className="form-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -98,11 +160,12 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
             <input
               type="text"
               name="location"
-              placeholder="Location"
+              placeholder="Location (longitude, latitude)"
               value={formData.location}
               onChange={handleInputChange}
               className="form-input"
               required
+              disabled={loading}
             />
           </div>
 
@@ -115,14 +178,15 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
               onChange={handleInputChange}
               className="form-input"
               required
+              disabled={loading}
             />
           </div>
 
-          <button type="submit" className="submit-button">
-            Send Invitation
+          <button type="submit" className="submit-button" disabled={loading}>
+            {loading ? 'Sending...' : 'Send Invitation'}
           </button>
 
-          <button type="button" className="cancel-button" onClick={onClose}>
+          <button type="button" className="cancel-button" onClick={onClose} disabled={loading}>
             Cancel
           </button>
         </form>

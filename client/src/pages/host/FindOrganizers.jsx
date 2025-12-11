@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SendInvitationDialog from '../../components/SendInvitationDialog';
-import { getOrganizers } from '../../api/host';
+import { getOrganizers, getEvents } from '../../api/host';
 import './FindOrganizers.scss';
 
 function FindOrganizers() {
@@ -8,19 +8,14 @@ function FindOrganizers() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [selectedOrganizer, setSelectedOrganizer] = useState(null);
   const [organizers, setOrganizers] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Sample events for the dropdown
-  const events = [
-    { id: 1, title: 'Wedding #1' },
-    { id: 2, title: 'Wedding #2' },
-    { id: 3, title: 'Corporate Event' },
-  ];
-
-  // Fetch organizers on component mount
+  // Fetch organizers and events on component mount
   useEffect(() => {
     fetchOrganizers();
+    fetchEvents();
   }, []);
 
   const fetchOrganizers = async () => {
@@ -73,6 +68,24 @@ function FindOrganizers() {
       setError(err.response?.data?.message || 'Failed to fetch organizers');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const response = await getEvents();
+      const eventsData = response.data.data || response.data.events || [];
+
+      // Transform events to simple format for dropdown
+      const transformedEvents = eventsData.map((event) => ({
+        id: event._id,
+        title: event.title,
+      }));
+
+      setEvents(transformedEvents);
+    } catch (err) {
+      console.error('Error fetching events:', err);
+      // Don't set error here, just log it - organizers list is more important
     }
   };
 
