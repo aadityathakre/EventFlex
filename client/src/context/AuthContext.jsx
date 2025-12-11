@@ -26,12 +26,41 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get(`${serverURL}/auth/users/me`, {
+      // Get role from localStorage
+      const savedRole = localStorage.getItem('userRole');
+
+      if (!savedRole) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Map role to correct API endpoint
+      const roleEndpoints = {
+        gig: `${serverURL}/gigs/profile`,
+        organizer: `${serverURL}/organizer/profile`,
+        host: `${serverURL}/host/profile`,
+      };
+
+      const endpoint = roleEndpoints[savedRole];
+
+      if (!endpoint) {
+        setUser(null);
+        localStorage.removeItem('userRole');
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.get(endpoint, {
         withCredentials: true,
       });
-      setUser(response.data.user);
+
+      // Extract user from response (might be in response.data.data.user or response.data.user)
+      const userData = response.data.data?.user || response.data.user || response.data.data;
+      setUser(userData);
     } catch (err) {
       setUser(null);
+      localStorage.removeItem('userRole');
     } finally {
       setLoading(false);
     }
@@ -49,6 +78,12 @@ export const AuthProvider = ({ children }) => {
 
       // Extract user from response.data.data.user
       const userData = result.data.data?.user || result.data.user;
+
+      // Save role to localStorage
+      if (userData?.role) {
+        localStorage.setItem('userRole', userData.role);
+      }
+
       setUser(userData);
       return { success: true, data: result.data };
     } catch (err) {
@@ -74,6 +109,11 @@ export const AuthProvider = ({ children }) => {
       // Tokens are automatically stored in httpOnly cookies by the backend
       // Access and refresh tokens are in result.data.data.accessToken and result.data.data.refreshToken
 
+      // Save role to localStorage
+      if (userData?.role) {
+        localStorage.setItem('userRole', userData.role);
+      }
+
       setUser(userData);
       return { success: true, data: result.data, user: userData };
     } catch (err) {
@@ -98,6 +138,12 @@ export const AuthProvider = ({ children }) => {
 
       // Extract user from response.data.data.user
       const userData = result.data.data?.user || result.data.user;
+
+      // Save role to localStorage
+      if (userData?.role) {
+        localStorage.setItem('userRole', userData.role);
+      }
+
       setUser(userData);
       return { success: true, data: result.data, user: userData };
     } catch (err) {
@@ -117,11 +163,19 @@ export const AuthProvider = ({ children }) => {
         { withCredentials: true }
       );
 
+      // Clear localStorage
+      localStorage.removeItem('userRole');
+
       setUser(null);
       return { success: true };
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Logout failed';
       setError(errorMessage);
+
+      // Clear localStorage even if logout API fails
+      localStorage.removeItem('userRole');
+      setUser(null);
+
       return { success: false, error: errorMessage };
     }
   };

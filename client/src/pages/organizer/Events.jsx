@@ -47,9 +47,9 @@ function OrganizerEvents() {
     <div className="organizer-events">
       <div className="events-header">
         <h1>Manage your Events</h1>
-        <button className="create-pool-button" onClick={handleCreatePool}>
+        {/* <button className="create-pool-button" onClick={handleCreatePool}>
           Create new Pool
-        </button>
+        </button> */}
       </div>
 
       <div className="events-list">
