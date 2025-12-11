@@ -3,11 +3,13 @@
 .host-messages {
   display: grid;
   grid-template-columns: 350px 1fr;
-  height: calc(100vh - 100px);
+  height: 100vh;
   gap: 0;
   background-color: $color-white;
-  border-radius: $border-radius-lg;
   overflow: hidden;
+  margin: calc(-1 * $spacing-2xl);
+  margin-left: calc(-1 * $spacing-2xl);
+  border-radius: 0;
 
   .messages-sidebar {
     background-color: $color-white;
@@ -258,8 +260,15 @@
     grid-template-columns: 300px 1fr;
   }
 
+  @media (max-width: $breakpoint-tablet) {
+    margin: calc(-1 * $spacing-xl);
+    margin-left: calc(-1 * $spacing-xl);
+  }
+
   @media (max-width: $breakpoint-mobile) {
     grid-template-columns: 1fr;
+    margin: calc(-1 * $spacing-md);
+    margin-left: calc(-1 * $spacing-md);
 
     .messages-sidebar {
       display: none;
