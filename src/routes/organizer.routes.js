@@ -8,6 +8,9 @@ import {
   verifyAadhaarOrganizer,
 
   // 👥 Pool & Team Management
+  getAllEvents,
+  reqHostForEvent,
+  acceptInvitationFromHost,
   createPool,
   getPoolDetails,
   chatWithGig,
@@ -54,6 +57,10 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 //
 // 👥 Pool & Team Management
 //
+router.post("/events/request-host", verifyToken, authorizeRoles("organizer"), reqHostForEvent);
+router.post("/events/accept-invitation/:id", verifyToken, authorizeRoles("organizer"), acceptInvitationFromHost);
+
+router.get("/events/all", verifyToken, authorizeRoles("organizer"), getAllEvents);
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);

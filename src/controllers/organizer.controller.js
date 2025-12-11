@@ -21,6 +21,7 @@ import OrganizerPool from "../models/OrganizerPool.model.js";
 import PoolApplication from "../models/PoolApplication.model.js"
 import Badge from "../models/Badge.model.js";
 import UserBadge from "../models/UserBadge.model.js";
+import EventApplication from "../models/EventApplications.js";
 
 // 1 Organizer Profile
 export const getOrganizerProfile = asyncHandler(async (req, res) => {
@@ -91,7 +92,6 @@ export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
 // 3. Submit E-Signature
 export const submitESignature = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const { type } = req.body;
   const localFilePath = req.files?.fileUrl?.[0]?.path;
 
   if (!localFilePath) throw new ApiError(400, "No signature uploaded");
@@ -205,12 +205,57 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, wallet, "Withdrawal successful"));
 });
 
+// A. get all active events by host
+export const getAllEvents = asyncHandler(async (req, res) => {
+  const events = await Event.find().select("-__v");
+  const activeEvents = events.filter(event => event.status !== "completed");
+  return res.status(200).json(new ApiResponse(200, activeEvents, "Active events fetched"));
+});
+
+// B. get event organizising order
+export const reqHostForEvent = asyncHandler(async (req, res) => {
+   const hostId = req.params;
+  const {eventId, cover_letter,  proposed_rate} = req.body;
+  //create an event application for the organizer
+  const EventApplication = await EventApplication.create({
+    event: eventId ,
+    applicant: orgId,
+    application_status: "pending",
+    cover_letter,
+    proposed_rate
+  });
+  return res
+    .status(201)
+    .json(new ApiResponse(201, EventApplication, "Organizer requested to host for event management"));
+});
+
+// C. accept invitaion for event management
+export const acceptInvitationFromHost = asyncHandler(async (req, res) => {
+  const hostAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(hostAppId);
+  if (!eventApplication) {
+    throw new ApiError(404, "Event application not found");
+  }
+  if (eventApplication.application_status !== "pending") {
+    throw new ApiError(400, "Event application is not pending");
+  }
+  eventApplication.application_status = "accepted";
+  await eventApplication.save();
+
+  eventApplication.event.organizer = eventApplication.applicant;
+  await eventApplication.event.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, eventApplication, "Organizer accepted for event"));
+});
+
 // 7. Create Pool
 export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { name,eventId, description } = req.body;
 
-  const pool = await Pool.create({
+    const pool = await Pool.create({
     organizer: organizerId,
     event:eventId,
     name,

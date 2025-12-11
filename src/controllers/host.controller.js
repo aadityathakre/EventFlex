@@ -15,6 +15,7 @@ import Feedback from "../models/Feedback.model.js";
 import UserBadge from "../models/UserBadge.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import User from "../models/User.model.js";
+import EventApplication from "../models/EventApplications.js";
 import mongoose from "mongoose";
 
 // 1. Host Profile
@@ -286,8 +287,56 @@ export const completeEvent = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event marked as completed"));
 });
 
-// 11. Invite Organizer to Event
+// A. Get all organizers
+export const getAllOrganizers = asyncHandler(async (req, res) => {
+  const organizers = await User.find({ role: "organizer" }).select(
+    "-password -refreshToken"
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, organizers, "Organizers fetched"));
+});
+
+// 11. invite organizer to event
 export const inviteOrganizer = asyncHandler(async (req, res) => {
+  const orgId = req.params;
+  const {eventId, cover_letter} = req.body;
+  //create an event application for the organizer
+  const EventApplication = await EventApplication.create({
+    event: eventId ,
+    applicant: orgId,
+    application_status: "pending",
+    cover_letter,
+  });
+  return res
+    .status(201)
+    .json(new ApiResponse(201, EventApplication, "Organizer invited to event"));
+});
+  
+// 12. Approve organizer for event by organizer application
+export const approveOrganizer = asyncHandler(async (req, res) => {
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
+  if (!eventApplication) {
+    throw new ApiError(404, "Event application not found");
+  }
+  if (eventApplication.application_status !== "pending") {
+    throw new ApiError(400, "Event application is not pending");
+  }
+  eventApplication.application_status = "accepted";
+  await eventApplication.save();
+
+  eventApplication.event.organizer = eventApplication.applicant;
+  await eventApplication.event.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, eventApplication, "Organizer approved for event"));
+});
+
+// 12.1 create organizer pool for event
+export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const {
     organizerId,
@@ -328,21 +377,8 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, pool, "Organizer invited to event"));
 });
 
-// 12. Approve Organizer for Event
-export const approveOrganizer = asyncHandler(async (req, res) => {
-  const orgPoolId = req.params.id;
-
-  const pool = await OrganizerPool.findById(orgPoolId);
-  if (!pool) throw new ApiError(404, "Organizer pool not found");
-
-  pool.status = "active";
-  await pool.save();
-
-  return res.status(200).json(new ApiResponse(200, pool, "Organizer approved"));
-});
-
 // 13. View Assigned Organizers
-export const getAssignedOrganizers = asyncHandler(async (req, res) => {
+export const getAssignedOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 
   const pools = await OrganizerPool.find()

@@ -14,9 +14,11 @@ import {
   completeEvent,
 
   // 🧑‍🤝‍🧑 Organizer Management
+  getAllOrganizers,
   inviteOrganizer,
   approveOrganizer,
-  getAssignedOrganizers,
+  createOrganizerPoolForEvent,
+  getAssignedOrganizer,
   startChatWithOrganizer,
 
   // 💰 Payments & Escrow
@@ -50,9 +52,11 @@ router.put("/events/complete/:id", verifyToken, authorizeRoles("host"), complete
 
 //
 // 🧑‍🤝‍🧑 Organizer Management
+router.get("/organizers/all", verifyToken, authorizeRoles("host"), getAllOrganizers);
 router.post("/invite-organizer", verifyToken, authorizeRoles("host"), inviteOrganizer);
 router.post("/approve-organizer/:id", verifyToken, authorizeRoles("host"), approveOrganizer);
-router.get("/organizers", verifyToken, authorizeRoles("host"), getAssignedOrganizers);
+router.post("/pools/create", verifyToken, authorizeRoles("host"), createOrganizerPoolForEvent);
+router.get("/organizer", verifyToken, authorizeRoles("host"), getAssignedOrganizer);
 router.post("/chat", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
 
 //
