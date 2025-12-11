@@ -110,6 +110,45 @@
     text-align: center;
   }
 
+  .success-message {
+    color: #38a169;
+    font-family: $font-family-primary;
+    font-size: $font-size-small;
+    margin: $spacing-sm 0;
+    text-align: center;
+    font-weight: $font-weight-medium;
+  }
+
+  .forgot-password-text {
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    color: $color-text-secondary;
+    text-align: center;
+    margin: 0 0 $spacing-lg 0;
+  }
+
+  .forgot-password-link-wrapper {
+    text-align: right;
+    margin-bottom: $spacing-sm;
+
+    .forgot-password-link {
+      background: none;
+      border: none;
+      color: $color-text-secondary;
+      font-family: $font-family-primary;
+      font-size: $font-size-small;
+      cursor: pointer;
+      text-decoration: none;
+      padding: 0;
+      transition: color $transition-base;
+
+      &:hover {
+        color: $color-text-primary;
+        text-decoration: underline;
+      }
+    }
+  }
+
   .submit-button {
     width: 100%;
     padding: $spacing-md;

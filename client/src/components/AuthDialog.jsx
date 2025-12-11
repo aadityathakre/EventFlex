@@ -15,9 +15,17 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
     password: '',
   });
   const [localError, setLocalError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, login, googleAuth, error: authError, user } = useAuth();
+  // Forgot password states
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1); // 1: email, 2: OTP, 3: new password
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const { register, login, googleAuth, sendOTP, verifyOTP, resetPassword, error: authError, user } = useAuth();
   const navigate = useNavigate();
 
   // Update mode when initialMode prop changes
@@ -46,12 +54,14 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
       [e.target.name]: e.target.value,
     });
     setLocalError('');
+    setSuccessMessage('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setLocalError('');
+    setSuccessMessage('');
 
     try {
       if (mode === 'login') {
@@ -63,7 +73,7 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
         if (!result.success) {
           setLocalError(result.error);
         }
-      } else {
+      } else if (mode === 'register') {
         // Register mode
         const result = await register({
           first_name: formData.firstName,
@@ -74,7 +84,21 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
           role: selectedRole,
         });
 
-        if (!result.success) {
+        if (result.success) {
+          // Show success message and switch to login
+          setSuccessMessage('Registration successful! Please login.');
+          setFormData({
+            firstName: '',
+            lastName: '',
+            email: '',
+            phone: '',
+            password: '',
+          });
+          setTimeout(() => {
+            setMode('login');
+            setSuccessMessage('');
+          }, 2000);
+        } else {
           setLocalError(result.error);
         }
       }
@@ -106,16 +130,212 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
       phone: '',
       password: '',
     });
+    setLocalError('');
+    setSuccessMessage('');
+  };
+
+  const openForgotPassword = () => {
+    setMode('forgot-password');
+    setForgotPasswordStep(1);
+    setLocalError('');
+    setSuccessMessage('');
+    setForgotPasswordEmail('');
+    setOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const backToLogin = () => {
+    setMode('login');
+    setLocalError('');
+    setSuccessMessage('');
+    setForgotPasswordStep(1);
+  };
+
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setLocalError('');
+
+    try {
+      const result = await sendOTP(forgotPasswordEmail);
+      if (result.success) {
+        setForgotPasswordStep(2);
+      } else {
+        setLocalError(result.error);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setLocalError('');
+
+    try {
+      const result = await verifyOTP(forgotPasswordEmail, otp);
+      if (result.success) {
+        setForgotPasswordStep(3);
+      } else {
+        setLocalError(result.error);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+
+    if (newPassword !== confirmPassword) {
+      setLocalError('Passwords do not match!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setLocalError('');
+
+    try {
+      const result = await resetPassword(forgotPasswordEmail, newPassword);
+      if (result.success) {
+        setSuccessMessage('Password reset successful! Please login.');
+        setTimeout(() => {
+          backToLogin();
+        }, 2000);
+      } else {
+        setLocalError(result.error);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getTitle = () => {
+    if (mode === 'forgot-password') {
+      if (forgotPasswordStep === 1) return 'Forgot Password';
+      if (forgotPasswordStep === 2) return 'Verify OTP';
+      if (forgotPasswordStep === 3) return 'Reset Password';
+    }
+    return mode === 'login' ? 'Welcome back' : 'Register';
   };
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} className="auth-dialog">
       <div className="auth-header">
-        <h2 className="auth-title">{mode === 'login' ? 'Welcome back' : 'Register'}</h2>
+        <h2 className="auth-title">{getTitle()}</h2>
       </div>
 
       <div className="auth-body">
-        <form onSubmit={handleSubmit}>
+        {mode === 'forgot-password' ? (
+          // Forgot Password Views
+          <>
+            {forgotPasswordStep === 1 && (
+              <form onSubmit={handleSendOTP}>
+                <p className="forgot-password-text">Enter your email to reset password</p>
+                <div className="form-group">
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => {
+                      setForgotPasswordEmail(e.target.value);
+                      setLocalError('');
+                    }}
+                    className="form-input"
+                    required
+                  />
+                </div>
+
+                {localError && <p className="error-message">{localError}</p>}
+
+                <button type="submit" className="submit-button" disabled={isSubmitting}>
+                  {isSubmitting ? 'Sending...' : 'Send OTP'}
+                </button>
+
+                <div className="auth-footer">
+                  <button type="button" className="switch-link" onClick={backToLogin}>
+                    Back to Login
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {forgotPasswordStep === 2 && (
+              <form onSubmit={handleVerifyOTP}>
+                <p className="forgot-password-text">Enter the OTP sent to your email</p>
+                <div className="form-group">
+                  <input
+                    type="text"
+                    placeholder="Enter OTP"
+                    value={otp}
+                    onChange={(e) => {
+                      setOtp(e.target.value);
+                      setLocalError('');
+                    }}
+                    className="form-input"
+                    required
+                  />
+                </div>
+
+                {localError && <p className="error-message">{localError}</p>}
+
+                <button type="submit" className="submit-button" disabled={isSubmitting}>
+                  {isSubmitting ? 'Verifying...' : 'Verify OTP'}
+                </button>
+
+                <div className="auth-footer">
+                  <button type="button" className="switch-link" onClick={backToLogin}>
+                    Back to Login
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {forgotPasswordStep === 3 && (
+              <form onSubmit={handleResetPassword}>
+                <p className="forgot-password-text">Set your new password</p>
+                <div className="form-group">
+                  <input
+                    type="password"
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setLocalError('');
+                    }}
+                    className="form-input"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <input
+                    type="password"
+                    placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setLocalError('');
+                    }}
+                    className="form-input"
+                    required
+                  />
+                </div>
+
+                {localError && <p className="error-message">{localError}</p>}
+                {successMessage && <p className="success-message">{successMessage}</p>}
+
+                <button type="submit" className="submit-button" disabled={isSubmitting}>
+                  {isSubmitting ? 'Updating...' : 'Update Password'}
+                </button>
+              </form>
+            )}
+          </>
+        ) : (
+          // Login/Register Views
+          <form onSubmit={handleSubmit}>
           {mode === 'register' && (
             <div className="role-selection">
               <label className="role-label">Choose your role</label>
@@ -211,6 +431,15 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
           </div>
 
           {localError && <p className="error-message">{localError}</p>}
+          {successMessage && <p className="success-message">{successMessage}</p>}
+
+          {mode === 'login' && (
+            <div className="forgot-password-link-wrapper">
+              <button type="button" className="forgot-password-link" onClick={openForgotPassword}>
+                Forgot Password?
+              </button>
+            </div>
+          )}
 
           <button type="submit" className="submit-button" disabled={isSubmitting}>
             {isSubmitting ? 'Please wait...' : mode === 'login' ? 'Login' : 'Signup'}
@@ -238,6 +467,7 @@ const AuthDialog = ({ isOpen, onClose, initialMode = 'login' }) => {
             )}
           </div>
         </form>
+        )}
       </div>
     </Dialog>
   );
