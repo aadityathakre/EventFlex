@@ -63,6 +63,14 @@ function EventDetails() {
     console.log('Mark attended:', organizer);
   };
 
+  const handleEditEvent = () => {
+    console.log('Edit event');
+  };
+
+  const handleMarkEventCompleted = () => {
+    console.log('Mark event completed');
+  };
+
   const getStatusLabel = (status) => {
     switch (status) {
       case 'invited':
@@ -198,13 +206,49 @@ function EventDetails() {
 
           {activeTab === 'budget' && (
             <div className="budget-content">
-              <p>Budget information will be displayed here</p>
+              <div className="budget-grid">
+                <div className="budget-item">
+                  <span className="budget-label">Total funds</span>
+                  <span className="budget-value">$12000</span>
+                </div>
+
+                <div className="budget-item">
+                  <span className="budget-label">Organizers share</span>
+                  <span className="budget-value">20%</span>
+                </div>
+
+                <div className="budget-item">
+                  <span className="budget-label">Gig Workers share</span>
+                  <span className="budget-value">20%</span>
+                </div>
+              </div>
+
+              <div className="budget-grid">
+                <div className="budget-item">
+                  <span className="budget-label">Platform fee</span>
+                  <span className="budget-value">20%</span>
+                </div>
+
+                <div className="budget-item">
+                  <span className="budget-label">In escrow</span>
+                  <span className="budget-value">$0</span>
+                </div>
+              </div>
+
+              <button className="deposit-button">
+                Deposit now
+              </button>
             </div>
           )}
 
           {activeTab === 'manage' && (
             <div className="manage-content">
-              <p>Event management options will be displayed here</p>
+              <button className="edit-event-button" onClick={handleEditEvent}>
+                Edit Event
+              </button>
+              <button className="complete-event-button" onClick={handleMarkEventCompleted}>
+                Mark Event completed
+              </button>
             </div>
           )}
         </div>
