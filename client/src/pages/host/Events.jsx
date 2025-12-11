@@ -1,36 +1,84 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Event from '../../components/Event';
+import { getEvents } from '../../api/host';
 import './Events.scss';
 
 function HostEvents() {
   const navigate = useNavigate();
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Sample events data
-  const events = [
-    {
-      id: 1,
-      title: 'Wedding #1',
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris vel rhoncus magna. Suspendisse augue arcu, euismod a sapien sed, imperdiet facilisis ex.',
-      startDate: '23 Nov 2025',
-      startTime: '1:00 AM',
-      endDate: '25 Nov 2025',
-      endTime: '11:00 AM',
-      location: 'location addresss',
-      organizers: 0,
-    },
-    {
-      id: 2,
-      title: 'Wedding #2',
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris vel rhoncus magna. Suspendisse augue arcu, euismod a sapien sed, imperdiet facilisis ex.',
-      startDate: '23 Nov 2025',
-      startTime: '1:00 AM',
-      endDate: '25 Nov 2025',
-      endTime: '11:00 AM',
-      location: 'location addresss',
-      organizers: 4,
-    },
-  ];
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await getEvents();
+
+      // Extract events from response
+      const eventsData = response.data.data || response.data.events || [];
+
+      // Transform events to match component structure
+      const transformedEvents = eventsData.map((event) => {
+        // Format location from GeoJSON
+        let locationStr = 'Location not specified';
+        if (event.location?.coordinates) {
+          const [lng, lat] = event.location.coordinates;
+          locationStr = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+
+        // Format dates
+        const formatDate = (dateStr) => {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          });
+        };
+
+        const formatTime = (dateStr) => {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+        };
+
+        return {
+          id: event._id,
+          title: event.title,
+          description: event.description,
+          startDate: formatDate(event.start_date),
+          startTime: formatTime(event.start_date),
+          endDate: formatDate(event.end_date),
+          endTime: formatTime(event.end_date),
+          location: locationStr,
+          organizers: event.organizer_count || 0,
+          status: event.status,
+          budget: event.budget?.$numberDecimal || event.budget,
+          eventType: event.event_type,
+          // Store original event data for detailed view
+          rawData: event,
+        };
+      });
+
+      setEvents(transformedEvents);
+    } catch (err) {
+      console.error('Error fetching events:', err);
+      setError(err.response?.data?.message || 'Failed to fetch events');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEventClick = (event) => {
     navigate(`/host/events/${event.id}`);
@@ -53,17 +101,36 @@ function HostEvents() {
         </button>
       </div>
 
-      <div className="events-list">
-        {events.map((event) => (
-          <Event
-            key={event.id}
-            event={event}
-            viewType="organizers"
-            onManage={handleManage}
-            onClick={handleEventClick}
-          />
-        ))}
-      </div>
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="loading-state">
+          <p>Loading events...</p>
+        </div>
+      ) : events.length === 0 ? (
+        <div className="empty-state">
+          <p>No events found. Create your first event!</p>
+          <button className="create-event-button-secondary" onClick={handleCreateEvent}>
+            Create Event
+          </button>
+        </div>
+      ) : (
+        <div className="events-list">
+          {events.map((event) => (
+            <Event
+              key={event.id}
+              event={event}
+              viewType="organizers"
+              onManage={handleManage}
+              onClick={handleEventClick}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

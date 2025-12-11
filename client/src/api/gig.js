@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { serverURL } from '../App.jsx';
+
+const serverURL = 'http://localhost:8080/api/v1';
 
 // Create axios instance with default config for gig routes
 const gigAPI = axios.create({

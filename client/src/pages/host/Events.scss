@@ -40,6 +40,55 @@
     }
   }
 
+  .error-message {
+    padding: $spacing-md $spacing-lg;
+    margin-bottom: $spacing-lg;
+    background-color: #fee;
+    border: 1px solid #fcc;
+    border-radius: $border-radius-md;
+    color: #c33;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+  }
+
+  .loading-state,
+  .empty-state {
+    padding: $spacing-4xl;
+    text-align: center;
+    background-color: $color-white;
+    border-radius: $border-radius-lg;
+
+    p {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
+      margin: 0 0 $spacing-lg 0;
+    }
+
+    .create-event-button-secondary {
+      background-color: $color-secondary;
+      color: $color-white;
+      border: none;
+      border-radius: $border-radius-md;
+      padding: $spacing-md $spacing-xl;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      cursor: pointer;
+      transition: all $transition-base;
+
+      &:hover {
+        background-color: $color-primary-dark;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+
   .events-list {
     display: flex;
     flex-direction: column;
