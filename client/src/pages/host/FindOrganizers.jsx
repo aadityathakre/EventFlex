@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SendInvitationDialog from '../../components/SendInvitationDialog';
+import { getOrganizers } from '../../api/host';
 import './FindOrganizers.scss';
 
 function FindOrganizers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [selectedOrganizer, setSelectedOrganizer] = useState(null);
+  const [organizers, setOrganizers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Sample events for the dropdown
   const events = [
@@ -14,30 +18,27 @@ function FindOrganizers() {
     { id: 3, title: 'Corporate Event' },
   ];
 
-  // Sample organizers data
-  const organizers = [
-    {
-      id: 1,
-      name: 'Iswaran',
-      avatar: 'IS',
-      skills: ['Event Management', 'Team Leadership'],
-      rating: 4.5,
-    },
-    {
-      id: 2,
-      name: 'Iswaran',
-      avatar: 'IS',
-      skills: ['Coordination', 'Planning'],
-      rating: 4.8,
-    },
-    {
-      id: 3,
-      name: 'Iswaran',
-      avatar: 'IS',
-      skills: ['Logistics', 'Operations'],
-      rating: 4.2,
-    },
-  ];
+  // Fetch organizers on component mount
+  useEffect(() => {
+    fetchOrganizers();
+  }, []);
+
+  const fetchOrganizers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await getOrganizers();
+
+      // Extract organizers from response
+      const organizersData = response.data.data || response.data.organizers || [];
+      setOrganizers(organizersData);
+    } catch (err) {
+      console.error('Error fetching organizers:', err);
+      setError(err.response?.data?.message || 'Failed to fetch organizers');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleViewProfile = (organizer) => {
     console.log('View profile:', organizer);
@@ -53,10 +54,27 @@ function FindOrganizers() {
     setSelectedOrganizer(null);
   };
 
-  const filteredOrganizers = organizers.filter((org) =>
-    org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    org.skills.some(skill => skill.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const getInitials = (name) => {
+    if (!name) return 'O';
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const filteredOrganizers = organizers.filter((org) => {
+    const name = org.name || '';
+    const skills = org.skills || [];
+
+    return (
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (Array.isArray(skills) && skills.some(skill =>
+        skill.toLowerCase().includes(searchQuery.toLowerCase())
+      ))
+    );
+  });
 
   return (
     <div className="find-organizers">
@@ -72,47 +90,90 @@ function FindOrganizers() {
         />
       </div>
 
-      <div className="organizers-table">
-        <div className="table-header">
-          <div className="header-cell name">NAME</div>
-          <div className="header-cell skills">SKILLS</div>
-          <div className="header-cell rating">RATING</div>
-          <div className="header-cell actions"></div>
+      {error && (
+        <div className="error-message">
+          {error}
         </div>
+      )}
 
-        <div className="table-body">
-          {filteredOrganizers.map((organizer) => (
-            <div key={organizer.id} className="table-row">
-              <div className="cell name">
-                <div className="organizer-avatar">
-                  <span className="avatar-text">{organizer.avatar}</span>
-                </div>
-                <span className="organizer-name">{organizer.name}</span>
-              </div>
-              <div className="cell skills">
-                {/* Skills would be displayed here */}
-              </div>
-              <div className="cell rating">
-                {/* Rating would be displayed here */}
-              </div>
-              <div className="cell actions">
-                <button
-                  className="view-profile-button"
-                  onClick={() => handleViewProfile(organizer)}
-                >
-                  View full profile
-                </button>
-                <button
-                  className="invite-button"
-                  onClick={() => handleInvite(organizer)}
-                >
-                  Invite to event
-                </button>
-              </div>
-            </div>
-          ))}
+      {loading ? (
+        <div className="loading-state">
+          <p>Loading organizers...</p>
         </div>
-      </div>
+      ) : (
+        <div className="organizers-table">
+          <div className="table-header">
+            <div className="header-cell name">NAME</div>
+            <div className="header-cell skills">SKILLS</div>
+            <div className="header-cell rating">RATING</div>
+            <div className="header-cell actions"></div>
+          </div>
+
+          <div className="table-body">
+            {filteredOrganizers.length === 0 ? (
+              <div className="empty-state">
+                <p>No organizers found</p>
+              </div>
+            ) : (
+              filteredOrganizers.map((organizer) => (
+                <div key={organizer._id || organizer.id} className="table-row">
+                  <div className="cell name">
+                    {organizer.profile_image_url ? (
+                      <div className="organizer-avatar">
+                        <img
+                          src={organizer.profile_image_url}
+                          alt={organizer.name}
+                          className="avatar-image"
+                        />
+                      </div>
+                    ) : (
+                      <div className="organizer-avatar">
+                        <span className="avatar-text">{getInitials(organizer.name)}</span>
+                      </div>
+                    )}
+                    <span className="organizer-name">{organizer.name || 'Unknown'}</span>
+                  </div>
+                  <div className="cell skills">
+                    {organizer.skills && organizer.skills.length > 0 ? (
+                      <div className="skills-list">
+                        {organizer.skills.slice(0, 2).map((skill, index) => (
+                          <span key={index} className="skill-tag">{skill}</span>
+                        ))}
+                        {organizer.skills.length > 2 && (
+                          <span className="skill-tag">+{organizer.skills.length - 2} more</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="no-data">-</span>
+                    )}
+                  </div>
+                  <div className="cell rating">
+                    {organizer.rating ? (
+                      <span className="rating-value">⭐ {organizer.rating.toFixed(1)}</span>
+                    ) : (
+                      <span className="no-data">-</span>
+                    )}
+                  </div>
+                  <div className="cell actions">
+                    <button
+                      className="view-profile-button"
+                      onClick={() => handleViewProfile(organizer)}
+                    >
+                      View full profile
+                    </button>
+                    <button
+                      className="invite-button"
+                      onClick={() => handleInvite(organizer)}
+                    >
+                      Invite to event
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <SendInvitationDialog
         isOpen={inviteDialogOpen}

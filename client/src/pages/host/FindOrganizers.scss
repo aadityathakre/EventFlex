@@ -39,6 +39,32 @@
     }
   }
 
+  .error-message {
+    padding: $spacing-md $spacing-lg;
+    margin-bottom: $spacing-lg;
+    background-color: #fee;
+    border: 1px solid #fcc;
+    border-radius: $border-radius-md;
+    color: #c33;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+  }
+
+  .loading-state,
+  .empty-state {
+    padding: $spacing-4xl;
+    text-align: center;
+    background-color: $color-white;
+    border-radius: $border-radius-lg;
+
+    p {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
+      margin: 0;
+    }
+  }
+
   .organizers-table {
     background-color: $color-white;
     border-radius: $border-radius-lg;
@@ -98,6 +124,7 @@
               align-items: center;
               justify-content: center;
               flex-shrink: 0;
+              overflow: hidden;
 
               .avatar-text {
                 font-family: $font-family-primary;
@@ -105,11 +132,50 @@
                 font-weight: $font-weight-bold;
                 color: $color-text-primary;
               }
+
+              .avatar-image {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+              }
             }
 
             .organizer-name {
               font-weight: $font-weight-semibold;
               color: $color-text-primary;
+            }
+          }
+
+          &.skills {
+            .skills-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: $spacing-xs;
+
+              .skill-tag {
+                padding: $spacing-xs $spacing-sm;
+                background-color: $color-background;
+                border-radius: $border-radius-full;
+                font-family: $font-family-primary;
+                font-size: $font-size-small;
+                font-weight: $font-weight-medium;
+                color: $color-text-secondary;
+                white-space: nowrap;
+              }
+            }
+
+            .no-data {
+              color: $color-text-light;
+            }
+          }
+
+          &.rating {
+            .rating-value {
+              font-weight: $font-weight-semibold;
+            }
+
+            .no-data {
+              color: $color-text-light;
             }
           }
 
