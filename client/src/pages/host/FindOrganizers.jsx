@@ -29,8 +29,44 @@ function FindOrganizers() {
       setError('');
       const response = await getOrganizers();
 
-      // Extract organizers from response
-      const organizersData = response.data.data || response.data.organizers || [];
+      // Extract data from response - it's an array of assignments with nested organizer objects
+      const assignmentsData = response.data.data || [];
+
+      // Map to extract unique organizers and add pool/event context
+      const organizersMap = new Map();
+
+      assignmentsData.forEach((assignment) => {
+        const org = assignment.organizer;
+        if (org && org._id) {
+          // If organizer already exists, just add the new pool info
+          if (organizersMap.has(org._id)) {
+            const existing = organizersMap.get(org._id);
+            existing.pools.push({
+              poolName: assignment.pool_name,
+              eventTitle: assignment.event?.title,
+              skills: assignment.required_skills,
+            });
+          } else {
+            // Create new organizer entry with pool context
+            organizersMap.set(org._id, {
+              ...org,
+              id: org._id,
+              name: org.fullName || `${org.first_name} ${org.last_name}`,
+              profile_image_url: org.avatar,
+              skills: assignment.required_skills || [],
+              rating: org.rating || null,
+              pools: [{
+                poolName: assignment.pool_name,
+                eventTitle: assignment.event?.title,
+                skills: assignment.required_skills,
+              }],
+            });
+          }
+        }
+      });
+
+      // Convert map to array
+      const organizersData = Array.from(organizersMap.values());
       setOrganizers(organizersData);
     } catch (err) {
       console.error('Error fetching organizers:', err);
