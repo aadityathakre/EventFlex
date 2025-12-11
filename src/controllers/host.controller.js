@@ -17,6 +17,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import User from "../models/User.model.js";
 import EventApplication from "../models/EventApplications.js";
 import mongoose from "mongoose";
+import UserProfile from "../models/UserProfile.model.js";
 
 // 1. Host Profile
 export const getHostProfile = asyncHandler(async (req, res) => {
@@ -26,10 +27,39 @@ export const getHostProfile = asyncHandler(async (req, res) => {
   const documents = await UserDocument.find({ user: hostId });
   const kyc = await KYCVerification.findOne({ user: hostId });
   
+  if (!user) throw new ApiError(404, "User not found");
+
+   // Try to fetch profile
+  let profile = await UserProfile.findOne({ user: hostId });
+  if (!profile) {
+      profile = await UserProfile.create({
+      user: hostId,
+      profile_image_url: user.avatar,
+      bank_details: user.wallet
+    });
+  }
+
+  // Merge and return
+  const mergedProfile = {
+    user: hostId,
+    name: user.fullName || `${user.first_name} ${user.last_name}`,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    bio: profile.bio || "",
+    location: profile.location || {},
+    availability: profile.availability || {},
+    bank_details: profile.bank_details || {},
+    profile_image_url: profile.profile_image_url || user.avatar,
+    createdAt: profile.createdAt || user.createdAt,
+    updatedAt: profile.updatedAt || user.updatedAt,
+  };
+
+
   return res
     .status(200)
     .json(
-      new ApiResponse(200, { user, documents, kyc }, "Host profile fetched")
+      new ApiResponse(200, { mergedProfile, documents, kyc }, "Host profile fetched")
     );
 });
 
@@ -56,7 +86,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (Object.keys(userUpdates).length > 0) {
     await User.findByIdAndUpdate(hostId, { $set: userUpdates }, { new: true, runValidators: true });
   }
-
+  
   // Update UserProfile schema fields
   let profile = await UserProfile.findOneAndUpdate(
     { user: hostId },
@@ -64,8 +94,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
     { new: true, runValidators: true }
   );
 
-  if (!profile) {
-    throw new ApiError(404, "Profile not found");
+  if(!profile){
+    return res.status(404).json(new ApiResponse(404, null, "Profile not found"));
   }
 
   return res.status(200).json(new ApiResponse(200, { userUpdates, profile }, "Profile updated"));
@@ -400,15 +430,16 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
   const orgId = req.params;
   const {eventId, cover_letter} = req.body;
   //create an event application for the organizer
-  const EventApplication = await EventApplication.create({
+  let eventApplication = await EventApplication.create({
     event: eventId ,
     applicant: orgId,
     application_status: "pending",
     cover_letter,
   });
+  eventApplication.save();
   return res
     .status(201)
-    .json(new ApiResponse(201, EventApplication, "Organizer invited to event"));
+    .json(new ApiResponse(201, eventApplication, "Organizer invited to event"));
 });
   
 // 16. Approve organizer for event by organizer application
@@ -425,7 +456,7 @@ export const approveOrganizer = asyncHandler(async (req, res) => {
   await eventApplication.save();
 
   eventApplication.event.organizer = eventApplication.applicant;
-  await eventApplication.event.save();
+  await eventApplication.save();
 
   return res
     .status(200)

@@ -95,8 +95,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
     { new: true, runValidators: true }
   );
 
-  if (!profile) {
-    throw new ApiError(404, "Profile not found");
+  if(!profile){ 
+    return res.status(404).json(new ApiResponse(404, null, "Profile not found"));
   }
 
   return res.status(200).json(new ApiResponse(200, { userUpdates, profile }, "Profile updated"));
@@ -314,16 +314,16 @@ export const reqHostForEvent = asyncHandler(async (req, res) => {
    const hostId = req.params;
   const {eventId, cover_letter,  proposed_rate} = req.body;
   //create an event application for the organizer
-  const EventApplication = await EventApplication.create({
+  const eventApplication = await EventApplication.create({
     event: eventId ,
-    applicant: orgId,
+    applicant: hostId,
     application_status: "pending",
     cover_letter,
     proposed_rate
   });
   return res
     .status(201)
-    .json(new ApiResponse(201, EventApplication, "Organizer requested to host for event management"));
+    .json(new ApiResponse(201, eventApplication, "Organizer requested to host for event management"));
 });
 
 // 12. accept invitaion for event management
@@ -340,7 +340,7 @@ export const acceptInvitationFromHost = asyncHandler(async (req, res) => {
   await eventApplication.save();
 
   eventApplication.event.organizer = eventApplication.applicant;
-  await eventApplication.event.save();
+  await eventApplication.save();
 
   return res
     .status(200)

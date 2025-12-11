@@ -54,7 +54,7 @@ const router = express.Router();
 //profile
 router.get("/profile", verifyToken, authorizeRoles("organizer"), getOrganizerProfile);
 router.put("/profile", verifyToken, authorizeRoles("organizer"), updateProfile);
-router.post("/profile/image", verifyToken, authorizeRoles("organizer"), upload.single("image"), updateProfileImage);
+router.put("/profile/image", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "avatar", maxCount: 1 }]), updateProfileImage);
 router.delete("/profile/image", verifyToken, authorizeRoles("organizer"), deleteProfileImage);
 
 // 📄 Document & E-Signature Management
@@ -65,7 +65,7 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 //
 // 👥 Pool & Team Management
 //
-router.post("/events/request-host", verifyToken, authorizeRoles("organizer"), reqHostForEvent);
+router.post("/events/request-host/:id", verifyToken, authorizeRoles("organizer"), reqHostForEvent);
 router.post("/events/accept-invitation/:id", verifyToken, authorizeRoles("organizer"), acceptInvitationFromHost);
 
 router.get("/events/all", verifyToken, authorizeRoles("organizer"), getAllEvents);

@@ -47,7 +47,7 @@ const router = express.Router();
 //profile
 router.get("/profile", verifyToken, authorizeRoles("host"), getHostProfile);
 router.put("/profile", verifyToken, authorizeRoles("host"), updateProfile);
-router.post("/profile/image", verifyToken, authorizeRoles("host"), upload.single("image"), updateProfileImage);
+router.put("/profile/image", verifyToken, authorizeRoles("host"), upload.fields([{ name: "avatar", maxCount: 1 }]), updateProfileImage);
 router.delete("/profile/image", verifyToken, authorizeRoles("host"), deleteProfileImage);
 
 
@@ -67,7 +67,7 @@ router.put("/events/complete/:id", verifyToken, authorizeRoles("host"), complete
 //
 // 🧑‍🤝‍🧑 Organizer Management
 router.get("/organizers/all", verifyToken, authorizeRoles("host"), getAllOrganizers);
-router.post("/invite-organizer", verifyToken, authorizeRoles("host"), inviteOrganizer);
+router.post("/invite-organizer/:id", verifyToken, authorizeRoles("host"), inviteOrganizer);
 router.post("/approve-organizer/:id", verifyToken, authorizeRoles("host"), approveOrganizer);
 router.post("/pools/create", verifyToken, authorizeRoles("host"), createOrganizerPoolForEvent);
 router.get("/organizer", verifyToken, authorizeRoles("host"), getAssignedOrganizer);
