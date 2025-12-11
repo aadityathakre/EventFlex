@@ -1,17 +1,16 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Sidebar.scss';
+import { useAuth } from '../context/AuthContext';
 
-const Sidebar = ({ user = { name: 'Iswaran', role: 'ORG' }, menuItems }) => {
+const Sidebar = ({ menuItems }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const handleLogout = () => {
-    // Clear any stored user data/tokens
-    localStorage.clear();
-    sessionStorage.clear();
-    // Redirect to login page
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
   };
 
   const defaultMenuItems = [
@@ -89,12 +88,35 @@ const Sidebar = ({ user = { name: 'Iswaran', role: 'ORG' }, menuItems }) => {
   const items = menuItems || defaultMenuItems;
 
   const getInitials = (name) => {
+    if (!name) return 'U';
     return name
       .split(' ')
       .map((n) => n[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const getUserName = () => {
+    // Profile endpoint returns 'name' field directly
+    if (user?.name) return user.name;
+    // Fallback for other endpoints that might return fullName or first_name/last_name
+    if (user?.fullName) return user.fullName;
+    if (user?.first_name && user?.last_name) {
+      return `${user.first_name} ${user.last_name}`;
+    }
+    if (user?.first_name) return user.first_name;
+    return 'User';
+  };
+
+  const getUserRole = () => {
+    if (!user?.role) return '';
+    const roleMap = {
+      gig: 'GIG',
+      organizer: 'ORG',
+      host: 'HOST',
+    };
+    return roleMap[user.role] || user.role.toUpperCase();
   };
 
   return (
@@ -119,12 +141,18 @@ const Sidebar = ({ user = { name: 'Iswaran', role: 'ORG' }, menuItems }) => {
 
         <div className="sidebar-footer">
           <div className="user-profile">
-            <div className="user-avatar">
-              <span className="avatar-text">{getInitials(user.name)}</span>
-            </div>
+            {(user?.profile_image_url || user?.avatar) ? (
+              <div className="user-avatar">
+                <img src={user.profile_image_url || user.avatar} alt={getUserName()} className="avatar-image" />
+              </div>
+            ) : (
+              <div className="user-avatar">
+                <span className="avatar-text">{getInitials(getUserName())}</span>
+              </div>
+            )}
             <div className="user-info">
-              <div className="user-name">{user.name}</div>
-              <div className="user-role">{user.role}</div>
+              <div className="user-name">{getUserName()}</div>
+              <div className="user-role">{getUserRole()}</div>
             </div>
           </div>
           <button className="logout-button" onClick={handleLogout}>

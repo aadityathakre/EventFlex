@@ -5,14 +5,9 @@ import { gigMenuItems } from '../config/gigMenuItems.jsx';
 import './GigLayout.scss';
 
 const GigLayout = () => {
-  const user = {
-    name: 'Iswaran',
-    role: 'ORG',
-  };
-
   return (
     <div className="gig-layout">
-      <Sidebar user={user} menuItems={gigMenuItems} />
+      <Sidebar menuItems={gigMenuItems} />
       <div className="gig-content">
         <Outlet />
       </div>

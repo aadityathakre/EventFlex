@@ -55,8 +55,8 @@ export const AuthProvider = ({ children }) => {
         withCredentials: true,
       });
 
-      // Extract user from response (might be in response.data.data.user or response.data.user)
-      const userData = response.data.data?.user || response.data.user || response.data.data;
+      // Extract user from response - profile endpoints return data directly in response.data.data
+      const userData = response.data.data;
       setUser(userData);
     } catch (err) {
       setUser(null);

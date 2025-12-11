@@ -5,15 +5,9 @@ import { hostMenuItems } from '../config/hostMenuItems.jsx';
 import './HostLayout.scss';
 
 const HostLayout = () => {
-  // TODO: Replace with actual user data from auth context
-  const user = {
-    name: 'Host User',
-    role: 'HOST',
-  };
-
   return (
     <div className="host-layout">
-      <Sidebar user={user} menuItems={hostMenuItems} />
+      <Sidebar menuItems={hostMenuItems} />
       <div className="host-content">
         <Outlet />
       </div>
