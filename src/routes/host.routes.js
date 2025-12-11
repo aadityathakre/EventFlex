@@ -1,6 +1,13 @@
 import express from "express";
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 import {
+
+  //profile
+  getHostProfile,
+  updateProfile,
+  updateProfileImage,
+  deleteProfileImage,
+
   // 🔐 Auth & Verification
   uploadHostDocs,
   submitESignature,
@@ -32,10 +39,17 @@ import {
   getLeaderboard,
   createRatingReview,
   createFeedback,
-  getHostProfile,
+  
 } from "../controllers/host.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 const router = express.Router();
+
+//profile
+router.get("/profile", verifyToken, authorizeRoles("host"), getHostProfile);
+router.put("/profile", verifyToken, authorizeRoles("host"), updateProfile);
+router.post("/profile/image", verifyToken, authorizeRoles("host"), upload.single("image"), updateProfileImage);
+router.delete("/profile/image", verifyToken, authorizeRoles("host"), deleteProfileImage);
+
 
 // documentation routes
 router.post("/upload-docs", verifyToken, authorizeRoles("host"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadHostDocs);
@@ -73,6 +87,6 @@ router.get("/dashboard", verifyToken, authorizeRoles("host"), getHostDashboard);
 router.get("/leaderboard", verifyToken, authorizeRoles("host"), getLeaderboard);
 router.post("/reviews/rating", verifyToken, authorizeRoles("host"), createRatingReview); // Host
 router.post("/reviews/feedback", verifyToken, authorizeRoles("host"), createFeedback);   // Gig
-router.get("/profile", verifyToken, authorizeRoles("host"), getHostProfile);
+
 
 export default router;

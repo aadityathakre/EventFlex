@@ -2,7 +2,11 @@ import express from "express";
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import {
+  //profile
   getOrganizerProfile,
+  updateProfile,
+  updateProfileImage,
+  deleteProfileImage,
   uploadOrganizerDocs,
   submitESignature,
   verifyAadhaarOrganizer,
@@ -46,8 +50,12 @@ import {
 } from "../controllers/organizer.controller.js";
 
 const router = express.Router();
+
 //profile
 router.get("/profile", verifyToken, authorizeRoles("organizer"), getOrganizerProfile);
+router.put("/profile", verifyToken, authorizeRoles("organizer"), updateProfile);
+router.post("/profile/image", verifyToken, authorizeRoles("organizer"), upload.single("image"), updateProfileImage);
+router.delete("/profile/image", verifyToken, authorizeRoles("organizer"), deleteProfileImage);
 
 // 📄 Document & E-Signature Management
 router.post("/upload-docs", verifyToken, authorizeRoles("organizer"),upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
