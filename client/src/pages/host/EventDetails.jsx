@@ -1,43 +1,99 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getEvent } from '../../api/host';
 import './EventDetails.scss';
 
 function EventDetails() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [activeTab, setActiveTab] = useState('organizers');
+  const [event, setEvent] = useState(null);
+  const [organizers, setOrganizers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Sample event data
-  const event = {
-    title: 'Wedding #1',
-    description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris vel rhoncus magna. Suspendisse augue arcu, euismod a sapien sed, imperdiet facilisis ex.',
-    startDate: '23 Nov 2025',
-    startTime: '1:00 AM',
-    endDate: '25 Nov 2025',
-    endTime: '11:00 AM',
-    location: 'location addresss',
+  useEffect(() => {
+    if (id) {
+      fetchEventDetails();
+    }
+  }, [id]);
+
+  const fetchEventDetails = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await getEvent(id);
+
+      // Extract event data from response
+      const eventData = response.data.data || response.data.event || response.data;
+
+      console.log('Event details response:', eventData);
+
+      // Format location from GeoJSON
+      let locationStr = 'Location not specified';
+      if (eventData.location?.coordinates) {
+        const [lng, lat] = eventData.location.coordinates;
+        locationStr = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
+
+      // Format dates
+      const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      };
+
+      const formatTime = (dateStr) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      };
+
+      // Set event data
+      const formattedEvent = {
+        id: eventData._id,
+        title: eventData.title,
+        description: eventData.description,
+        startDate: formatDate(eventData.start_date),
+        startTime: formatTime(eventData.start_date),
+        endDate: formatDate(eventData.end_date),
+        endTime: formatTime(eventData.end_date),
+        location: locationStr,
+        budget: eventData.budget?.$numberDecimal || eventData.budget || 0,
+        status: eventData.status,
+        eventType: eventData.event_type,
+        rawData: eventData,
+      };
+
+      setEvent(formattedEvent);
+
+      // Extract and format organizers if available
+      if (eventData.organizers && Array.isArray(eventData.organizers)) {
+        const formattedOrganizers = eventData.organizers.map((org) => ({
+          id: org._id || org.id,
+          name: org.fullName || org.name || `${org.first_name || ''} ${org.last_name || ''}`.trim() || 'Organizer',
+          avatar: org.avatar || org.profile_image_url,
+          status: org.status || 'invited',
+          email: org.email,
+          phone: org.phone,
+        }));
+        setOrganizers(formattedOrganizers);
+      }
+    } catch (err) {
+      console.error('Error fetching event details:', err);
+      setError(err.response?.data?.message || 'Failed to fetch event details');
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // Sample organizers data
-  const organizers = [
-    {
-      id: 1,
-      name: 'Iswaran',
-      avatar: 'IS',
-      status: 'invited',
-    },
-    {
-      id: 2,
-      name: 'Iswaran',
-      avatar: 'IS',
-      status: 'accepted',
-    },
-    {
-      id: 3,
-      name: 'Iswaran',
-      avatar: 'IS',
-      status: 'declined',
-    },
-  ];
 
   const handleBack = () => {
     navigate('/host/events');
@@ -96,6 +152,34 @@ function EventDetails() {
         return '';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="event-details">
+        <div className="loading-state">
+          <p>Loading event details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="event-details">
+        <div className="event-header">
+          <button className="back-button" onClick={handleBack}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back
+          </button>
+        </div>
+        <div className="error-message">
+          {error || 'Event not found'}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="event-details">
@@ -165,7 +249,13 @@ function EventDetails() {
                 <div key={organizer.id} className="organizer-row">
                   <div className="organizer-info">
                     <div className="organizer-avatar">
-                      <span className="avatar-text">{organizer.avatar}</span>
+                      {organizer.avatar ? (
+                        <img src={organizer.avatar} alt={organizer.name} className="avatar-image" />
+                      ) : (
+                        <span className="avatar-text">
+                          {organizer.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </span>
+                      )}
                     </div>
                     <span className="organizer-name">{organizer.name}</span>
                     <span className={`status-badge ${getStatusClass(organizer.status)}`}>
@@ -209,29 +299,29 @@ function EventDetails() {
               <div className="budget-grid">
                 <div className="budget-item">
                   <span className="budget-label">Total funds</span>
-                  <span className="budget-value">$12000</span>
+                  <span className="budget-value">₹{parseFloat(event.budget).toFixed(2)}</span>
                 </div>
 
                 <div className="budget-item">
                   <span className="budget-label">Organizers share</span>
-                  <span className="budget-value">20%</span>
+                  <span className="budget-value">{event.rawData?.organizers_share || 20}%</span>
                 </div>
 
                 <div className="budget-item">
                   <span className="budget-label">Gig Workers share</span>
-                  <span className="budget-value">20%</span>
+                  <span className="budget-value">{event.rawData?.gig_workers_share || 20}%</span>
                 </div>
               </div>
 
               <div className="budget-grid">
                 <div className="budget-item">
                   <span className="budget-label">Platform fee</span>
-                  <span className="budget-value">20%</span>
+                  <span className="budget-value">{event.rawData?.platform_fee || 20}%</span>
                 </div>
 
                 <div className="budget-item">
                   <span className="budget-label">In escrow</span>
-                  <span className="budget-value">$0</span>
+                  <span className="budget-value">₹{parseFloat(event.rawData?.escrow_amount?.$numberDecimal || event.rawData?.escrow_amount || 0).toFixed(2)}</span>
                 </div>
               </div>
 
