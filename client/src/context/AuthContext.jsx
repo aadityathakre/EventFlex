@@ -28,8 +28,10 @@ export const AuthProvider = ({ children }) => {
     try {
       // Get role from localStorage
       const savedRole = localStorage.getItem('userRole');
+      console.log('Saved role from localStorage:', savedRole);
 
       if (!savedRole) {
+        console.log('No saved role found, setting user to null');
         setUser(null);
         setLoading(false);
         return;
@@ -43,8 +45,10 @@ export const AuthProvider = ({ children }) => {
       };
 
       const endpoint = roleEndpoints[savedRole];
+      console.log('Endpoint for role', savedRole, ':', endpoint);
 
       if (!endpoint) {
+        console.log('No endpoint found for role, clearing localStorage');
         setUser(null);
         localStorage.removeItem('userRole');
         setLoading(false);
@@ -55,10 +59,21 @@ export const AuthProvider = ({ children }) => {
         withCredentials: true,
       });
 
+      console.log('Profile response for', savedRole, ':', response.data);
+
       // Extract user from response
-      // Host profile: response.data.data.user
-      // Organizer/Gig profile: response.data.data
-      const userData = response.data.data?.user || response.data.data;
+      // Host profile: response.data.data.user (user is an object)
+      // Gig/Organizer profile: response.data.data (user field is just an ID string)
+      let userData;
+      if (savedRole === 'host') {
+        // For host, user data is nested under response.data.data.user
+        userData = response.data.data?.user || response.data.data;
+      } else {
+        // For gig and organizer, user data is directly in response.data.data
+        userData = response.data.data;
+      }
+
+      console.log('Extracted user data:', userData);
 
       // Construct name if not present
       if (userData && !userData.name) {
@@ -70,8 +85,13 @@ export const AuthProvider = ({ children }) => {
         userData.profile_image_url = userData.avatar;
       }
 
+      console.log('Final user data:', userData);
+
       setUser(userData);
     } catch (err) {
+      console.error('Error fetching profile:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
       setUser(null);
       localStorage.removeItem('userRole');
     } finally {
@@ -119,12 +139,19 @@ export const AuthProvider = ({ children }) => {
       // Extract user from response.data.data.user
       const userData = result.data.data?.user || result.data.user;
 
+      console.log('Login response:', result.data);
+      console.log('User data from login:', userData);
+      console.log('User role:', userData?.role);
+
       // Tokens are automatically stored in httpOnly cookies by the backend
       // Access and refresh tokens are in result.data.data.accessToken and result.data.data.refreshToken
 
       // Save role to localStorage
       if (userData?.role) {
+        console.log('Saving role to localStorage:', userData.role);
         localStorage.setItem('userRole', userData.role);
+      } else {
+        console.log('No role found in user data!');
       }
 
       setUser(userData);
