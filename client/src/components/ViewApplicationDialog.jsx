@@ -31,7 +31,7 @@ const ViewApplicationDialog = ({ isOpen, onClose, application, onAccept, onRejec
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} className="view-application-dialog">
-      <div className="dialog-content">
+      <div className="dialog-content" style={{maxWidth: "100%"}}>
         <div className="applicant-sidebar">
           <h2 className="sidebar-title">Review Application</h2>
 
