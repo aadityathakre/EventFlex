@@ -23,7 +23,7 @@ function HostWallet() {
       const walletData = response.data.data || response.data;
 
       // Set balance
-      const balanceAmount = walletData.balance?.$numberDecimal || walletData.balance || 0;
+      const balanceAmount = walletData.balance_inr?.$numberDecimal || walletData.balance_inr || 0;
       setBalance(parseFloat(balanceAmount));
 
       // Set UPI ID if available
