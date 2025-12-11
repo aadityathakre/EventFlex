@@ -55,8 +55,21 @@ export const AuthProvider = ({ children }) => {
         withCredentials: true,
       });
 
-      // Extract user from response - profile endpoints return data directly in response.data.data
-      const userData = response.data.data;
+      // Extract user from response
+      // Host profile: response.data.data.user
+      // Organizer/Gig profile: response.data.data
+      const userData = response.data.data?.user || response.data.data;
+
+      // Construct name if not present
+      if (userData && !userData.name) {
+        userData.name = userData.fullName || `${userData.first_name || ''} ${userData.last_name || ''}`.trim();
+      }
+
+      // Map avatar to profile_image_url for consistency
+      if (userData && userData.avatar && !userData.profile_image_url) {
+        userData.profile_image_url = userData.avatar;
+      }
+
       setUser(userData);
     } catch (err) {
       setUser(null);
