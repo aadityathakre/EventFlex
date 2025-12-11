@@ -2,8 +2,10 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { sanitizeInput, rateLimit } from "./middlewares/sanitize.middleware.js";
+import dotenv from "dotenv";
 
 const app = express();
+dotenv.config({ path: "./.env.blockchain" });
 
 //middlewares + configurations
 app.use(express.static("public"));
@@ -12,7 +14,7 @@ app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5173"|| "http://localhost:5174",
+    origin: `${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}` ,
     credentials: true,
   })
 );

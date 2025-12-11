@@ -6,7 +6,7 @@ import ForgotPassword from "./pages/ForgotPaassword.jsx";
 import { Router, Routes, Route } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
 
-export const serverURL = "http://localhost:8080/api/v1";
+export const serverURL = `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1`;
 
 function App() {
   return (
