@@ -22,6 +22,7 @@ import UserDocument from "../models/UserDocument.model.js";
 import { ethers } from "ethers";
 import mongoose from "mongoose";
 import Badge from "../models/Badge.model.js"
+import OrganizerPool from "../models/OrganizerPool.model.js";
 
 
 // 1. View profile //
@@ -377,18 +378,20 @@ const getKYCStatus = asyncHandler(async (req, res) => {
 const getNearbyEvents = asyncHandler(async (req, res) => {
   const { coordinates } = req.body; // [lng, lat]
 
-  const events = await Event.find({
-    location: {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates,
-        },
-        $maxDistance: 10000, // 10km radius
+ const orgPools = await OrganizerPool.find({
+  location: {
+    $near: {
+      $geometry: {
+        type: "Point",
+        coordinates,
       },
+      $maxDistance: 10000, // 10km radius
     },
-    status: "published",
-  })
+  },
+  status: { $ne: "completed" },
+});
+const eventIds = orgPools.map(pool => pool.event);
+const events = await Event.find({ _id: { $in: eventIds } });
 
   return res
     .status(200)
@@ -396,14 +399,14 @@ const getNearbyEvents = asyncHandler(async (req, res) => {
 });
 
 // 13. View nearby organizer pools
-const getOrganizerPools = asyncHandler(async (req, res) => {
+const getOrganizerPool = asyncHandler(async (req, res) => {
   const {poolId} =req.params;
 
-  const pools = await Pool.find({_id :poolId, status:"active"}).select("-organizer");
+  const orgPool = await OrganizerPool.find({_id :poolId}).select("-organizer");
 
   return res
     .status(200)
-    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
+    .json(new ApiResponse(200, orgPool, "Nearby pools fetched"));
 });
 
 // 14. Join a specific pool
@@ -811,7 +814,7 @@ const getNotifications = asyncHandler(async (req, res) => {
 
 export {
   getNearbyEvents,
-  getOrganizerPools,
+  getOrganizerPool,
   joinPool,
   getMyEvents,
   checkIn,

@@ -17,7 +17,7 @@ import {
   checkOut,
   getAttendanceHistory,
   getNearbyEvents,
-  getOrganizerPools,
+  getOrganizerPool,
   joinPool,
 
   // Wallet & Payments
@@ -84,10 +84,10 @@ router.get(
   getNearbyEvents
 );
 router.get(
-  "/organizer-pools/:poolId",
+  "/organizer-pool/:poolId",
   verifyToken,
   authorizeRoles("gig"),
-  getOrganizerPools
+  getOrganizerPool
 );
 router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
 
