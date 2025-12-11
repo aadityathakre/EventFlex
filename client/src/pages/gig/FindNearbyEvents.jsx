@@ -15,11 +15,16 @@ function FindNearbyEvents() {
     fetchNearbyEvents();
   }, []);
 
-  const fetchNearbyEvents = async (params = {}) => {
+  const fetchNearbyEvents = async (coordinates = null) => {
     try {
       setLoading(true);
       setError('');
-      const response = await getNearbyEvents(params);
+
+      // Prepare request body with coordinates if provided
+      // Format: { coordinates: [longitude, latitude] }
+      const requestBody = coordinates ? { coordinates } : {};
+
+      const response = await getNearbyEvents(requestBody);
 
       // Extract events from response
       const eventsData = response.data.data || response.data.events || [];
@@ -109,19 +114,46 @@ function FindNearbyEvents() {
     setSelectedGig(null);
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+
+    // Check if search query contains coordinates (format: longitude,latitude)
+    const coordPattern = /^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/;
+    const match = searchQuery.trim().match(coordPattern);
+
+    if (match) {
+      const longitude = parseFloat(match[1]);
+      const latitude = parseFloat(match[2]);
+
+      // Validate coordinate ranges
+      if (longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90) {
+        console.log('Searching with coordinates:', [longitude, latitude]);
+        fetchNearbyEvents([longitude, latitude]);
+      } else {
+        setError('Invalid coordinates. Longitude must be between -180 and 180, latitude between -90 and 90.');
+      }
+    } else {
+      // If not coordinates, fetch all events (search by name not implemented yet)
+      fetchNearbyEvents();
+    }
+  };
+
   return (
     <div className="find-nearby-events">
       <h1>Find nearby events</h1>
 
-      <div className="search-box">
+      <form onSubmit={handleSearch} className="search-box">
         <input
           type="text"
-          placeholder="Enter location, event name"
+          placeholder="Enter coordinates (longitude, latitude) e.g., 77.4126, 23.2599"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
         />
-      </div>
+        <button type="submit" className="search-button">
+          Search
+        </button>
+      </form>
 
       {error && (
         <div className="error-message">

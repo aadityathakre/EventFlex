@@ -48,8 +48,8 @@ export const uploadKYCVideo = (formData) =>
   });
 
 // Events & Pools APIs
-export const getNearbyEvents = (params) =>
-  gigAPI.get('/nearby-events', { params });
+export const getNearbyEvents = (data) =>
+  gigAPI.post('/nearby-events', JSON.stringify({"coordinates": [77.4126, 23.2599] }));
 
 export const getOrganizerPools = () => gigAPI.get('/organizer-pools');
 
