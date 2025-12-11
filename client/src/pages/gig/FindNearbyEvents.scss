@@ -1,0 +1,249 @@
+@import '../../styles/variables';
+
+.find-nearby-events {
+  h1 {
+    font-family: $font-family-primary;
+    font-size: $font-size-section-title;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-primary;
+    margin: 0 0 $spacing-2xl 0;
+  }
+
+  .search-box {
+    margin-bottom: $spacing-2xl;
+    max-width: 500px;
+
+    .search-input {
+      width: 100%;
+      padding: $spacing-md $spacing-lg;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-primary;
+      background-color: $color-white;
+      border: 2px solid $color-border;
+      border-radius: $border-radius-md;
+      transition: all $transition-base;
+
+      &::placeholder {
+        color: $color-text-secondary;
+      }
+
+      &:focus {
+        outline: none;
+        border-color: $color-primary;
+      }
+
+      &:hover {
+        border-color: $color-text-light;
+      }
+    }
+  }
+
+  .events-list {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xl;
+
+    .event-card {
+      background-color: $color-white;
+      border-radius: $border-radius-lg;
+      padding: $spacing-xl;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+      .event-header {
+        margin-bottom: $spacing-xl;
+
+        .event-main {
+          margin-bottom: $spacing-lg;
+
+          .event-title {
+            font-family: $font-family-primary;
+            font-size: $font-size-large;
+            font-weight: $font-weight-semibold;
+            color: $color-text-primary;
+            margin: 0 0 $spacing-sm 0;
+          }
+
+          .event-description {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-secondary;
+            margin: 0;
+            line-height: 1.5;
+          }
+        }
+
+        .event-details-row {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: $spacing-xl;
+
+          .detail-label {
+            font-family: $font-family-primary;
+            font-size: $font-size-small;
+            font-weight: $font-weight-medium;
+            color: $color-text-secondary;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: $spacing-xs;
+          }
+
+          .detail-value {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-semibold;
+            color: $color-text-primary;
+            display: block;
+            margin-bottom: $spacing-sm;
+          }
+
+          .event-organizer {
+            .organizer-name {
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              font-weight: $font-weight-semibold;
+              color: $color-text-primary;
+              display: block;
+              margin-bottom: $spacing-xs;
+            }
+
+            .organizer-rating {
+              display: flex;
+              gap: 2px;
+
+              .star {
+                font-size: $font-size-base;
+                color: $color-border;
+
+                &.filled {
+                  color: #FFC107;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      .gigs-section {
+        border-top: 1px solid $color-border;
+        padding-top: $spacing-lg;
+
+        .gigs-label {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-text-secondary;
+          margin: 0 0 $spacing-md 0;
+        }
+
+        .gig-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: $spacing-lg;
+          background-color: $color-background-light;
+          border-radius: $border-radius-md;
+          margin-bottom: $spacing-md;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          .gig-info {
+            flex: 1;
+
+            .gig-title {
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              font-weight: $font-weight-semibold;
+              color: $color-text-primary;
+              margin: 0 0 $spacing-xs 0;
+            }
+
+            .gig-description {
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              color: $color-text-secondary;
+              margin: 0 0 $spacing-xs 0;
+              line-height: 1.5;
+            }
+
+            .gig-applied {
+              font-family: $font-family-primary;
+              font-size: $font-size-small;
+              color: #4CAF50;
+              font-weight: $font-weight-medium;
+              margin: 0;
+            }
+          }
+
+          .apply-button {
+            padding: $spacing-md $spacing-lg;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-semibold;
+            color: $color-white;
+            background-color: $color-secondary;
+            border: none;
+            border-radius: $border-radius-md;
+            cursor: pointer;
+            transition: all $transition-base;
+            white-space: nowrap;
+            margin-left: $spacing-lg;
+
+            &:hover {
+              background-color: $color-primary-dark;
+              transform: translateY(-2px);
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
+
+            &:active {
+              transform: translateY(0);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-desktop) {
+    .events-list {
+      .event-card {
+        .event-header {
+          .event-details-row {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .events-list {
+      .event-card {
+        padding: $spacing-lg;
+
+        .event-header {
+          .event-details-row {
+            grid-template-columns: 1fr;
+            gap: $spacing-md;
+          }
+        }
+
+        .gigs-section {
+          .gig-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: $spacing-md;
+
+            .apply-button {
+              width: 100%;
+              margin-left: 0;
+            }
+          }
+        }
+      }
+    }
+  }
+}

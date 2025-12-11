@@ -6,7 +6,6 @@ import ForgotPassword from "./pages/ForgotPaassword.jsx";
 import { Router, Routes, Route } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
 import Landing from "./pages/Landing.jsx";
-import GigDashboard from "./pages/gig/Dashboard.jsx";
 
 // Host imports
 import HostLayout from "./layouts/HostLayout.jsx";
@@ -28,6 +27,16 @@ import OrganizerMessages from "./pages/organizer/Messages.jsx";
 import OrganizerNotifications from "./pages/organizer/Notifications.jsx";
 import OrganizerWallet from "./pages/organizer/Wallet.jsx";
 
+// Gig imports
+import GigLayout from "./layouts/GigLayout.jsx";
+import GigDashboard from "./pages/gig/Dashboard.jsx";
+import FindNearbyEvents from "./pages/gig/FindNearbyEvents.jsx";
+import GigEvents from "./pages/gig/Events.jsx";
+import GigEventDetails from "./pages/gig/EventDetails.jsx";
+import GigMessages from "./pages/gig/Messages.jsx";
+import GigNotifications from "./pages/gig/Notifications.jsx";
+import GigWallet from "./pages/gig/Wallet.jsx";
+
 export const serverURL = "http://localhost:8080/api/v1";
 
 function App() {
@@ -42,7 +51,15 @@ function App() {
       <Route path='/razorpay' element={<Razorpay/>} />
 
       {/* Gig pages */}
-      <Route path="/gig/" element={<GigDashboard />} />
+      <Route path="/gig" element={<GigLayout />}>
+        <Route path="dashboard" element={<GigDashboard />} />
+        <Route path="nearby-events" element={<FindNearbyEvents />} />
+        <Route path="my-events" element={<GigEvents />} />
+        <Route path="my-events/:id" element={<GigEventDetails />} />
+        <Route path="messages" element={<GigMessages />} />
+        <Route path="notifications" element={<GigNotifications />} />
+        <Route path="wallet" element={<GigWallet />} />
+      </Route>
 
       {/* Host pages */}
       <Route path="/host" element={<HostLayout />}>

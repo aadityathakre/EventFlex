@@ -1,0 +1,17 @@
+@import '../../styles/variables';
+
+.gig-events {
+  h1 {
+    font-family: $font-family-primary;
+    font-size: $font-size-section-title;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-primary;
+    margin: 0 0 $spacing-2xl 0;
+  }
+
+  .events-list {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+}
