@@ -1,52 +1,103 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ApplyGigDialog from '../../components/ApplyGigDialog';
+import { getNearbyEvents } from '../../api/gig';
 import './FindNearbyEvents.scss';
 
 function FindNearbyEvents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [selectedGig, setSelectedGig] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const events = [
-    {
-      id: 1,
-      title: 'Wedding #1',
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris vel rhoncus magna. Suspendisse augue arcu, euismod a sapien sed, imperdiet facilisis ex.',
-      startDate: '23 Nov 2025',
-      startTime: '1:00 AM',
-      endDate: '25 Nov 2025',
-      endTime: '11:00 AM',
-      location: 'location addresss',
-      organizer: {
-        name: 'Iswaran',
-        rating: 4,
-      },
-      availableGigs: [
-        {
-          id: 1,
-          title: 'Sounding system management',
-          description: '4 Peoples required to manage the sounding system, play sounds, and manage the sound level.',
-          applied: 40,
-          responsibilities: [
-            'Manage the sounding system',
-            'Play sounds',
-            'Manage the sound level',
-          ],
-        },
-        {
-          id: 2,
-          title: 'Crowd management',
-          description: '3 Peoples required to manage the crowd welcome, and seatings.',
-          applied: 10,
-          responsibilities: [
-            'Manage crowd welcome',
-            'Handle seating arrangements',
-            'Maintain order',
-          ],
-        },
-      ],
-    },
-  ];
+  useEffect(() => {
+    fetchNearbyEvents();
+  }, []);
+
+  const fetchNearbyEvents = async (params = {}) => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await getNearbyEvents(params);
+
+      // Extract events from response
+      const eventsData = response.data.data || response.data.events || [];
+
+      // Transform events to match component structure
+      const transformedEvents = eventsData.map((event) => {
+        // Format location from GeoJSON
+        let locationStr = 'Location not specified';
+        if (event.location?.coordinates) {
+          const [lng, lat] = event.location.coordinates;
+          locationStr = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+
+        // Format dates
+        const formatDate = (dateStr) => {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          });
+        };
+
+        const formatTime = (dateStr) => {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+        };
+
+        // Transform pools to availableGigs format
+        const availableGigs = (event.pools || []).map((pool) => ({
+          id: pool._id,
+          poolId: pool._id,
+          title: pool.pool_name || pool.name,
+          description: pool.description || '',
+          applied: pool.applicants_count || 0,
+          responsibilities: pool.responsibilities || [],
+          requiredSkills: pool.required_skills || [],
+          requiredCount: pool.required_count || 0,
+        }));
+
+        return {
+          id: event._id,
+          title: event.title,
+          description: event.description,
+          startDate: formatDate(event.start_date),
+          startTime: formatTime(event.start_date),
+          endDate: formatDate(event.end_date),
+          endTime: formatTime(event.end_date),
+          location: locationStr,
+          organizer: {
+            name: event.organizer?.fullName ||
+                  `${event.organizer?.first_name || ''} ${event.organizer?.last_name || ''}`.trim() ||
+                  'Organizer',
+            rating: event.organizer?.rating || 0,
+            avatar: event.organizer?.avatar,
+          },
+          availableGigs,
+          eventType: event.event_type,
+          status: event.status,
+          // Store original event data
+          rawData: event,
+        };
+      });
+
+      setEvents(transformedEvents);
+    } catch (err) {
+      console.error('Error fetching nearby events:', err);
+      setError(err.response?.data?.message || 'Failed to fetch nearby events');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleApply = (event, gig) => {
     setSelectedGig({ ...gig, event });
@@ -72,8 +123,23 @@ function FindNearbyEvents() {
         />
       </div>
 
-      <div className="events-list">
-        {events.map((event) => (
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="loading-state">
+          <p>Loading nearby events...</p>
+        </div>
+      ) : events.length === 0 ? (
+        <div className="empty-state">
+          <p>No nearby events found</p>
+        </div>
+      ) : (
+        <div className="events-list">
+          {events.map((event) => (
           <div key={event.id} className="event-card">
             <div className="event-header">
               <div className="event-main">
@@ -132,7 +198,8 @@ function FindNearbyEvents() {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       <ApplyGigDialog
         isOpen={applyDialogOpen}
