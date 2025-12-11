@@ -6,6 +6,7 @@ import ForgotPassword from "./pages/ForgotPaassword.jsx";
 import { Router, Routes, Route } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
 import Landing from "./pages/Landing.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
 
 // Host imports
 import HostLayout from "./layouts/HostLayout.jsx";
@@ -41,7 +42,8 @@ export const serverURL = "http://localhost:8080/api/v1";
 
 function App() {
   return (
-    <Routes>
+    <AuthProvider>
+      <Routes>
       <Route path="/" element={<Landing />} />
 
       <Route path='/register' element={<Register/>} />
@@ -83,7 +85,8 @@ function App() {
         <Route path="wallet" element={<OrganizerWallet />} />
       </Route>
 
-    </Routes>
+      </Routes>
+    </AuthProvider>
   );
 }
 
