@@ -4,6 +4,8 @@ import Home from "./pages/Home.jsx";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/login.jsx";
 import ForgotPassword from "./pages/ForgotPaassword.jsx";
+import HostDashboard from "./pages/HostDashboard.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
 
@@ -44,6 +46,16 @@ function App() {
       <Route path='/login' element={<AppContent/>} />
       <Route path='/forgot-password' element={<AppContent/>} />
       <Route path='/razorpay' element={<Razorpay/>} />
+      
+      {/* Protected Host Routes */}
+      <Route 
+        path='/host/dashboard' 
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostDashboard />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   );
 }

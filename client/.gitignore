@@ -25,4 +25,8 @@ dist-ssr
 .env
 .env.*
 *.env
+
 DESIGN_SYSTEM.md
+
+AUTHENTICATION_SETUP.md
+HOST_FEATURES_LIST.md

@@ -7,6 +7,7 @@ import axios from "axios";
 import { serverURL } from "../App.jsx";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import {auth} from "../../firebase.js"
+import { useAuth } from "../context/AuthContext";
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,6 +15,18 @@ function Login() {
   const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
   const navigate = useNavigate();
+  
+  // Safely get auth context
+  let login;
+  try {
+    const auth = useAuth();
+    login = auth.login;
+  } catch (error) {
+    // Auth context not available, create a fallback
+    login = (userData) => {
+      console.log("Login:", userData);
+    };
+  }
 
   // Clear form when component mounts
   useEffect(() => {
@@ -24,40 +37,73 @@ function Login() {
   }, []);
 
 
- const handleGoogleAuth = async (e)=>{
-     const provider = new GoogleAuthProvider()
-     const data = await signInWithPopup(auth, provider)
-  try {
-      const result = await axios.post( `${serverURL}/auth/users/google-auth`, {
-       email:data.user.email,
-      },{withCredentials:true})
+  const handleGoogleAuth = async (e) => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const data = await signInWithPopup(auth, provider);
+      
+      const result = await axios.post(
+        `${serverURL}/auth/users/google-auth`,
+        { email: data.user.email },
+        { withCredentials: true }
+      );
+
+      const { user, accessToken, refreshToken } = result.data.data;
+      
+      // Update auth context
+      login(user, accessToken, refreshToken);
+      
       setEmail("");
       setPassword("");
-      navigate("/register");
-      console.log(result)
-     } catch (error) {
-      
-    console.log(error.message)
-   }
-  }
 
-  const handleLogin= async (e) => {
-  e.preventDefault(); // prevent page reload
-  try {
-    const result = await axios.post(
-      `${serverURL}/auth/users/login`,
-      {email, password },
-      { withCredentials: true }
-    );
-    setEmail("");
-    setPassword("");
-    console.log("Login successful:", result.data);
-    navigate("/register");
+      // Redirect based on user role
+      const roleRoutes = {
+        host: "/host/dashboard",
+        organizer: "/organizer/dashboard",
+        gig: "/gig/dashboard",
+      };
+
+      const redirectTo = roleRoutes[user.role] || "/";
+      navigate(redirectTo);
+    } catch (error) {
+      console.log("Google Auth error:", error.message);
+      setErr(error.response?.data?.message || "Google authentication failed");
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setErr("");
     
-  } catch (error) {
-    console.log("Login error:", error.response?.data || error.message);
-  }
-};
+    try {
+      const result = await axios.post(
+        `${serverURL}/auth/users/login`,
+        { email, password },
+        { withCredentials: true }
+      );
+
+      const { user, accessToken, refreshToken } = result.data.data;
+      
+      // Update auth context
+      login(user, accessToken, refreshToken);
+      
+      setEmail("");
+      setPassword("");
+
+      // Redirect based on user role
+      const roleRoutes = {
+        host: "/host/dashboard",
+        organizer: "/organizer/dashboard",
+        gig: "/gig/dashboard",
+      };
+
+      const redirectTo = roleRoutes[user.role] || "/";
+      navigate(redirectTo);
+    } catch (error) {
+      console.log("Login error:", error.response?.data || error.message);
+      setErr(error.response?.data?.message || "Login failed. Please check your credentials.");
+    }
+  };
 
   return (
     <div className="w-full max-w-lg bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 relative border border-purple-100 animate-fade-in">
