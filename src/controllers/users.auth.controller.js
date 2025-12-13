@@ -120,7 +120,9 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: false, // Allow cookies on http://localhost
+    sameSite: 'Lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   }
 
   const loggedInUser = await User.findById(user._id).select(
@@ -161,7 +163,9 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const options = {
       httpOnly: true,
-      secure: true,
+      secure: false, // Allow cookies on http://localhost
+      sameSite: 'Lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
 
     const msg = `Access token refreshed for ${user.role}!`;
@@ -298,7 +302,9 @@ export const googleAuth = asyncHandler(async (req, res) => {
 
       const options = {
         httpOnly: true,
-        secure: true,
+        secure: false, // Allow cookies on http://localhost
+        sameSite: 'Lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       };
 
       const loggedInUser = await User.findById(user._id).select(
@@ -320,5 +326,35 @@ export const googleAuth = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error("Google Auth error:", error);
     return res.status(500).json(new ApiResponse(500, error.message));
+  }
+});
+
+// Verify token on app mount
+export const verifyTokenStatus = asyncHandler(async (req, res) => {
+  try {
+    // req.user is set by verifyToken middleware
+    const user = await User.findById(req.user._id).select(
+      "-password -refreshToken"
+    );
+
+    if (!user) {
+      throw new ApiError(401, "User not found");
+    }
+
+    // Get the token from cookies or Authorization header
+    const accessToken =
+      req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        { user, accessToken },
+        "Token verified successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Token verification error:", error);
+    throw new ApiError(401, "Token verification failed");
   }
 });

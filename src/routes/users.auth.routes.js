@@ -8,6 +8,7 @@ import {
   verifyOtp,
   resetPassword,
   googleAuth,
+  verifyTokenStatus,
 } from "../controllers/users.auth.controller.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
 const router = express.Router();
@@ -17,6 +18,7 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/refresh-token", refreshAccessToken);
 router.post("/logout", verifyToken, logoutUser);
+router.get("/verify-token", verifyToken, verifyTokenStatus);
 router.post("/send-otp", sendOTP);
 router.post("/verify-otp", verifyOtp);
 router.post("/reset-password", resetPassword);

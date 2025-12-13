@@ -10,6 +10,7 @@ import {
 
   // 🔐 Auth & Verification
   uploadHostDocs,
+  updateHostDocs,
   submitESignature,
   verifyAadhaarSandbox,
 
@@ -53,6 +54,7 @@ router.delete("/profile/image", verifyToken, authorizeRoles("host"), deleteProfi
 
 // documentation routes
 router.post("/upload-docs", verifyToken, authorizeRoles("host"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadHostDocs);
+router.put("/update-docs", verifyToken, authorizeRoles("host"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), updateHostDocs);
 router.post("/e-signature", verifyToken, authorizeRoles("host"), upload.fields([{ name: "fileUrl", maxCount: 1 }]),submitESignature);
 router.post("/aadhaar/verify", verifyToken, authorizeRoles("host"), verifyAadhaarSandbox);
 

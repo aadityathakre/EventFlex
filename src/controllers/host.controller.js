@@ -166,11 +166,25 @@ export const uploadHostDocs = asyncHandler(async (req, res) => {
   const localFilePath = req.files?.fileUrl?.[0]?.path;
   const userId = req.user._id;
 
+  console.log("📥 uploadHostDocs - Received request");
+  console.log("Body:", req.body);
+  console.log("Files:", req.files);
+  console.log("Type from body:", type);
+  console.log("LocalFilePath:", localFilePath);
+
   if (!type || !localFilePath) {
     throw new ApiError(400, "Document type and file is required");
   }
 
+  // Check if user already has a document with this type
+  const existingDoc = await UserDocument.findOne({ user: userId, type });
+  
+  if (existingDoc) {
+    throw new ApiError(400, "You already have a document of this type. Please use the update endpoint to modify it.");
+  }
+
   const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+
   if (!cloudinaryRes) {
     throw new ApiError(500, "Cloudinary upload failed");
   }
@@ -181,7 +195,47 @@ export const uploadHostDocs = asyncHandler(async (req, res) => {
     fileUrl: cloudinaryRes.url,
   });
 
-  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded successfully"));
+});
+
+// 5.1 Update KYC Document (Edit existing document)
+export const updateHostDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+  const userId = req.user._id;
+
+  console.log("📥 updateHostDocs - Received request");
+  console.log("Body:", req.body);
+  console.log("Files:", req.files);
+  console.log("Type from body:", type);
+  console.log("LocalFilePath:", localFilePath);
+
+  if (!type || !localFilePath) {
+    throw new ApiError(400, "Document type and file is required");
+  }
+
+  // Find the user's existing document (they only have one)
+  const existingDoc = await UserDocument.findOne({ user: userId });
+
+  if (!existingDoc) {
+    throw new ApiError(404, "No document found. Please upload a document first.");
+  }
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  // Update the document with new type and file
+  existingDoc.type = type;
+  existingDoc.fileUrl = cloudinaryRes.url;
+  existingDoc.status = "pending"; // Reset status to pending after re-upload
+  existingDoc.uploadedAt = new Date();
+  const updatedDoc = await existingDoc.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedDoc, "Document updated successfully"));
 });
 
 // 6. Submit E-Signature

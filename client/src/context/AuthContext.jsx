@@ -58,39 +58,47 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
+      console.log("🔐 Checking auth status on mount...");
       // Check if we have tokens in cookies
       const hasAccessToken = document.cookie.includes("accessToken=");
       const hasRefreshToken = document.cookie.includes("refreshToken=");
 
-      if (hasAccessToken || hasRefreshToken) {
-        // Try to verify token by calling a protected endpoint
-        // We'll use the profile endpoint based on a default role check
-        // For now, decode token client-side (not secure, just for UI)
-        try {
-          const token = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("accessToken="))
-            ?.split("=")[1];
+      console.log("📦 Cookies - hasAccessToken:", hasAccessToken, "hasRefreshToken:", hasRefreshToken);
 
-          if (token) {
-            const payload = JSON.parse(atob(token.split(".")[1]));
-            setUser({ _id: payload._id, role: payload.role, email: payload.email });
+      if (hasAccessToken || hasRefreshToken) {
+        // Verify token with backend (server-side validation)
+        try {
+          console.log("🔄 Verifying token with backend...");
+          const response = await axios.get(
+            `${serverURL}/auth/users/verify-token`,
+            { withCredentials: true }
+          );
+
+          console.log("✅ Token verification response:", response.data);
+
+          if (response.data?.data?.user) {
+            console.log("✅ User authenticated:", response.data.data.user);
+            setUser(response.data.data.user);
             setIsAuthenticated(true);
           } else {
+            console.log("❌ No user in response");
             setUser(null);
             setIsAuthenticated(false);
           }
-        } catch (e) {
-          // Invalid token format
+        } catch (error) {
+          // Token verification failed, clear auth state
+          console.error("❌ Token verification failed:", error.message);
+          console.error("Response status:", error.response?.status);
           setUser(null);
           setIsAuthenticated(false);
         }
       } else {
+        console.log("❌ No tokens found in cookies");
         setUser(null);
         setIsAuthenticated(false);
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
+      console.error("❌ Auth check failed:", error);
       setUser(null);
       setIsAuthenticated(false);
     } finally {

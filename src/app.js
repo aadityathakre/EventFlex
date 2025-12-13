@@ -9,7 +9,13 @@ dotenv.config({ path: "./.env.blockchain" });
 
 //middlewares + configurations
 app.use(express.static("public"));
-app.use(express.json({ limit: "32kb" }));
+// JSON parser that skips multipart/form-data (handled by multer)
+app.use((req, res, next) => {
+  if (req.is('multipart/form-data')) {
+    return next();
+  }
+  express.json({ limit: "32kb" })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
 app.use(

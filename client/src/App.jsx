@@ -5,6 +5,8 @@ import Register from "./pages/Register.jsx";
 import Login from "./pages/login.jsx";
 import ForgotPassword from "./pages/ForgotPaassword.jsx";
 import HostDashboard from "./pages/HostDashboard.jsx";
+import HostProfileView from "./pages/HostProfileView.jsx";
+import HostProfileEdit from "./pages/HostProfileEdit.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
@@ -55,6 +57,24 @@ function App() {
             <HostDashboard />
           </ProtectedRoute>
         } 
+      />
+      {/* Host Profile View Route */}
+      <Route
+        path='/host/profile'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostProfileView />
+          </ProtectedRoute>
+        }
+      />
+      {/* Host Profile Edit Route */}
+      <Route
+        path='/host/profile/edit'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostProfileEdit />
+          </ProtectedRoute>
+        }
       />
     </Routes>
   );

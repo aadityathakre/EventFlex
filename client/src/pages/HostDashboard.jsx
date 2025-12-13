@@ -98,7 +98,10 @@ function HostDashboard() {
                 <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
               
-              <div className="flex items-center space-x-3">
+              <button 
+                onClick={() => navigate("/host/profile")}
+                className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+              >
                 <div className="text-right">
                   <p className="text-sm font-semibold text-gray-900">
                     {user?.email || "Host"}
@@ -108,7 +111,7 @@ function HostDashboard() {
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center">
                   <FaUserCircle className="text-white text-xl" />
                 </div>
-              </div>
+              </button>
 
               <button
                 onClick={handleLogout}
@@ -198,13 +201,7 @@ function HostDashboard() {
               <FaWallet />
               <span className="font-semibold">Payments</span>
             </button>
-            <button
-              onClick={() => navigate("/host/profile")}
-              className="flex items-center space-x-3 p-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-300"
-            >
-              <FaUserCircle />
-              <span className="font-semibold">Profile</span>
-            </button>
+        
           </div>
         </div>
 
