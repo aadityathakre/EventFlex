@@ -53,7 +53,7 @@ import paymentRoutes from "./routes/razorpay.routes.js";
 app.use("/api/v1/payments", paymentRoutes);
 
 
-//blockchain rutes
+//blockchain routes
 import blockchainRoutes from './routes/blockchain.routes.js';
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', blockchain: process.env.BLOCKCHAIN_ENABLED === 'true' });
