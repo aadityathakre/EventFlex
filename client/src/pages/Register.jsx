@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
+import { FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../App";
@@ -14,6 +15,18 @@ function Register() {
   const [phone, setPhone] = useState("");
   const [err, setErr] = useState("");
   const navigate = useNavigate();
+
+  // Clear form when component mounts
+  useEffect(() => {
+    setEmail("");
+    setFirst_name("");
+    setLast_name("");
+    setPassword("");
+    setPhone("");
+    setRole("gig");
+    setErr("");
+    setShowPassword(false);
+  }, []);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -43,11 +56,18 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl  shadow-2xl p-8">
+    <div className="w-full max-w-lg bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 relative border border-purple-100 animate-fade-in">
+        {/* Close Button */}
+        <button
+          onClick={() => navigate("/")}
+          className="absolute top-4 right-4 text-gray-400 hover:text-purple-600 transition-colors"
+        >
+          <FaTimes className="text-2xl" />
+        </button>
+        
         {/* Title */}
-        <h1 className="text-4xl font-extrabold text-center text-black mb-2">
-          Event Flex
+        <h1 className="text-4xl font-extrabold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 mb-2">
+          EventFlex
         </h1>
         <p className="text-center text-gray-600 mb-6">
           Create your account and join us today!
@@ -62,9 +82,11 @@ function Register() {
                 key={r}
                 type="button"
                 onClick={() => setRole(r)}
-                className={`flex-1 py-2 mx-1 cursor-pointer rounded-lg font-semibold border ${
-                  role === r ? "bg-black text-white" : "bg-white text-gray-600"
-                } hover:bg-gray-800 transition  duration-100`}
+                className={`flex-1 py-2 mx-1 cursor-pointer rounded-lg font-semibold border transition-all duration-300 ${
+                  role === r 
+                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-600 shadow-lg" 
+                    : "bg-white text-gray-600 border-gray-300 hover:border-purple-300 hover:bg-purple-50"
+                }`}
               >
                 {r.charAt(0).toUpperCase() + r.slice(1)}
               </button>
@@ -76,6 +98,7 @@ function Register() {
             <input
               type="text"
               name="first_name"
+              autoComplete="given-name"
               required
               onChange={(e) => setFirst_name(e.target.value)}
               value={first_name}
@@ -85,6 +108,7 @@ function Register() {
             <input
               type="text"
               name="last_name"
+              autoComplete="family-name"
               required
               onChange={(e) => setLast_name(e.target.value)}
               value={last_name}
@@ -97,6 +121,7 @@ function Register() {
           <input
             type="email"
             name="email"
+            autoComplete="email"
             required
             onChange={(e) => setEmail(e.target.value)}
             value={email}
@@ -108,6 +133,7 @@ function Register() {
           <input
             type="tel"
             name="phone"
+            autoComplete="tel"
             required
             onChange={(e) => setPhone(e.target.value)}
             value={phone}
@@ -120,6 +146,7 @@ function Register() {
             <input
               type={showPassword ? "text" : "password"}
               name="password"
+              autoComplete="new-password"
               required
               onChange={(e) => setPassword(e.target.value)}
               value={password}
@@ -141,13 +168,13 @@ function Register() {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-black text-white cursor-pointer font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-800 transition-all duration-300"
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white cursor-pointer font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
             Signup
           </button>
 
           {/* Error Message */}
-          {err && <p className="text-black text-center">{err}</p>}
+          {err && <p className="text-red-600 text-center font-medium bg-red-50 p-3 rounded-lg">{err}</p>}
         </form>
 
         {/* Footer */}
@@ -155,12 +182,11 @@ function Register() {
           Already have an account?{" "}
           <span
             onClick={() => navigate("/login")}
-            className="text-black hover:underline cursor-pointer"
+            className="text-purple-600 hover:text-indigo-600 hover:underline cursor-pointer font-semibold"
           >
             Login
           </span>
         </p>
-      </div>
     </div>
   );
 }

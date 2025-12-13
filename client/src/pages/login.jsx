@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
+import { FaTimes } from "react-icons/fa";
 import { redirect, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../App.jsx";
@@ -13,6 +14,14 @@ function Login() {
   const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
   const navigate = useNavigate();
+
+  // Clear form when component mounts
+  useEffect(() => {
+    setEmail("");
+    setPassword("");
+    setErr("");
+    setShowPassword(false);
+  }, []);
 
 
  const handleGoogleAuth = async (e)=>{
@@ -51,11 +60,18 @@ function Login() {
 };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 rounded-2xl px-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl  shadow-2xl p-8">
+    <div className="w-full max-w-lg bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 relative border border-purple-100 animate-fade-in">
+        {/* Close Button */}
+        <button
+          onClick={() => navigate("/")}
+          className="absolute top-4 right-4 text-gray-400 hover:text-purple-600 transition-colors"
+        >
+          <FaTimes className="text-2xl" />
+        </button>
+        
         {/* Title */}
-        <h1 className="text-4xl font-extrabold text-center text-black mb-2">
-          Event Flex
+        <h1 className="text-4xl font-extrabold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 mb-2">
+          EventFlex
         </h1>
         <p className="text-center text-gray-600 mb-6">
           Login to your account and explore events!
@@ -64,7 +80,7 @@ function Login() {
         {/* Google OAuth */}
         <button
           type="button"
-          className="w-full flex cursor-pointer items-center justify-center gap-3 border border-gray-300 rounded-lg shadow-md py-2 px-4 bg-white hover:bg-gray-50 transition-all duration-300 mb-6" onClick={handleGoogleAuth}
+          className="w-full flex cursor-pointer items-center justify-center gap-3 border-2 border-purple-200 rounded-lg shadow-md py-2 px-4 bg-white hover:bg-purple-50 hover:border-purple-300 transition-all duration-300 mb-6" onClick={handleGoogleAuth}
         >
           <FcGoogle className="text-2xl" />
           <span className="text-gray-700 font-medium">Login with Google</span>
@@ -82,6 +98,7 @@ function Login() {
           <input
             type="email"
             name="email"
+            autoComplete="email"
             required
             onChange={(e) => setEmail(e.target.value)}
             value={email}
@@ -94,6 +111,7 @@ function Login() {
             <input
               type={showPassword ? "text" : "password"}
               name="password"
+              autoComplete="current-password"
               required
               onChange={(e) => setPassword(e.target.value)}
               value={password}
@@ -115,16 +133,16 @@ function Login() {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full cursor-pointer bg-black text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-800 transition-all duration-300"
+            className="w-full cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
             Login
           </button>
-          {err && <p className="text-black text-sm mt-2">{err}</p>}
+          {err && <p className="text-red-600 text-sm mt-2 font-medium bg-red-50 p-3 rounded-lg">{err}</p>}
         </form>
         
         <div className="flex justify-end">
   <span
-    className="cursor-pointer text-sm text-black hover:underline"
+    className="cursor-pointer text-sm text-purple-600 hover:text-indigo-600 hover:underline font-medium"
     onClick={() => navigate("/forgot-password")}
   >
     Forget Password
@@ -135,11 +153,10 @@ function Login() {
         {/* Footer */}
         <p className="text-center text-gray-500 mt-6 text-sm">
           Don’t have an account?{" "} <br />
-          <span onClick={() => navigate("/register")} className="cursor-pointer text-black hover:underline">
+          <span onClick={() => navigate("/register")} className="cursor-pointer text-purple-600 hover:text-indigo-600 hover:underline font-semibold">
             Register here 
           </span>
         </p>
-      </div>
     </div>
   );
 }
