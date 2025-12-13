@@ -298,7 +298,7 @@ function Home() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-1">Email</h4>
-                      <p className="text-gray-600">support@eventflex.com</p>
+                      <p className="text-gray-600">team.aditya.invincible@gmail.com</p>
                       <p className="text-gray-600">info@eventflex.com</p>
                     </div>
                   </div>
@@ -309,8 +309,8 @@ function Home() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-1">Phone</h4>
-                      <p className="text-gray-600">+91 98765 43210</p>
-                      <p className="text-gray-600">+91 87654 32109</p>
+                      <p className="text-gray-600">+91 6263332934</p>
+                      <p className="text-gray-600">+91 7803997106</p>
                     </div>
                   </div>
 
@@ -321,7 +321,7 @@ function Home() {
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-1">Address</h4>
                       <p className="text-gray-600">123 Event Management Street</p>
-                      <p className="text-gray-600">Mumbai, Maharashtra 400001</p>
+                      <p className="text-gray-600">Bhopal, Madhya Pradesh 462044</p>
                       <p className="text-gray-600">India</p>
                     </div>
                   </div>
