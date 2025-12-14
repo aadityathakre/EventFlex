@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getEvent } from '../../api/host';
+import { getEvent, getOrganizers } from '../../api/host';
 import './EventDetails.scss';
 
 function EventDetails() {
@@ -15,6 +15,7 @@ function EventDetails() {
   useEffect(() => {
     if (id) {
       fetchEventDetails();
+      fetchOrganizers();
     }
   }, [id]);
 
@@ -74,24 +75,51 @@ function EventDetails() {
       };
 
       setEvent(formattedEvent);
-
-      // Extract and format organizers if available
-      if (eventData.organizers && Array.isArray(eventData.organizers)) {
-        const formattedOrganizers = eventData.organizers.map((org) => ({
-          id: org._id || org.id,
-          name: org.fullName || org.name || `${org.first_name || ''} ${org.last_name || ''}`.trim() || 'Organizer',
-          avatar: org.avatar || org.profile_image_url,
-          status: org.status || 'invited',
-          email: org.email,
-          phone: org.phone,
-        }));
-        setOrganizers(formattedOrganizers);
-      }
     } catch (err) {
       console.error('Error fetching event details:', err);
       setError(err.response?.data?.message || 'Failed to fetch event details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrganizers = async () => {
+    try {
+      const response = await getOrganizers();
+      const organizersData = response.data.data || response.data.organizers || response.data;
+
+      console.log('Organizers response:', organizersData);
+
+      // Filter organizers for this specific event if the response includes event info
+      let eventOrganizers = organizersData;
+
+      // If organizersData is an array, filter by event ID
+      if (Array.isArray(organizersData)) {
+        eventOrganizers = organizersData.filter(
+          (org) => org.event?._id === id || org.event === id || org.eventId === id
+        );
+      }
+
+      // Format organizers data
+      const formattedOrganizers = (Array.isArray(eventOrganizers) ? eventOrganizers : []).map((org) => {
+        // Handle both invitation objects and direct organizer objects
+        const organizerData = org.organizer || org;
+
+        return {
+          id: organizerData._id || organizerData.id,
+          name: organizerData.fullName || organizerData.name ||
+                `${organizerData.first_name || ''} ${organizerData.last_name || ''}`.trim() || 'Organizer',
+          avatar: organizerData.avatar || organizerData.profile_image_url,
+          status: org.status || 'invited',
+          email: organizerData.email,
+          phone: organizerData.phone,
+        };
+      });
+
+      setOrganizers(formattedOrganizers);
+    } catch (err) {
+      console.error('Error fetching organizers:', err);
+      // Don't set error state here, just log it - organizers list will be empty
     }
   };
 
