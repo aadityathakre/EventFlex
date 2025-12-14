@@ -317,10 +317,11 @@ export const getWallet = asyncHandler(async (req, res) => {
   }
   
 
+  const balanceNum = parseFloat(wallet.balance_inr?.toString?.() || "0");
   return res.status(200).json(
     new ApiResponse(200, {
-      balance: wallet.balance_inr.toString(),
-      upi_id: wallet.upi_id,
+      balance: balanceNum,
+      upi_id: wallet.upi_id || "",
     }, "Wallet fetched")
   );
 });
@@ -371,7 +372,9 @@ export const getAllEvents = asyncHandler(async (req, res) => {
 export const reqHostForEvent = asyncHandler(async (req, res) => {
   // Organizer requests to manage a host's event
   const organizerId = req.user._id;
-  const { eventId, cover_letter, proposed_rate } = req.body;
+  // Accept both body and URL param for eventId for robustness
+  const { eventId: eventIdBody, cover_letter, proposed_rate } = req.body;
+  const eventId = eventIdBody || req.params.id;
 
   if (!eventId) {
     throw new ApiError(400, "Missing required field: eventId");
@@ -439,6 +442,25 @@ export const acceptInvitationFromHost = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, eventApplication, "Organizer accepted for event"));
 });
 
+// 12.1 Reject invitation from host
+export const rejectInvitationFromHost = asyncHandler(async (req, res) => {
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
+  if (!eventApplication) {
+    throw new ApiError(404, "Event application not found");
+  }
+  if (eventApplication.application_status !== "pending") {
+    throw new ApiError(400, "Event application is not pending");
+  }
+
+  eventApplication.application_status = "rejected";
+  await eventApplication.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, eventApplication, "Invitation rejected"));
+});
+
 // 13. Create Pool
 export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
@@ -459,6 +481,41 @@ export const createPool = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, pool, "Pool created successfully !"));
 });
 
+// 13.1 List My Pools
+export const getMyPools = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const pools = await Pool.find({ organizer: organizerId })
+    .populate("event", "title start_date end_date location")
+    .populate("gigs", "first_name last_name avatar fullName")
+    .select("-__v");
+  return res.status(200).json(new ApiResponse(200, pools, "Organizer pools fetched"));
+});
+
+// 13.2 Update Pool details
+export const updatePoolDetails = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const { name, description, status } = req.body;
+
+  const pool = await Pool.findById(id);
+  if (!pool) throw new ApiError(404, "Pool not found");
+  if (pool.organizer.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to update this pool");
+  }
+
+  if (name !== undefined) pool.name = name;
+  if (description !== undefined) pool.description = description;
+  if (status !== undefined) pool.status = status;
+  await pool.save();
+
+  const populated = await Pool.findById(id)
+    .populate("event", "title start_date end_date location")
+    .populate("gigs", "first_name last_name avatar fullName")
+    .select("-__v");
+
+  return res.status(200).json(new ApiResponse(200, populated, "Pool updated"));
+});
+
 // 14. check pool applications
 export const getPoolApplications = asyncHandler(async (req, res) => {
   const { poolId } = req.params;
@@ -477,10 +534,19 @@ export const reviewApplication = asyncHandler(async (req, res) => {
   if (!application) throw new ApiError(404, "Application not found");
 
   const pool = await Pool.findById(application.pool);
-  const orgPool = await OrganizerPool.findById(orgPoolId);
+  // If orgPoolId is not provided, infer it using organizer + event
+  let orgPool = null;
+  if (orgPoolId) {
+    orgPool = await OrganizerPool.findById(orgPoolId);
+  } else if (pool) {
+    orgPool = await OrganizerPool.findOne({ organizer: pool.organizer, event: pool.event });
+  }
 
   if (action === "approve") {
     // Check capacity
+    if (!orgPool) {
+      throw new ApiError(400, "Organizer pool not found for capacity check");
+    }
     if (pool.gigs.length >= orgPool.max_capacity) {
       pool.status = "archived";
       await pool.save();
@@ -498,14 +564,14 @@ export const reviewApplication = asyncHandler(async (req, res) => {
   }
 
   if (action === "reject") {
-    application.status = "rejected";
+    application.application_status = "rejected";
     await application.save();
     return res.status(200).json(new ApiResponse(200, application, "Gig application rejected"));
   }
 
   throw new ApiError(400, "Invalid action");
 });
-  
+
 // 16. View Pool Details
 export const getPoolDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -519,6 +585,21 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, pool, "Pool details fetched"));
+});
+
+// 16.1 Get OrganizerPool for an Event (for capacity checks)
+export const getOrganizerPoolByEvent = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { eventId } = req.params;
+
+  const orgPool = await OrganizerPool.findOne({ organizer: organizerId, event: eventId })
+    .select("-__v");
+
+  if (!orgPool) {
+    return res.status(404).json(new ApiResponse(404, null, "Organizer pool not found for event"));
+  }
+
+  return res.status(200).json(new ApiResponse(200, orgPool, "Organizer pool fetched"));
 });
 
 // 17. Chat with Gig (Stub)
@@ -571,14 +652,49 @@ export const getEventDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event details fetched"));
 });
 
+// 18.1 List my event applications
+export const getOrganizerApplications = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const apps = await EventApplication.find({ applicant: organizerId })
+    .populate("event", "title start_date end_date location host organizer status")
+    .select("-__v")
+    .sort({ createdAt: -1 });
+  return res.status(200).json(new ApiResponse(200, apps, "Organizer applications fetched"));
+});
+
 // 19. Payment History
 export const getPaymentHistory = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const payments = await Escrow.find({ organizer: organizerId }).select("-__v");
+  const escrows = await Escrow
+    .find({ organizer: organizerId })
+    .populate("event", "title")
+    .select("-__v");
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, payments, "Payment history fetched"));
+  const normalized = escrows.map((e) => {
+    const obj = e.toObject();
+    const toNum = (val) => {
+      try {
+        if (val === null || val === undefined) return null;
+        if (typeof val === "number") return val;
+        if (typeof val === "string") return parseFloat(val);
+        // Decimal128
+        if (typeof val === "object" && typeof val.toString === "function") {
+          return parseFloat(val.toString());
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    };
+    return {
+      ...obj,
+      total_amount: toNum(obj.total_amount),
+      organizer_percentage: toNum(obj.organizer_percentage),
+      gigs_percentage: toNum(obj.gigs_percentage),
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, normalized, "Payment history fetched"));
 });
 
 // 20. Simulate Payout
@@ -736,6 +852,64 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
   }
   return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
+});
+
+
+// 28. Organizer: List Conversations
+export const getOrganizerConversations = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+
+  const conversations = await Conversation.find({
+    participants: organizerId,
+  })
+    .populate("event", "title start_date end_date location")
+    .populate("pool", "pool_name status")
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+// 29. Organizer: Get messages in a conversation
+export const getOrganizerConversationMessages = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === organizerId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const messages = await Message.find({ conversation: conversationId })
+    .populate("sender", "email role")
+    .sort({ createdAt: 1 });
+
+  return res.status(200).json(new ApiResponse(200, messages, "Messages fetched"));
+});
+
+// 30. Organizer: Send message in a conversation
+export const sendOrganizerMessage = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { conversationId } = req.params;
+  const { message_text } = req.body;
+
+  if (!message_text || !message_text.trim()) {
+    throw new ApiError(400, "message_text is required");
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === organizerId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const message = await Message.create({
+    conversation: conversationId,
+    sender: organizerId,
+    message_text,
+  });
+
+  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
 });
 
 

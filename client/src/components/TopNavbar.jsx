@@ -1,0 +1,102 @@
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import axios from "axios";
+import { serverURL } from "../App";
+import { FaBell, FaEnvelope, FaUserCircle, FaSignOutAlt } from "react-icons/fa";
+
+function TopNavbar({ title = null }) {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const role = user?.role || "guest";
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const profilePath = role === "host" ? "/host/profile" : role === "organizer" ? "/organizer/profile" : "/login";
+  const dashboardPath = role === "host" ? "/host/dashboard" : role === "organizer" ? "/organizer/dashboard" : "/";
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchNotifications = async () => {
+      if (!["host", "organizer", "gig"].includes(role)) return;
+      try {
+        const res = await axios.get(`${serverURL}/${role}/notifications`, { withCredentials: true });
+        const items = res.data?.data || [];
+        const unread = items.filter((n) => !n.read).length;
+        if (!cancelled) setUnreadCount(unread);
+      } catch (e) {
+        // silently ignore
+      }
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [role]);
+
+  return (
+    <header className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => navigate(dashboardPath)}
+              className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent"
+              aria-label="Go to Dashboard"
+            >
+              EventFlex
+            </button>
+            {title && <span className="text-gray-300">|</span>}
+            {title && <span className="text-sm text-gray-700">{title}</span>}
+          </div>
+
+          <div className="flex items-center space-x-6">
+            <div className="hidden sm:flex flex-col items-start">
+              <div className="flex items-center space-x-2 text-gray-700">
+                <FaEnvelope className="text-purple-600" />
+                <span className="text-sm">{user?.email || "Not logged in"}</span>
+              </div>
+              <span className="text-xs text-gray-500 capitalize">{role}</span>
+            </div>
+
+            <div className="relative">
+              <button
+                title="Notifications"
+                className="text-gray-600 hover:text-purple-600 transition-colors"
+                aria-label="Notifications"
+              >
+                <FaBell className="text-xl" />
+              </button>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 block w-2 h-2 bg-red-500 rounded-full"></span>
+              )}
+            </div>
+
+            <button
+              onClick={() => navigate(profilePath)}
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              aria-label="Open Profile"
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt="avatar" className="w-9 h-9 rounded-full object-cover" />
+              ) : (
+                <FaUserCircle className="text-2xl text-gray-700" />
+              )}
+            </button>
+
+            <button
+              onClick={logout}
+              className="hidden sm:flex items-center space-x-2 text-red-600 hover:text-red-700 font-semibold text-sm"
+            >
+              <FaSignOutAlt />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export default TopNavbar;

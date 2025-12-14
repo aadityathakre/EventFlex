@@ -16,14 +16,22 @@ import {
   getAllEvents,
   reqHostForEvent,
   acceptInvitationFromHost,
+  rejectInvitationFromHost,
   createPool,
+  getMyPools,
+  updatePoolDetails,
   getPoolDetails,
+  getOrganizerPoolByEvent,
   chatWithGig,
   getPoolApplications,
   reviewApplication,
+  getOrganizerConversations,
+  getOrganizerConversationMessages,
+  sendOrganizerMessage,
 
   // 📅 Event Management
   getEventDetails,
+  getOrganizerApplications,
   getLiveEventTracking,
 
   // 💰 Wallet & Escrow
@@ -69,13 +77,22 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 //
 router.post("/events/request-host/:id", verifyToken, authorizeRoles("organizer"), reqHostForEvent);
 router.post("/events/accept-invitation/:id", verifyToken, authorizeRoles("organizer"), acceptInvitationFromHost);
+router.post("/events/reject-invitation/:id", verifyToken, authorizeRoles("organizer"), rejectInvitationFromHost);
 
 router.get("/events/all", verifyToken, authorizeRoles("organizer"), getAllEvents);
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
+router.get("/pools", verifyToken, authorizeRoles("organizer"), getMyPools);
+router.put("/pools/:id", verifyToken, authorizeRoles("organizer"), updatePoolDetails);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 router.get("/pools/:poolId/applications", verifyToken, authorizeRoles("organizer"), getPoolApplications);
 router.post("/applications/:applicationId/review", verifyToken, authorizeRoles("organizer"), reviewApplication);
+router.get("/org-pools/by-event/:eventId", verifyToken, authorizeRoles("organizer"), getOrganizerPoolByEvent);
+
+// 💬 Chat
+router.get("/conversations", verifyToken, authorizeRoles("organizer"), getOrganizerConversations);
+router.get("/messages/:conversationId", verifyToken, authorizeRoles("organizer"), getOrganizerConversationMessages);
+router.post("/message/:conversationId", verifyToken, authorizeRoles("organizer"), sendOrganizerMessage);
 
 //
 // 🧠 Wellness & Analytics
@@ -88,6 +105,7 @@ router.get("/no-show-risk/:gigId", verifyToken, authorizeRoles("organizer"), get
 // 📅 Event Management
 //
 router.get("/events/:id", verifyToken, authorizeRoles("organizer"), getEventDetails);
+router.get("/applications", verifyToken, authorizeRoles("organizer"), getOrganizerApplications);
 router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
 
 

@@ -67,6 +67,7 @@ function Razorpay() {
                   message: `₹ ${parseFloat(flow.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} withdrawn`,
                 },
                 wallet: { visible: true, balance: newBalance },
+                debitedAmount: flow.amount,
               },
             });
           } catch (e) {
@@ -124,6 +125,7 @@ function Razorpay() {
                     visible: true,
                     balance: newBalance,
                   },
+                  debitedAmount: flow.amount,
                 },
               });
               return;
@@ -206,6 +208,7 @@ function Razorpay() {
                 message: `₹ ${parseFloat(flow.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} withdrawn`,
               },
               wallet: { visible: true, balance: newBalance },
+              debitedAmount: flow.amount,
             },
           });
         } catch (e) {

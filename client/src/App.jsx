@@ -23,8 +23,17 @@ import HostOrganizerPools from "./pages/host/HostOrganizerPools.jsx";
 import OrganizerDashboard from "./pages/organizer/OrganizerDashboard.jsx";
 import OrganizerProfileView from "./pages/organizer/OrganizerProfileView.jsx";
 import OrganizerProfileEdit from "./pages/organizer/OrganizerProfileEdit.jsx";
+import OrganizerEvents from "./pages/organizer/OrganizerEvents.jsx";
+import OrganizerHostStatus from "./pages/organizer/OrganizerHostStatus.jsx";
+import OrganizerWallet from "./pages/organizer/OrganizerWallet.jsx";
+import OrganizerPools from "./pages/organizer/OrganizerPools.jsx";
+import OrganizerPoolApplications from "./pages/organizer/OrganizerPoolApplications.jsx";
+import OrganizerManageGigs from "./pages/organizer/OrganizerManageGigs.jsx";
 
-export const serverURL = `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1`;
+// Robust serverURL fallback to avoid env-related 404s during local dev
+const host = import.meta.env.VITE_SERVER_URL ?? "http://localhost";
+const port = import.meta.env.VITE_PORT ?? "8000";
+export const serverURL = `${host}:${port}/api/v1`;
 
 function AppContent() {
   const location = useLocation();
@@ -78,6 +87,54 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['organizer']}>
             <OrganizerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/events'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerEvents />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/host-status'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerHostStatus />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/wallet'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerWallet />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/pools'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerPools />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/pool-applications'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerPoolApplications />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/manage-gigs'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerManageGigs />
           </ProtectedRoute>
         }
       />
