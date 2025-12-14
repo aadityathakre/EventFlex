@@ -15,7 +15,9 @@ import Feedback from "../models/Feedback.model.js";
 import UserBadge from "../models/UserBadge.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import User from "../models/User.model.js";
+import EventApplication from "../models/EventApplications.js";
 import mongoose from "mongoose";
+import UserProfile from "../models/UserProfile.model.js";
 
 // 1. Host Profile
 export const getHostProfile = asyncHandler(async (req, res) => {
@@ -25,14 +27,140 @@ export const getHostProfile = asyncHandler(async (req, res) => {
   const documents = await UserDocument.find({ user: hostId });
   const kyc = await KYCVerification.findOne({ user: hostId });
   
+  if (!user) throw new ApiError(404, "User not found");
+
+   // Try to fetch profile
+  let profile = await UserProfile.findOne({ user: hostId });
+  if (!profile) {
+      profile = await UserProfile.create({
+      user: hostId,
+      profile_image_url: user.avatar,
+      bank_details: user.wallet
+    });
+  }
+
+  // Merge and return
+  const mergedProfile = {
+    user: hostId,
+    name: user.fullName || `${user.first_name} ${user.last_name}`,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    bio: profile.bio || "",
+    location: profile.location || {},
+    availability: profile.availability || {},
+    bank_details: profile.bank_details || {},
+    profile_image_url: profile.profile_image_url || user.avatar,
+    createdAt: profile.createdAt || user.createdAt,
+    updatedAt: profile.updatedAt || user.updatedAt,
+  };
+
+
   return res
     .status(200)
     .json(
-      new ApiResponse(200, { user, documents, kyc }, "Host profile fetched")
+      new ApiResponse(200, { mergedProfile, documents, kyc }, "Host profile fetched")
     );
 });
 
-// 2. Upload KYC Documents
+// 2. Update profile
+export const updateProfile = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const updates = req.body;
+
+  // Separate updates for User vs UserProfile
+  const userUpdates = {};
+  const profileUpdates = {};
+
+  if (updates.first_name) userUpdates.first_name = updates.first_name;
+  if (updates.last_name) userUpdates.last_name = updates.last_name;
+  if (updates.email) userUpdates.email = updates.email;
+  if (updates.phone) userUpdates.phone = updates.phone;
+
+  if (updates.bio) profileUpdates.bio = updates.bio;
+  if (updates.location) profileUpdates.location = updates.location;
+  if (updates.availability) profileUpdates.availability = updates.availability;
+  if (updates.bank_details) profileUpdates.bank_details = updates.bank_details;
+
+  // Update User schema fields
+  if (Object.keys(userUpdates).length > 0) {
+    await User.findByIdAndUpdate(hostId, { $set: userUpdates }, { new: true, runValidators: true });
+  }
+  
+  // Update UserProfile schema fields
+  let profile = await UserProfile.findOneAndUpdate(
+    { user: hostId },
+    { $set: profileUpdates },
+    { new: true, runValidators: true }
+  );
+
+  if(!profile){
+    return res.status(404).json(new ApiResponse(404, null, "Profile not found"));
+  }
+
+  return res.status(200).json(new ApiResponse(200, { userUpdates, profile }, "Profile updated"));
+});
+
+// 3. Update profile image //
+ export const updateProfileImage = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const avatarLocalPath = req.files?.avatar?.[0]?.path; // or req.file.path if using single upload
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is required");
+  }
+
+  const avatarUpload = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatarUpload?.url) {
+    throw new ApiError(500, "Avatar upload failed");
+  }
+
+  // Update both User and UserProfile for consistency
+  await User.findByIdAndUpdate(hostId, { avatar: avatarUpload.url });
+
+  const updatedProfile = await UserProfile.findOneAndUpdate(
+    { user: hostId },
+    { profile_image_url: avatarUpload.url },
+    { new: true }
+  );
+
+  if (!updatedProfile) {
+    throw new ApiError(404, "Profile not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedProfile, "Profile image updated"));
+});
+
+// 4. Delete profile image //
+export const deleteProfileImage = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  // Reset avatar in User model
+  await User.findByIdAndUpdate(
+    hostId,
+    { avatar: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png" },
+    { new: true }
+  );
+
+  // Reset profile_image_url in UserProfile model
+  const updatedProfile = await UserProfile.findOneAndUpdate(
+    { user: hostId },
+    { profile_image_url: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png" },
+    { new: true }
+  );
+
+  if (!updatedProfile) {
+    throw new ApiError(404, "Profile not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedProfile, "Profile image removed"));
+});
+
+// 5. Upload KYC Documents
 export const uploadHostDocs = asyncHandler(async (req, res) => {
   const  {type}  = req.body;
   const localFilePath = req.files?.fileUrl?.[0]?.path;
@@ -56,7 +184,7 @@ export const uploadHostDocs = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
-// 3. Submit E-Signature
+// 6. Submit E-Signature
 export const submitESignature = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { type } = req.body;
@@ -96,7 +224,7 @@ export const submitESignature = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, signatureDoc, "E-signature submitted"));
 });
 
-// 4. Aadhaar Sandbox Verification   (this feature will come soon)
+// 7. Aadhaar Sandbox Verification   (this feature will come soon)
 export const verifyAadhaarSandbox = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { aadhaar_number , otp} = req.body;
@@ -136,7 +264,7 @@ export const verifyAadhaarSandbox = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, verification, "Aadhaar verified (sandbox)"));
 });
 
-// 5. Wallet Balance
+// 8. Wallet Balance
 export const getWalletBalance = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 
@@ -154,7 +282,7 @@ export const getWalletBalance = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, wallet, "Wallet balance fetched"));
 });
 
-// 6. Create Event
+// 9. Create Event
 export const createEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const {
@@ -234,7 +362,7 @@ export const createEvent = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, event, "Event created successfully"));
 });
 
-// 7. Edit Event
+// 10. Edit Event
 export const editEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const eventId = req.params.id;
@@ -248,7 +376,7 @@ export const editEvent = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, event, "Event updated"));
 });
 
-// 8. View Event Details
+//11. View Event Details
 export const getEventDetails = asyncHandler(async (req, res) => {
   const eventId = req.params.id;
   const event = await Event.findById(eventId).populate("host organizer");
@@ -260,7 +388,7 @@ export const getEventDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event details fetched"));
 });
 
-// 9. View All Host Events
+// 12. View All Host Events
 export const getHostEvents = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const events = await Event.find({ host: hostId }).sort({ createdAt: -1 });
@@ -270,7 +398,7 @@ export const getHostEvents = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, events, "Host events fetched"));
 });
 
-// 10. Mark Event as Completed
+// 13. Mark Event as Completed
 export const completeEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const eventId = req.params.id;
@@ -286,8 +414,57 @@ export const completeEvent = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event marked as completed"));
 });
 
-// 11. Invite Organizer to Event
+// 14 Get all organizers
+export const getAllOrganizers = asyncHandler(async (req, res) => {
+  const organizers = await User.find({ role: "organizer" }).select(
+    "-password -refreshToken"
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, organizers, "Organizers fetched"));
+});
+
+// 15. invite organizer to event
 export const inviteOrganizer = asyncHandler(async (req, res) => {
+  const orgId = req.params;
+  const {eventId, cover_letter} = req.body;
+  //create an event application for the organizer
+  let eventApplication = await EventApplication.create({
+    event: eventId ,
+    applicant: orgId,
+    application_status: "pending",
+    cover_letter,
+  });
+  eventApplication.save();
+  return res
+    .status(201)
+    .json(new ApiResponse(201, eventApplication, "Organizer invited to event"));
+});
+  
+// 16. Approve organizer for event by organizer application
+export const approveOrganizer = asyncHandler(async (req, res) => {
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
+  if (!eventApplication) {
+    throw new ApiError(404, "Event application not found");
+  }
+  if (eventApplication.application_status !== "pending") {
+    throw new ApiError(400, "Event application is not pending");
+  }
+  eventApplication.application_status = "accepted";
+  await eventApplication.save();
+
+  eventApplication.event.organizer = eventApplication.applicant;
+  await eventApplication.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, eventApplication, "Organizer approved for event"));
+});
+
+// 17. create organizer pool for event
+export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const {
     organizerId,
@@ -328,21 +505,8 @@ export const inviteOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, pool, "Organizer invited to event"));
 });
 
-// 12. Approve Organizer for Event
-export const approveOrganizer = asyncHandler(async (req, res) => {
-  const orgPoolId = req.params.id;
-
-  const pool = await OrganizerPool.findById(orgPoolId);
-  if (!pool) throw new ApiError(404, "Organizer pool not found");
-
-  pool.status = "active";
-  await pool.save();
-
-  return res.status(200).json(new ApiResponse(200, pool, "Organizer approved"));
-});
-
-// 13. View Assigned Organizers
-export const getAssignedOrganizers = asyncHandler(async (req, res) => {
+// 18. View Assigned Organizers
+export const getAssignedOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 
   const pools = await OrganizerPool.find()
@@ -358,7 +522,7 @@ export const getAssignedOrganizers = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, filtered, "Assigned organizers fetched"));
 });
 
-// 14. Start In-App Chat with Organizer
+// 19. Start In-App Chat with Organizer
 export const startChatWithOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { organizerId, eventId, poolId} = req.body;
@@ -393,7 +557,7 @@ export const startChatWithOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, { conversation, welcome }, "Chat started"));
 });
 
-// 15.  Host Dashboard
+// 20.  Host Dashboard
 export const getHostDashboard = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
 
@@ -416,7 +580,7 @@ export const getHostDashboard = asyncHandler(async (req, res) => {
     );
 });
 
-// 16. Deposit to Escrow
+// 21. Deposit to Escrow
 export const depositToEscrow = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const {
@@ -471,7 +635,7 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     );
 });
 
-// 17.  View Escrow Status
+// 22.  View Escrow Status
 export const getEscrowStatus = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { eventId } = req.params;
@@ -489,7 +653,7 @@ export const getEscrowStatus = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, escrow, "Escrow status fetched"));
 });
 
-// 18. Verify Attendance
+// 23. Verify Attendance
 export const verifyAttendance = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { eventId } = req.params;
@@ -508,7 +672,7 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, escrow, "Attendance verified, escrow released"));
 });
 
-// 19. Create Feedback
+// 24. Create Feedback
 export const createFeedback = asyncHandler(async (req, res) => {
   const hostId = req.user._id; // logged-in host
   const { eventId, gigId, feedback_text, rating } = req.body;
@@ -528,7 +692,7 @@ export const createFeedback = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, feedback, "Feedback submitted"));
 });
 
-// 20.  Event Reviews
+// 25.  Event Reviews
 export const createRatingReview = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
   const { eventId, organizerId, rating, review_text } = req.body;
@@ -549,7 +713,7 @@ export const createRatingReview = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, review, "Rating review submitted"));
 });
 
-//  21. Leaderboard
+//  26. Leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
   const topBadges = await UserBadge.find()
     .populate("user badge")

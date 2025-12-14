@@ -1,5 +1,6 @@
-const { ethers } = require('ethers');
-require('dotenv').config();
+import ethers from "ethers"
+import dotenv from "dotenv";
+dotenv.config({ path: "./.env.blockchain" });
 
 class BlockchainService {
   constructor() {

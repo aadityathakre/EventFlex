@@ -51,7 +51,7 @@ import AdminAnalytics from "./pages/admin/Analytics.jsx";
 import AdminNotifications from "./pages/admin/Notifications.jsx";
 import AdminAuditLogs from "./pages/admin/AuditLogs.jsx";
 
-export const serverURL = "http://localhost:8080/api/v1";
+export const serverURL = `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1`;
 
 function App() {
   return (
