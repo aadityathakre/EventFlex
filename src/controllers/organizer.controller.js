@@ -21,7 +21,6 @@ import OrganizerPool from "../models/OrganizerPool.model.js";
 import PoolApplication from "../models/PoolApplication.model.js"
 import Badge from "../models/Badge.model.js";
 import UserBadge from "../models/UserBadge.model.js";
-import EventApplication from "../models/EventApplications.js";
 
 // 1 Organizer Profile
 export const getOrganizerProfile = asyncHandler(async (req, res) => {
@@ -64,104 +63,7 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, mergedProfile, "Organizer profile fetched"));
 });
 
-// 2. Update profile
-export const updateProfile = asyncHandler(async (req, res) => {
-  const orgId = req.user._id;
-  const updates = req.body;
-
-  // Separate updates for User vs UserProfile
-  const userUpdates = {};
-  const profileUpdates = {};
-
-  if (updates.first_name) userUpdates.first_name = updates.first_name;
-  if (updates.last_name) userUpdates.last_name = updates.last_name;
-  if (updates.email) userUpdates.email = updates.email;
-  if (updates.phone) userUpdates.phone = updates.phone;
-
-  if (updates.bio) profileUpdates.bio = updates.bio;
-  if (updates.location) profileUpdates.location = updates.location;
-  if (updates.availability) profileUpdates.availability = updates.availability;
-  if (updates.bank_details) profileUpdates.bank_details = updates.bank_details;
-
-  // Update User schema fields
-  if (Object.keys(userUpdates).length > 0) {
-    await User.findByIdAndUpdate(orgId, { $set: userUpdates }, { new: true, runValidators: true });
-  }
-
-  // Update UserProfile schema fields
-  let profile = await UserProfile.findOneAndUpdate(
-    { user: orgId },
-    { $set: profileUpdates },
-    { new: true, runValidators: true }
-  );
-
-  if(!profile){ 
-    return res.status(404).json(new ApiResponse(404, null, "Profile not found"));
-  }
-
-  return res.status(200).json(new ApiResponse(200, { userUpdates, profile }, "Profile updated"));
-});
-
-// 3. Update profile image //
- export const updateProfileImage = asyncHandler(async (req, res) => {
-  const orgId = req.user._id;
-  const avatarLocalPath = req.files?.avatar?.[0]?.path; // or req.file.path if using single upload
-
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required");
-  }
-
-  const avatarUpload = await uploadOnCloudinary(avatarLocalPath);
-  if (!avatarUpload?.url) {
-    throw new ApiError(500, "Avatar upload failed");
-  }
-
-  // Update both User and UserProfile for consistency
-  await User.findByIdAndUpdate(orgId, { avatar: avatarUpload.url });
-
-  const updatedProfile = await UserProfile.findOneAndUpdate(
-    { user: orgId },
-    { profile_image_url: avatarUpload.url },
-    { new: true }
-  );
-
-  if (!updatedProfile) {
-    throw new ApiError(404, "Profile not found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, updatedProfile, "Profile image updated"));
-});
-
-// 4. Delete profile image //
-export const deleteProfileImage = asyncHandler(async (req, res) => {
-  const orgId = req.user._id;
-
-  // Reset avatar in User model
-  await User.findByIdAndUpdate(
-    orgId,
-    { avatar: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png" },
-    { new: true }
-  );
-
-  // Reset profile_image_url in UserProfile model
-  const updatedProfile = await UserProfile.findOneAndUpdate(
-    { user: orgId },
-    { profile_image_url: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png" },
-    { new: true }
-  );
-
-  if (!updatedProfile) {
-    throw new ApiError(404, "Profile not found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, updatedProfile, "Profile image removed"));
-});
-
-// 5. Upload Organizer Documents
+// 2. Upload Organizer Documents
 export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
   const { type } = req.body;
   const localFilePath = req.files?.fileUrl?.[0]?.path;
@@ -186,9 +88,10 @@ export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
-// 6. Submit E-Signature
+// 3. Submit E-Signature
 export const submitESignature = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
+  const { type } = req.body;
   const localFilePath = req.files?.fileUrl?.[0]?.path;
 
   if (!localFilePath) throw new ApiError(400, "No signature uploaded");
@@ -221,7 +124,7 @@ const existing = await UserDocument.findOne({ user: organizerId, type: "signatur
     .json(new ApiResponse(201, signatureDoc, "E-signature submitted"));
 });
 
-// 7. Aadhaar Verification 
+// 4. Aadhaar Verification 
 export const verifyAadhaarOrganizer = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { aadhaar_number, otp } = req.body;
@@ -261,7 +164,7 @@ export const verifyAadhaarOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, verification, "Organizer Aadhaar verified and user status updated"));
 });
 
-// 8. View Wallet
+// 5. View Wallet
 export const getWallet = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
 
@@ -285,7 +188,7 @@ export const getWallet = asyncHandler(async (req, res) => {
   );
 });
 
-// 9. Withdraw Funds
+// 6. Withdraw Funds
 export const withdrawFunds = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { amount, upi_id } = req.body;
@@ -302,57 +205,12 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, wallet, "Withdrawal successful"));
 });
 
-// 10. get all active events by host
-export const getAllEvents = asyncHandler(async (req, res) => {
-  const events = await Event.find().select("-__v");
-  const activeEvents = events.filter(event => event.status !== "completed");
-  return res.status(200).json(new ApiResponse(200, activeEvents, "Active events fetched"));
-});
-
-// 11. get event organizising order
-export const reqHostForEvent = asyncHandler(async (req, res) => {
-   const hostId = req.params;
-  const {eventId, cover_letter,  proposed_rate} = req.body;
-  //create an event application for the organizer
-  const eventApplication = await EventApplication.create({
-    event: eventId ,
-    applicant: hostId,
-    application_status: "pending",
-    cover_letter,
-    proposed_rate
-  });
-  return res
-    .status(201)
-    .json(new ApiResponse(201, eventApplication, "Organizer requested to host for event management"));
-});
-
-// 12. accept invitaion for event management
-export const acceptInvitationFromHost = asyncHandler(async (req, res) => {
-  const hostAppId = req.params.id;
-  const eventApplication = await EventApplication.findById(hostAppId);
-  if (!eventApplication) {
-    throw new ApiError(404, "Event application not found");
-  }
-  if (eventApplication.application_status !== "pending") {
-    throw new ApiError(400, "Event application is not pending");
-  }
-  eventApplication.application_status = "accepted";
-  await eventApplication.save();
-
-  eventApplication.event.organizer = eventApplication.applicant;
-  await eventApplication.save();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, eventApplication, "Organizer accepted for event"));
-});
-
-// 13. Create Pool
+// 7. Create Pool
 export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { name,eventId, description } = req.body;
 
-    const pool = await Pool.create({
+  const pool = await Pool.create({
     organizer: organizerId,
     event:eventId,
     name,
@@ -367,7 +225,7 @@ export const createPool = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, pool, "Pool created successfully !"));
 });
 
-// 14. check pool applications
+// 8 .check pool applications
 export const getPoolApplications = asyncHandler(async (req, res) => {
   const { poolId } = req.params;
   const applications = await PoolApplication.find({ pool: poolId, application_status: "pending" })
@@ -376,7 +234,7 @@ export const getPoolApplications = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, applications, "Pending applications fetched"));
 });
 
-// 15. review and approve gigs
+//9. review and approve gigs
 export const reviewApplication = asyncHandler(async (req, res) => {
   const { applicationId } = req.params;
   const { action, orgPoolId } = req.body; // "approve" or "reject"
@@ -414,7 +272,7 @@ export const reviewApplication = asyncHandler(async (req, res) => {
   throw new ApiError(400, "Invalid action");
 });
   
-// 16. View Pool Details
+// 10. View Pool Details
 export const getPoolDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -429,7 +287,7 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, pool, "Pool details fetched"));
 });
 
-// 17. Chat with Gig (Stub)
+// 11. Chat with Gig (Stub)
 export const chatWithGig = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { gigId } = req.params;
@@ -464,7 +322,7 @@ export const chatWithGig = asyncHandler(async (req, res) => {
   );
 });
 
-// 18. View Event Details
+// 11. View Event Details
 export const getEventDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -479,7 +337,7 @@ export const getEventDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event details fetched"));
 });
 
-// 19. Payment History
+// 12. Payment History
 export const getPaymentHistory = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const payments = await Escrow.find({ organizer: organizerId }).select("-__v");
@@ -489,7 +347,7 @@ export const getPaymentHistory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, payments, "Payment history fetched"));
 });
 
-// 20. Simulate Payout
+// 13. Simulate Payout
 export const simulatePayout = asyncHandler(async (req, res) => {
   const { escrowId } = req.params;
   const escrow = await Escrow.findById(escrowId);
@@ -501,7 +359,7 @@ export const simulatePayout = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, escrow, "Payout simulated"));
 });
 
-// 21. Predict No-show Risk for Gig
+// 14. Predict No-show Risk for Gig
 export const getNoShowRisk = asyncHandler(async (req, res) => {
   const { gigId } = req.params;
   const gig = await User.findById(gigId);
@@ -515,7 +373,7 @@ export const getNoShowRisk = asyncHandler(async (req, res) => {
 });
 
 
-// 22. Get Organizer Wellness Score
+// 15. Get Organizer Wellness Score
 export const getWellnessScore = asyncHandler(async (req, res) => {
   const organizer = await User.findById(req.user._id);
 
@@ -524,7 +382,7 @@ export const getWellnessScore = asyncHandler(async (req, res) => {
   }, "Wellness score fetched"));
 });
 
-// 23. Raise Dispute
+// 16. Raise Dispute
 export const raiseDispute = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { eventId } = req.params;
@@ -539,7 +397,7 @@ export const raiseDispute = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
 });
 
-// 24. View Disputes
+// 17. View Disputes
 export const getDisputes = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
 
@@ -549,7 +407,7 @@ export const getDisputes = asyncHandler(async (req, res) => {
 });
 
 
-// 25. Live Event Tracking
+// 18. Live Event Tracking
 export const getLiveEventTracking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -568,7 +426,7 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, attendance, "Live attendance data"));
 });
 
-// 26. Badges
+// 19. Badges
 export const getOrganizerBadges = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
 
@@ -611,7 +469,7 @@ export const getOrganizerBadges = asyncHandler(async (req, res) => {
   );
 });
 
-// 27. Leaderboard
+// 20. Leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
   const topOrganizers = await Rating.aggregate([
     { $match: { review_type: "host_to_organizer" } },

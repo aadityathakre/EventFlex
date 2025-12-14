@@ -22,7 +22,6 @@ import UserDocument from "../models/UserDocument.model.js";
 import { ethers } from "ethers";
 import mongoose from "mongoose";
 import Badge from "../models/Badge.model.js"
-import OrganizerPool from "../models/OrganizerPool.model.js";
 
 
 // 1. View profile //
@@ -378,48 +377,33 @@ const getKYCStatus = asyncHandler(async (req, res) => {
 const getNearbyEvents = asyncHandler(async (req, res) => {
   const { coordinates } = req.body; // [lng, lat]
 
-  // 1. Find nearby organizer pools that are NOT completed
-  const orgPools = await OrganizerPool.find({
+  const events = await Event.find({
     location: {
       $near: {
         $geometry: {
           type: "Point",
           coordinates,
         },
-        $maxDistance: 10000, // 10km
+        $maxDistance: 10000, // 10km radius
       },
     },
-    status: { $ne: "completed" },
-  });
+    status: "published",
+  })
 
   return res
     .status(200)
-    .json(new ApiResponse(200, orgPools, "Nearby events fetched"));
+    .json(new ApiResponse(200, events, "Nearby events fetched"));
 });
 
 // 13. View nearby organizer pools
-const getOrganizerPool = asyncHandler(async (req, res) => {
-  const { poolId } = req.params;
+const getOrganizerPools = asyncHandler(async (req, res) => {
+  const {poolId} =req.params;
 
-  // 1. Fetch OrganizerPool
-  const orgPool = await OrganizerPool.findById(poolId)
-    .select("-organizer");
+  const pools = await Pool.find({_id :poolId, status:"active"}).select("-organizer");
 
-  if (!orgPool) {
-    return res
-      .status(404)
-      .json(new ApiResponse(404, null, "Organizer pool not found"));
-  }
-
-  // 2. Fetch Pool model using event + organizer
-  const pool = await Pool.findOne({
-    event: orgPool.event,
-    organizer: orgPool.organizer
-  });
-
-  return res.status(200).json(
-    new ApiResponse(200, { orgPool, pool }, "Pool details fetched")
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, pools, "Nearby pools fetched"));
 });
 
 // 14. Join a specific pool
@@ -827,7 +811,7 @@ const getNotifications = asyncHandler(async (req, res) => {
 
 export {
   getNearbyEvents,
-  getOrganizerPool,
+  getOrganizerPools,
   joinPool,
   getMyEvents,
   checkIn,

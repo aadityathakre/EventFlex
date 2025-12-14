@@ -1,8 +1,6 @@
 const hre = require("hardhat");
 const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv');
-dotenv.config({ path: "./.env.example" });
 
 async function main() {
   console.log("🚀 Deploying EventFlex Smart Contracts to Polygon Amoy...\n");

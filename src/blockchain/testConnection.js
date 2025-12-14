@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import web3Service from './web3Service.js';
-dotenv.config({ path: "./.env.blockchain" });
+
+dotenv.config();
 
 async function test() {
   console.log("🧪 Testing Blockchain Connection...\n");

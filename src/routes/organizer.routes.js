@@ -2,19 +2,12 @@ import express from "express";
 import { verifyToken, authorizeRoles } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import {
-  //profile
   getOrganizerProfile,
-  updateProfile,
-  updateProfileImage,
-  deleteProfileImage,
   uploadOrganizerDocs,
   submitESignature,
   verifyAadhaarOrganizer,
 
   // 👥 Pool & Team Management
-  getAllEvents,
-  reqHostForEvent,
-  acceptInvitationFromHost,
   createPool,
   getPoolDetails,
   chatWithGig,
@@ -50,12 +43,8 @@ import {
 } from "../controllers/organizer.controller.js";
 
 const router = express.Router();
-
 //profile
 router.get("/profile", verifyToken, authorizeRoles("organizer"), getOrganizerProfile);
-router.put("/profile", verifyToken, authorizeRoles("organizer"), updateProfile);
-router.put("/profile/image", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "avatar", maxCount: 1 }]), updateProfileImage);
-router.delete("/profile/image", verifyToken, authorizeRoles("organizer"), deleteProfileImage);
 
 // 📄 Document & E-Signature Management
 router.post("/upload-docs", verifyToken, authorizeRoles("organizer"),upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
@@ -65,10 +54,6 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 //
 // 👥 Pool & Team Management
 //
-router.post("/events/request-host/:id", verifyToken, authorizeRoles("organizer"), reqHostForEvent);
-router.post("/events/accept-invitation/:id", verifyToken, authorizeRoles("organizer"), acceptInvitationFromHost);
-
-router.get("/events/all", verifyToken, authorizeRoles("organizer"), getAllEvents);
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
