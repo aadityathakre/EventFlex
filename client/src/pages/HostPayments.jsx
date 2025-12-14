@@ -3,9 +3,11 @@ import axios from "axios";
 import { serverURL } from "../App";
 import { useNavigate } from "react-router-dom";
 import { FaWallet, FaArrowLeft, FaCheckCircle } from "react-icons/fa";
+import { useAuth } from "../context/AuthContext";
 
 function HostPayments() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [wallet, setWallet] = useState(null);
   const [events, setEvents] = useState([]);
   const [assignedPools, setAssignedPools] = useState([]);
@@ -69,12 +71,32 @@ function HostPayments() {
 
   const onWithdraw = async () => {
     setError(null);
+    const amountNum = parseFloat(withdraw.amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setError("Enter a valid withdrawal amount");
+      return;
+    }
     try {
       setBusy((b) => ({ ...b, withdraw: true }));
-      const payload = { ...withdraw, amount: parseFloat(withdraw.amount) };
-      await axios.post(`${serverURL}/host/wallet/withdraw`, payload, { withCredentials: true });
-      setWithdraw({ amount: "", mode: withdraw.mode, upi_id: "", beneficiary_name: "", account_number: "", ifsc: "" });
-      await refreshWallet();
+      // Navigate to Razorpay test checkout to confirm withdraw
+      const prefill = {
+        name: user?.name || user?.fullName || "Host User",
+        email: user?.email || "",
+        contact: user?.phone || user?.mobile || "9999999999",
+      };
+      navigate("/razorpay", {
+        state: {
+          checkoutPurpose: "withdraw",
+          amount: amountNum,
+          mode: withdraw.mode,
+          beneficiary_name: withdraw.beneficiary_name,
+          upi_id: withdraw.upi_id,
+          account_number: withdraw.account_number,
+          ifsc: withdraw.ifsc,
+          returnPath: "/host/payments",
+          prefill,
+        },
+      });
     } catch (err) {
       setError(err.response?.data?.message || "Withdrawal failed");
     } finally {
@@ -150,7 +172,16 @@ function HostPayments() {
     );
   }
 
-  const balance = wallet?.balance_inr?.toString?.() || wallet?.balance_inr || "0.00";
+  // Robust balance parsing (handles Decimal128 JSON like { $numberDecimal: "123.45" })
+  const balanceRaw = wallet?.balance_inr?.$numberDecimal ?? wallet?.balance_inr;
+  const balanceDisplay = (() => {
+    if (balanceRaw === undefined || balanceRaw === null) return "0.00";
+    const asString = typeof balanceRaw === "string" ? balanceRaw : balanceRaw?.toString?.();
+    const num = parseFloat(asString);
+    return isNaN(num)
+      ? "0.00"
+      : num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -183,7 +214,7 @@ function HostPayments() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Current Balance</p>
-                <p className="text-2xl font-bold text-gray-900">₹ {balance}</p>
+                <p className="text-2xl font-bold text-gray-900">₹ {balanceDisplay}</p>
               </div>
             </div>
             <button onClick={refreshWallet} className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">Refresh</button>

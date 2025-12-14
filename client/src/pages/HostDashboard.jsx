@@ -21,9 +21,13 @@ function HostDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [invites, setInvites] = useState([]);
+  const [assignedPools, setAssignedPools] = useState([]);
+  const [poolForm, setPoolForm] = useState({ open: false, organizerId: "", eventId: "", pool_name: "", max_capacity: 10, required_skills: "", pay_min: "", pay_max: "", lat: "", lng: "" });
 
   useEffect(() => {
     fetchDashboardData();
+    fetchInvitesAndPools();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -49,6 +53,79 @@ function HostDashboard() {
   const handleLogout = async () => {
     await logout();
   };
+
+  const fetchInvitesAndPools = async () => {
+    try {
+      const [invRes, poolsRes] = await Promise.all([
+        axios.get(`${serverURL}/host/organizers/invites`, { withCredentials: true }),
+        axios.get(`${serverURL}/host/organizer`, { withCredentials: true }),
+      ]);
+      setInvites(invRes.data?.data || []);
+      setAssignedPools(poolsRes.data?.data || []);
+    } catch (e) {
+      console.warn("Failed to load invites or pools", e.message);
+    }
+  };
+
+  const approveApplication = async (appId) => {
+    try {
+      await axios.post(`${serverURL}/host/approve-organizer/${appId}`, {}, { withCredentials: true });
+      await fetchInvitesAndPools();
+      await fetchDashboardData();
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to approve organizer");
+    }
+  };
+
+  const rejectApplication = async (appId) => {
+    try {
+      await axios.post(`${serverURL}/host/reject-organizer/${appId}`, {}, { withCredentials: true });
+      await fetchInvitesAndPools();
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to reject organizer");
+    }
+  };
+
+  const openPoolForm = (organizerId, eventId) => {
+    setPoolForm((f) => ({ ...f, open: true, organizerId, eventId }));
+  };
+
+  const createPool = async () => {
+    const payMin = parseFloat(poolForm.pay_min);
+    const payMax = parseFloat(poolForm.pay_max);
+    if (!poolForm.pool_name || !poolForm.organizerId || !poolForm.eventId) {
+      setError("Provide pool name and linked organizer/event");
+      return;
+    }
+    if (isNaN(payMin) || isNaN(payMax)) {
+      setError("Enter valid pay range");
+      return;
+    }
+    const lat = parseFloat(poolForm.lat);
+    const lng = parseFloat(poolForm.lng);
+    if (isNaN(lat) || isNaN(lng)) {
+      setError("Enter valid location coordinates");
+      return;
+    }
+    try {
+      const payload = {
+        organizerId: poolForm.organizerId,
+        eventId: poolForm.eventId,
+        pool_name: poolForm.pool_name,
+        location: { coordinates: [lng, lat] },
+        max_capacity: Number(poolForm.max_capacity) || 10,
+        required_skills: poolForm.required_skills,
+        pay_range: { min: payMin, max: payMax },
+      };
+      await axios.post(`${serverURL}/host/pools/create`, payload, { withCredentials: true });
+      setPoolForm({ open: false, organizerId: "", eventId: "", pool_name: "", max_capacity: 10, required_skills: "", pay_min: "", pay_max: "", lat: "", lng: "" });
+      await fetchInvitesAndPools();
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to create organizer pool");
+    }
+  };
+
+  // Note: Payments & Wallet actions are available on the dedicated Payments page
 
   if (loading) {
     return (
@@ -223,10 +300,31 @@ function HostDashboard() {
               <FaWallet />
               <span className="font-semibold">Payments</span>
             </button>
-        
+            <button
+              onClick={() => navigate("/host/invites")}
+              className="flex items-center space-x-3 p-4 border-2 border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-all duration-300"
+            >
+              <FaUsers />
+              <span className="font-semibold">Invited Organizers</span>
+            </button>
+            <button
+              onClick={() => navigate("/host/requests")}
+              className="flex items-center space-x-3 p-4 border-2 border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-all duration-300"
+            >
+              <FaUsers />
+              <span className="font-semibold">Requested Organizers</span>
+            </button>
+            <button
+              onClick={() => navigate("/host/pools")}
+              className="flex items-center space-x-3 p-4 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-all duration-300"
+            >
+              <FaUsers />
+              <span className="font-semibold">Organizer Pools</span>
+            </button>
           </div>
         </div>
 
+        {/* Payments moved: use the Payments page for wallet and escrow actions */}
         {/* Recent Events */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
@@ -298,6 +396,33 @@ function HostDashboard() {
           )}
         </div>
       </main>
+
+      {/* Pool creation modal */}
+      {poolForm.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setPoolForm((f) => ({ ...f, open: false }))}></div>
+          <div className="relative z-10 bg-white rounded-xl p-6 w-full max-w-lg shadow-xl">
+            <h4 className="text-lg font-semibold mb-4">Create Organizer Pool</h4>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <input value={poolForm.pool_name} onChange={(e) => setPoolForm((f) => ({ ...f, pool_name: e.target.value }))} placeholder="Pool name" className="border rounded-lg px-3 py-2 text-sm" />
+              <input type="number" min="1" value={poolForm.max_capacity} onChange={(e) => setPoolForm((f) => ({ ...f, max_capacity: e.target.value }))} placeholder="Max capacity" className="border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <input value={poolForm.required_skills} onChange={(e) => setPoolForm((f) => ({ ...f, required_skills: e.target.value }))} placeholder="Required skills (comma-separated)" className="border rounded-lg px-3 py-2 text-sm w-full mb-3" />
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <input type="number" value={poolForm.pay_min} onChange={(e) => setPoolForm((f) => ({ ...f, pay_min: e.target.value }))} placeholder="Pay min (₹)" className="border rounded-lg px-3 py-2 text-sm" />
+              <input type="number" value={poolForm.pay_max} onChange={(e) => setPoolForm((f) => ({ ...f, pay_max: e.target.value }))} placeholder="Pay max (₹)" className="border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <input type="number" value={poolForm.lat} onChange={(e) => setPoolForm((f) => ({ ...f, lat: e.target.value }))} placeholder="Lat" className="border rounded-lg px-3 py-2 text-sm" />
+              <input type="number" value={poolForm.lng} onChange={(e) => setPoolForm((f) => ({ ...f, lng: e.target.value }))} placeholder="Lng" className="border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setPoolForm((f) => ({ ...f, open: false }))} className="px-3 py-2 text-sm border rounded-lg">Cancel</button>
+              <button onClick={createPool} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

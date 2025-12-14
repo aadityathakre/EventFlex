@@ -651,6 +651,24 @@ export const approveOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, eventApplication, "Organizer approved for event"));
 });
 
+// 16.1 Reject organizer application
+export const rejectOrganizer = asyncHandler(async (req, res) => {
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
+  if (!eventApplication) {
+    throw new ApiError(404, "Event application not found");
+  }
+  if (eventApplication.application_status !== "pending") {
+    throw new ApiError(400, "Event application is not pending");
+  }
+  eventApplication.application_status = "rejected";
+  await eventApplication.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, eventApplication, "Organizer application rejected"));
+});
+
 // 17. create organizer pool for event
 export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
@@ -745,6 +763,63 @@ export const startChatWithOrganizer = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, { conversation, welcome }, "Chat started"));
 });
 
+// 19.1 List Host Conversations
+export const getHostConversations = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  const conversations = await Conversation.find({
+    participants: hostId,
+  })
+    .populate("event", "title start_date end_date location")
+    .populate("pool", "pool_name status")
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+// 19.2 Get messages in a conversation
+export const getConversationMessages = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const messages = await Message.find({ conversation: conversationId })
+    .populate("sender", "email role")
+    .sort({ createdAt: 1 });
+
+  return res.status(200).json(new ApiResponse(200, messages, "Messages fetched"));
+});
+
+// 19.3 Send message in a conversation (Host)
+export const sendHostMessage = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { conversationId } = req.params;
+  const { message_text } = req.body;
+
+  if (!message_text || !message_text.trim()) {
+    throw new ApiError(400, "message_text is required");
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const message = await Message.create({
+    conversation: conversationId,
+    sender: hostId,
+    message_text,
+  });
+
+  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
 // 20.  Host Dashboard
 export const getHostDashboard = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
@@ -766,6 +841,23 @@ export const getHostDashboard = asyncHandler(async (req, res) => {
         "Host dashboard data fetched"
       )
     );
+});
+
+// 20.1 Get Invited/Requested Organizers status for host events
+export const getInvitedOrganizerStatus = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  const events = await Event.find({ host: hostId }).select("_id title organizer");
+  const eventIds = events.map((e) => e._id);
+
+  const applications = await EventApplication.find({ event: { $in: eventIds } })
+    .populate("applicant", "email role")
+    .populate("event", "title organizer")
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, applications, "Invited organizers status fetched"));
 });
 
 // 21. Deposit to Escrow

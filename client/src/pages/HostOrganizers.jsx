@@ -8,6 +8,7 @@ function HostOrganizers() {
   const navigate = useNavigate();
   const [organizers, setOrganizers] = useState([]);
   const [events, setEvents] = useState([]);
+  const availableEvents = events.filter((evt) => !evt.organizer);
   const [assignedPools, setAssignedPools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -49,6 +50,11 @@ function HostOrganizers() {
   const sendInvite = async () => {
     if (!inviteState.organizerId || !inviteState.eventId) {
       setError("Select an event to invite organizer");
+      return;
+    }
+    const selectedEvent = events.find((e) => e._id === inviteState.eventId);
+    if (selectedEvent?.organizer) {
+      setError("This event already has an organizer assigned");
       return;
     }
     try {
@@ -137,10 +143,13 @@ function HostOrganizers() {
                         className="w-full border rounded-lg px-3 py-2 text-sm"
                       >
                         <option value="">Select event</option>
-                        {events.map((evt) => (
+                        {availableEvents.map((evt) => (
                           <option key={evt._id} value={evt._id}>{evt.title}</option>
                         ))}
                       </select>
+                      {availableEvents.length === 0 && (
+                        <p className="text-xs text-amber-600">All your events already have assigned organizers.</p>
+                      )}
                       <textarea
                         value={inviteState.cover}
                         onChange={(e) => setInviteState((s) => ({ ...s, cover: e.target.value }))}
@@ -164,13 +173,15 @@ function HostOrganizers() {
                         </button>
                       </div>
                     </div>
-                  ) : (
+                  ) : availableEvents.length > 0 ? (
                     <button
                       onClick={() => startInvite(o._id)}
                       className="mt-3 px-3 py-2 border-2 border-purple-600 text-purple-600 rounded-lg text-sm hover:bg-purple-50"
                     >
                       Invite to Event
                     </button>
+                  ) : (
+                    <div className="mt-3 text-xs text-gray-600">No events available for invites.</div>
                   )}
                 </div>
               ))}

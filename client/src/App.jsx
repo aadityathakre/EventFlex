@@ -16,6 +16,10 @@ import HostEventDetail from "./pages/HostEventDetail.jsx";
 import HostEventEdit from "./pages/HostEventEdit.jsx";
 import HostOrganizers from "./pages/HostOrganizers.jsx";
 import HostPayments from "./pages/HostPayments.jsx";
+import HostChat from "./pages/HostChat.jsx";
+import HostInvites from "./pages/HostInvites.jsx";
+import HostRequests from "./pages/HostRequests.jsx";
+import HostOrganizerPools from "./pages/HostOrganizerPools.jsx";
 
 export const serverURL = `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1`;
 
@@ -85,6 +89,24 @@ function App() {
 
       {/* Host Event Routes */}
       <Route
+        path='/host/chat'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/chat/:conversationId'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostChat />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Host Event Routes */}
+      <Route
         path='/host/events/create'
         element={
           <ProtectedRoute allowedRoles={['host']}>
@@ -123,6 +145,30 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['host']}>
             <HostOrganizers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/invites'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostInvites />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/requests'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostRequests />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/pools'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostOrganizerPools />
           </ProtectedRoute>
         }
       />

@@ -311,36 +311,70 @@ export const getAllEvents = asyncHandler(async (req, res) => {
 
 // 11. get event organizising order
 export const reqHostForEvent = asyncHandler(async (req, res) => {
-   const hostId = req.params;
-  const {eventId, cover_letter,  proposed_rate} = req.body;
-  //create an event application for the organizer
+  // Organizer requests to manage a host's event
+  const organizerId = req.user._id;
+  const { eventId, cover_letter, proposed_rate } = req.body;
+
+  if (!eventId) {
+    throw new ApiError(400, "Missing required field: eventId");
+  }
+
+  const existing = await EventApplication.findOne({
+    event: eventId,
+    applicant: organizerId,
+    application_status: { $in: ["pending", "accepted"] },
+  });
+  if (existing) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, existing, "Application already exists"));
+  }
+
   const eventApplication = await EventApplication.create({
-    event: eventId ,
-    applicant: hostId,
+    event: eventId,
+    applicant: organizerId,
     application_status: "pending",
     cover_letter,
-    proposed_rate
+    proposed_rate,
   });
+
   return res
     .status(201)
-    .json(new ApiResponse(201, eventApplication, "Organizer requested to host for event management"));
+    .json(
+      new ApiResponse(
+        201,
+        eventApplication,
+        "Organizer requested to host event"
+      )
+    );
 });
 
 // 12. accept invitaion for event management
 export const acceptInvitationFromHost = asyncHandler(async (req, res) => {
-  const hostAppId = req.params.id;
-  const eventApplication = await EventApplication.findById(hostAppId);
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
   if (!eventApplication) {
     throw new ApiError(404, "Event application not found");
   }
   if (eventApplication.application_status !== "pending") {
     throw new ApiError(400, "Event application is not pending");
   }
+
+  // Mark accepted
   eventApplication.application_status = "accepted";
   await eventApplication.save();
 
-  eventApplication.event.organizer = eventApplication.applicant;
-  await eventApplication.save();
+  // Assign organizer to event
+  const eventId = eventApplication.event;
+  const organizerId = eventApplication.applicant;
+  const updatedEvent = await Event.findByIdAndUpdate(
+    eventId,
+    { $set: { organizer: organizerId } },
+    { new: true }
+  );
+  if (!updatedEvent) {
+    throw new ApiError(404, "Event not found to assign organizer");
+  }
 
   return res
     .status(200)

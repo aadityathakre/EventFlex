@@ -26,9 +26,13 @@ import {
   getAllOrganizers,
   inviteOrganizer,
   approveOrganizer,
+  rejectOrganizer,
   createOrganizerPoolForEvent,
   getAssignedOrganizer,
   startChatWithOrganizer,
+  getHostConversations,
+  getConversationMessages,
+  sendHostMessage,
 
   // 💰 Payments & Escrow
   depositToEscrow,
@@ -39,6 +43,7 @@ import {
 
   // 📊 Dashboard & Reputation
   getHostDashboard,
+  getInvitedOrganizerStatus,
   getLeaderboard,
   createRatingReview,
   createFeedback,
@@ -74,9 +79,14 @@ router.delete("/events/:id", verifyToken, authorizeRoles("host"), deleteEvent);
 router.get("/organizers/all", verifyToken, authorizeRoles("host"), getAllOrganizers);
 router.post("/invite-organizer/:id", verifyToken, authorizeRoles("host"), inviteOrganizer);
 router.post("/approve-organizer/:id", verifyToken, authorizeRoles("host"), approveOrganizer);
+router.post("/reject-organizer/:id", verifyToken, authorizeRoles("host"), rejectOrganizer);
+router.get("/organizers/invites", verifyToken, authorizeRoles("host"), getInvitedOrganizerStatus);
 router.post("/pools/create", verifyToken, authorizeRoles("host"), createOrganizerPoolForEvent);
 router.get("/organizer", verifyToken, authorizeRoles("host"), getAssignedOrganizer);
 router.post("/chat", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
+router.get("/conversations", verifyToken, authorizeRoles("host"), getHostConversations);
+router.get("/messages/:conversationId", verifyToken, authorizeRoles("host"), getConversationMessages);
+router.post("/message/:conversationId", verifyToken, authorizeRoles("host"), sendHostMessage);
 
 //
 // 💰 Payments & Escrow
