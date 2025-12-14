@@ -1,0 +1,20 @@
+@import '../styles/variables';
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: $color-background-light;
+
+  .main-content {
+    flex: 1;
+    margin-left: 280px;
+
+    @media (max-width: $breakpoint-tablet) {
+      margin-left: 240px;
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      margin-left: 0;
+    }
+  }
+}
