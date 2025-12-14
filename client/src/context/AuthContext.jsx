@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }) => {
         gig: `${serverURL}/gigs/profile`,
         organizer: `${serverURL}/organizer/profile`,
         host: `${serverURL}/host/profile`,
+        admin: `${serverURL}/admin/profile`,
       };
 
       const endpoint = roleEndpoints[savedRole];
@@ -64,10 +65,18 @@ export const AuthProvider = ({ children }) => {
       // Extract user from response
       // Host profile: response.data.data.user (user is an object)
       // Gig/Organizer profile: response.data.data (user field is just an ID string)
+      // Admin profile: response.data.data (admin data directly)
       let userData;
       if (savedRole === 'host') {
         // For host, user data is nested under response.data.data.user
         userData = response.data.data?.user || response.data.data;
+      } else if (savedRole === 'admin') {
+        // For admin, user data is directly in response.data.data
+        userData = response.data.data || response.data;
+        // Add role to user data if not present
+        if (userData && !userData.role) {
+          userData.role = 'admin';
+        }
       } else {
         // For gig and organizer, user data is directly in response.data.data
         userData = response.data.data;

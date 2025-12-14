@@ -21,6 +21,8 @@ export const adminLogout = () =>
   authAPI.post('/logout');
 export const adminRefreshToken = () =>
   authAPI.post('/refresh-token');
+export const getAdminProfile = () =>
+  adminAPI.get('/profile');
 
 // User Management APIs
 export const getAllRoles = () => adminAPI.get('/roles');
