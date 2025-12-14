@@ -77,6 +77,35 @@ function HostDashboard() {
         </div>
       )}
 
+      {/* Quick Stats */}
+      <section className="dashboard-section">
+        <h2>Quick Stats</h2>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-value">{dashboardData.events.length}</div>
+            <div className="stat-label">Total Events</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">
+              {dashboardData.events.filter(e => e.status === 'active').length}
+            </div>
+            <div className="stat-label">Active Events</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">
+              {dashboardData.escrows.filter(e => e.status === 'funded').length}
+            </div>
+            <div className="stat-label">Funded Escrows</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">
+              {dashboardData.payments.filter(p => p.status === 'completed').length}
+            </div>
+            <div className="stat-label">Completed Payments</div>
+          </div>
+        </div>
+      </section>
+
       {/* Events Section */}
       <section className="dashboard-section">
         <div className="section-header">
@@ -193,35 +222,6 @@ function HostDashboard() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* Quick Stats */}
-      <section className="dashboard-section">
-        <h2>Quick Stats</h2>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-value">{dashboardData.events.length}</div>
-            <div className="stat-label">Total Events</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">
-              {dashboardData.events.filter(e => e.status === 'active').length}
-            </div>
-            <div className="stat-label">Active Events</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">
-              {dashboardData.escrows.filter(e => e.status === 'funded').length}
-            </div>
-            <div className="stat-label">Funded Escrows</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">
-              {dashboardData.payments.filter(p => p.status === 'completed').length}
-            </div>
-            <div className="stat-label">Completed Payments</div>
-          </div>
-        </div>
       </section>
     </div>
   );
