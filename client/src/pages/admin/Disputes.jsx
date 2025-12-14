@@ -175,12 +175,6 @@ const AdminDisputes = () => {
                 </p>
 
                 <div className="dispute-details">
-                  <div className="detail-item">
-                    <span className="label">Raised by:</span>
-                    <span className="value">
-                      {dispute.raised_by?.fullName || dispute.raised_by?.email || 'N/A'}
-                    </span>
-                  </div>
                   {dispute.event && (
                     <div className="detail-item">
                       <span className="label">Event:</span>
@@ -230,12 +224,6 @@ const AdminDisputes = () => {
                   <span className="label">Status:</span>
                   <span className={`status-badge ${getStatusBadgeClass(selectedDispute.status)}`}>
                     {selectedDispute.status || 'pending'}
-                  </span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Raised by:</span>
-                  <span className="value">
-                    {selectedDispute.raised_by?.fullName || selectedDispute.raised_by?.email || 'N/A'}
                   </span>
                 </div>
                 {selectedDispute.against && (
