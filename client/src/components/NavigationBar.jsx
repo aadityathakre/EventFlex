@@ -6,7 +6,7 @@ import './NavigationBar.scss';
 const NavigationBar = ({ onOpenAuth }) => {
   const navigate = useNavigate();
 
-  const handleBookVenue = () => {
+  const handleHostEvent = () => {
     if (onOpenAuth) {
       onOpenAuth('register');
     }
@@ -20,14 +20,14 @@ const NavigationBar = ({ onOpenAuth }) => {
         </div>
 
         <div className="nav-links">
-          <a href="#organisers" className="nav-link">FOR ORGANISERS</a>
-          <a href="#visitors" className="nav-link">FOR VISITORS</a>
-          <a href="#staffs" className="nav-link">FOR STAFFS</a>
+          <a href="#hosts" className="nav-link">FOR HOSTS</a>
+          <a href="#organizers" className="nav-link">FOR ORGANIZERS</a>
+          <a href="#gig-workers" className="nav-link">FOR GIG WORKERS</a>
           <a onClick={() => navigate('/admin/login')} className="nav-link admin-link">ADMIN</a>
         </div>
 
         <div className="nav-cta">
-          <ButtonPrimary onClick={handleBookVenue}>Book your Venue</ButtonPrimary>
+          <ButtonPrimary onClick={handleHostEvent}>Host Event</ButtonPrimary>
         </div>
       </div>
     </nav>

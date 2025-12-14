@@ -30,8 +30,64 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     line-height: 1.2;
+    margin: 0 0 $spacing-md 0;
+    text-align: left;
+  }
+
+  .hero-subtitle {
+    font-family: $font-family-primary;
+    font-size: $font-size-large;
+    color: $color-text-secondary;
     margin: 0 0 $spacing-2xl 0;
     text-align: left;
+    max-width: 700px;
+    line-height: 1.6;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: $spacing-md;
+    align-items: center;
+
+    .cta-button {
+      padding: $spacing-sm $spacing-xl;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-semibold;
+      border-radius: $border-radius-md;
+      cursor: pointer;
+      transition: all $transition-base;
+      border: 2px solid transparent;
+
+      &.primary {
+        background-color: $color-primary;
+        color: white;
+        border-color: $color-primary;
+
+        &:hover {
+          background-color: darken($color-primary, 5%);
+          border-color: darken($color-primary, 5%);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba($color-primary, 0.3);
+        }
+      }
+
+      &.secondary {
+        background-color: transparent;
+        color: $color-text-primary;
+        border-color: $color-border;
+
+        &:hover {
+          background-color: $color-background;
+          border-color: $color-text-primary;
+          transform: translateY(-2px);
+        }
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
   }
 
   .hero-search-wrapper {
@@ -43,6 +99,15 @@
     .hero-title {
       font-size: $font-size-section-title;
       text-align: center;
+    }
+
+    .hero-subtitle {
+      text-align: center;
+      margin: 0 auto $spacing-2xl auto;
+    }
+
+    .hero-cta {
+      justify-content: center;
     }
 
     .hero-search-wrapper {
@@ -57,7 +122,22 @@
 
     .hero-title {
       font-size: 32px;
+      margin-bottom: $spacing-md;
+    }
+
+    .hero-subtitle {
+      font-size: $font-size-base;
       margin-bottom: $spacing-xl;
+    }
+
+    .hero-cta {
+      flex-direction: column;
+      width: 100%;
+
+      .cta-button {
+        width: 100%;
+        justify-content: center;
+      }
     }
   }
 }

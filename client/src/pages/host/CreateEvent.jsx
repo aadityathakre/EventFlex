@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createEvent } from '../../api/host';
 import './CreateEvent.scss';
 
 function CreateEvent() {
@@ -12,14 +13,20 @@ function CreateEvent() {
     endTime: '',
     budget: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const eventTypes = [
-    'Wedding',
-    'Corporate Event',
-    'Birthday Party',
-    'Conference',
-    'Concert',
-    'Festival',
+    { value: 'function', label: 'Function' },
+    { value: 'corporate', label: 'Corporate' },
+    { value: 'festival', label: 'Festival' },
+    { value: 'exhibition', label: 'Exhibition' },
+    { value: 'hackathon', label: 'Hackathon' },
+    { value: 'workshop', label: 'Workshop' },
+    { value: 'webinar', label: 'Webinar' },
+    { value: 'networking', label: 'Networking' },
+    { value: 'fundraiser', label: 'Fundraiser' },
+    { value: 'retreat', label: 'Retreat' },
   ];
 
   const handleInputChange = (e) => {
@@ -29,11 +36,37 @@ function CreateEvent() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Create event:', formData);
-    // Navigate back to events page after creation
-    navigate('/host/events');
+    setLoading(true);
+    setError('');
+
+    try {
+      // Transform form data to match API structure from Postman collection
+      const eventData = {
+        title: formData.eventName,
+        description: formData.description,
+        event_type: formData.eventType, // Already in correct format from select value
+        start_date: new Date(formData.startTime).toISOString(),
+        end_date: new Date(formData.endTime).toISOString(),
+        location: {
+          coordinates: [77.4126, 23.2599], // Default coordinates, can be updated with geolocation
+        },
+        budget: formData.budget,
+      };
+
+      console.log('Creating event with data:', eventData);
+      const response = await createEvent(eventData);
+      console.log('Event created successfully:', response.data);
+
+      // Navigate back to events page after successful creation
+      navigate('/host/events');
+    } catch (err) {
+      console.error('Error creating event:', err);
+      setError(err.response?.data?.message || 'Failed to create event');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -52,6 +85,20 @@ function CreateEvent() {
       <div className="create-event-container">
         <div className="form-section">
           <h1>Create New Event</h1>
+
+          {error && (
+            <div className="error-message" style={{
+              padding: '12px',
+              marginBottom: '20px',
+              backgroundColor: '#fee',
+              border: '1px solid #fcc',
+              borderRadius: '8px',
+              color: '#c33',
+              fontSize: '14px'
+            }}>
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
@@ -92,8 +139,8 @@ function CreateEvent() {
                 >
                   <option value="">Select event type</option>
                   {eventTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
+                    <option key={type.value} value={type.value}>
+                      {type.label}
                     </option>
                   ))}
                 </select>
@@ -142,8 +189,8 @@ function CreateEvent() {
               />
             </div>
 
-            <button type="submit" className="submit-button">
-              Create Event
+            <button type="submit" className="submit-button" disabled={loading}>
+              {loading ? 'Creating Event...' : 'Create Event'}
             </button>
           </form>
         </div>

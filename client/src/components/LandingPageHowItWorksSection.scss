@@ -20,22 +20,42 @@
   }
 
   .steps-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: $spacing-3xl;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2xl;
+    max-width: 800px;
+    margin: 0 auto;
   }
 
   .step-card {
     display: flex;
-    flex-direction: column;
-    gap: $spacing-lg;
+    align-items: flex-start;
+    gap: $spacing-xl;
+    padding: $spacing-xl;
+    background-color: $color-background-light;
+    border-radius: $border-radius-lg;
+    transition: all $transition-base;
+
+    &:hover {
+      transform: translateX(8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
 
     .step-number {
       font-family: $font-family-primary;
-      font-size: $font-size-number;
+      font-size: 64px;
       font-weight: $font-weight-extrabold;
       color: $color-text-light;
       line-height: 1;
+      flex-shrink: 0;
+      min-width: 80px;
+    }
+
+    .step-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
     }
 
     .step-title {
@@ -51,7 +71,7 @@
       font-family: $font-family-primary;
       font-size: $font-size-base;
       font-weight: $font-weight-regular;
-      color: $color-text-primary;
+      color: $color-text-secondary;
       margin: 0;
       line-height: 1.6;
     }
@@ -59,14 +79,7 @@
 
   @media (max-width: $breakpoint-desktop) {
     .steps-grid {
-      grid-template-columns: 1fr;
-      gap: $spacing-2xl;
-    }
-
-    .step-card {
-      .step-number {
-        font-size: 72px;
-      }
+      gap: $spacing-xl;
     }
   }
 

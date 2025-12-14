@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import LandingPageHero from '../components/LandingPageHero';
+import LandingPageStatsSection from '../components/LandingPageStatsSection';
+import LandingPageRolesSection from '../components/LandingPageRolesSection';
 import LandingPageHowItWorksSection from '../components/LandingPageHowItWorksSection';
-import LandingPageCategoriesSection from '../components/LandingPageCategoriesSection';
-import LandingPageFeaturedActivitiesSection from '../components/LandingPageFeaturedActivitiesSection';
+import LandingPageTestimonialsSection from '../components/LandingPageTestimonialsSection';
 import LandingPageFooter from '../components/LandingPageFooter';
 import AuthDialog from '../components/AuthDialog';
 
@@ -22,9 +23,10 @@ function Landing() {
     return (
         <>
             <LandingPageHero onOpenAuth={openAuthDialog} />
+            <LandingPageStatsSection />
+            <LandingPageRolesSection />
             <LandingPageHowItWorksSection />
-            <LandingPageCategoriesSection />
-            <LandingPageFeaturedActivitiesSection />
+            <LandingPageTestimonialsSection />
             <LandingPageFooter />
             <AuthDialog
                 isOpen={authDialogOpen}
