@@ -34,6 +34,7 @@ import {
   getEscrowStatus,
   verifyAttendance,
   getWalletBalance,
+  withdrawFunds,
 
   // 📊 Dashboard & Reputation
   getHostDashboard,
@@ -81,6 +82,7 @@ router.post("/payment/deposit", verifyToken, authorizeRoles("host"), depositToEs
 router.get("/payment/status/:eventId", verifyToken, authorizeRoles("host"), getEscrowStatus);
 router.post("/verify-attendance/:eventId", verifyToken, authorizeRoles("host"), verifyAttendance);
 router.get("/wallet/balance", verifyToken, authorizeRoles("host"), getWalletBalance);
+router.post("/wallet/withdraw", verifyToken, authorizeRoles("host"), withdrawFunds);
 
 //
 // 📊 Dashboard & Reputation

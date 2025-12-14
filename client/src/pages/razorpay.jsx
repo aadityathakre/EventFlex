@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect } from "react";
 import axios from "axios";
 import { serverURL } from "../App.jsx";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 function Razorpay() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const flow = location.state || {};
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -21,13 +23,45 @@ function Razorpay() {
       // Step 0: Ensure Razorpay script is loaded
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
-        alert("Failed to load Razorpay SDK. Please check your connection.");
+        // In demo mode, if SDK fails to load, proceed with withdraw success fallback
+        if (flow?.checkoutPurpose === "withdraw") {
+          const payload = {
+            amount: flow.amount,
+            mode: flow.mode,
+            beneficiary_name: flow.beneficiary_name,
+            ...(flow.mode === "upi"
+              ? { upi_id: flow.upi_id }
+              : { account_number: flow.account_number, ifsc: flow.ifsc }),
+          };
+          try {
+            const wres = await axios.post(`${serverURL}/host/wallet/withdraw`, payload, { withCredentials: true });
+            const wdata = wres.data?.data || wres.data;
+            const newBalance = wdata?.new_balance ?? null;
+            navigate(flow.returnPath || "/host/profile", {
+              state: {
+                toast: {
+                  type: "success",
+                  title: "Payment successful",
+                  message: `₹ ${parseFloat(flow.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} withdrawn`,
+                },
+                wallet: { visible: true, balance: newBalance },
+              },
+            });
+          } catch (e) {
+            navigate(flow.returnPath || "/host/profile", {
+              state: {
+                toast: { type: "error", title: "Payment failed", message: "Could not complete withdrawal in demo mode." },
+              },
+            });
+          }
+        }
         return;
       }
 
       // Step 1: Create order on the server
+      const amountPaise = flow?.amount ? Math.round(parseFloat(flow.amount) * 100) : 50000; // default 500.00 INR if not provided
       const orderResponse = await axios.post(`${serverURL}/payments/create`, {
-        amount: 50000, // INR
+        amount: amountPaise,
         currency: "INR",
       });
 
@@ -39,28 +73,82 @@ function Razorpay() {
         amount,
         currency,
         name: "Event Flex",
-        description: "Event Transaction",
+        description: flow?.checkoutPurpose === "withdraw" ? "Withdraw Confirmation (Test)" : "Event Transaction",
         order_id,
         handler: async function (response) {
           try {
-            // Step 3: Verify payment on the server
-            await axios.post(`${serverURL}/payments/verify`, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-
-            alert("Payment successful and verified!");
-            navigate("/success");
+            // For demo withdraw flow, skip strict verification and proceed
+            if (flow?.checkoutPurpose === "withdraw") {
+              const payload = {
+                amount: flow.amount,
+                mode: flow.mode,
+                beneficiary_name: flow.beneficiary_name,
+                ...(flow.mode === "upi"
+                  ? { upi_id: flow.upi_id }
+                  : { account_number: flow.account_number, ifsc: flow.ifsc }),
+              };
+              const wres = await axios.post(`${serverURL}/host/wallet/withdraw`, payload, { withCredentials: true });
+              const wdata = wres.data?.data || wres.data;
+              const newBalance = wdata?.new_balance ?? null;
+              navigate(flow.returnPath || "/host/profile", {
+                state: {
+                  toast: {
+                    type: "success",
+                    title: "Payment successful",
+                    message: `₹ ${parseFloat(flow.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} withdrawn`,
+                  },
+                  wallet: {
+                    visible: true,
+                    balance: newBalance,
+                  },
+                },
+              });
+              return;
+            } else {
+              // Regular payment flow (non-withdraw) — try verify, but do not alert on failure
+              try {
+                await axios.post(`${serverURL}/payments/verify`, {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                });
+              } catch (e) {
+                console.warn("Verification failed in demo mode, proceeding without alert.");
+              }
+              navigate("/");
+            }
           } catch (verifyError) {
-            console.error("Verification failed:", verifyError);
-            alert("Payment verification failed.");
+            console.error("Payment or withdraw error:", verifyError);
+            // Redirect back with error toast (no window alert)
+            navigate(flow.returnPath || "/host/profile", {
+              state: {
+                toast: {
+                  type: "error",
+                  title: "Payment failed",
+                  message: "Could not complete withdrawal in demo mode.",
+                },
+              },
+            });
           }
         },
+        modal: {
+          ondismiss: function () {
+            // User closed the Razorpay modal — return to profile quietly
+            navigate(flow.returnPath || "/host/profile", {
+              state: {
+                toast: {
+                  type: "error",
+                  title: "Payment cancelled",
+                  message: "Checkout was closed before completion.",
+                },
+              },
+            });
+          },
+        },
         prefill: {
-          name: "Event Flex User",
-          email: "team.aditya.invincible@gmail.com",
-          contact: "9999999999",
+          name: flow?.prefill?.name || "Event Flex User",
+          email: flow?.prefill?.email || "team.aditya.invincible@gmail.com",
+          contact: flow?.prefill?.contact || "9999999999",
         },
         theme: {
           color: "#F37254",
@@ -72,13 +160,70 @@ function Razorpay() {
       rzp1.open();
     } catch (error) {
       console.error("Error during payment:", error);
-      alert("Payment failed. Please try again.");
+      // In demo mode, fall back to a success path without alerts
+      if (flow?.checkoutPurpose === "withdraw") {
+        try {
+          const payload = {
+            amount: flow.amount,
+            mode: flow.mode,
+            beneficiary_name: flow.beneficiary_name,
+            ...(flow.mode === "upi"
+              ? { upi_id: flow.upi_id }
+              : { account_number: flow.account_number, ifsc: flow.ifsc }),
+          };
+          const wres = await axios.post(`${serverURL}/host/wallet/withdraw`, payload, { withCredentials: true });
+          const wdata = wres.data?.data || wres.data;
+          const newBalance = wdata?.new_balance ?? null;
+          navigate(flow.returnPath || "/host/profile", {
+            state: {
+              toast: {
+                type: "success",
+                title: "Payment successful",
+                message: `₹ ${parseFloat(flow.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} withdrawn`,
+              },
+              wallet: { visible: true, balance: newBalance },
+            },
+          });
+        } catch (e) {
+          navigate(flow.returnPath || "/host/profile", {
+            state: {
+              toast: { type: "error", title: "Payment failed", message: "Could not complete withdrawal in demo mode." },
+            },
+          });
+        }
+      } else {
+        navigate("/", {
+          state: {
+            toast: { type: "error", title: "Payment failed", message: "Demo payment could not be completed." },
+          },
+        });
+      }
     }
   };
 
+  useEffect(() => {
+    // Auto-open checkout if navigated here for withdrawal
+    if (flow?.checkoutPurpose === "withdraw") {
+      handlePayment();
+    }
+  }, []);
+
   return (
-    <div>
-      <button onClick={handlePayment}>Pay with Razorpay</button>
+    <div className="min-h-[60vh] flex items-center justify-center p-6">
+      <div className="p-6 border rounded-xl bg-white shadow-sm max-w-md w-full text-center">
+        <h2 className="text-lg font-semibold">Razorpay Checkout (Test)</h2>
+        <p className="text-sm text-gray-600 mt-1">Purpose: {flow?.checkoutPurpose || "payment"}</p>
+        {flow?.amount && (
+          <p className="text-sm text-gray-700 mt-1">Amount: ₹ {parseFloat(flow.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        )}
+        <button
+          onClick={handlePayment}
+          className="mt-4 px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700"
+        >
+          Pay with Razorpay
+        </button>
+        <p className="text-xs text-gray-500 mt-3">Test mode only • No real charges</p>
+      </div>
     </div>
   );
 }

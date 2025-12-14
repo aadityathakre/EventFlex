@@ -345,6 +345,78 @@ export const getWalletBalance = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, wallet, "Wallet balance fetched"));
 });
 
+// 8.1 Withdraw funds (test mode) - supports UPI or Bank
+export const withdrawFunds = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { amount, mode, upi_id, beneficiary_name, account_number, ifsc } = req.body;
+
+  // Validate amount
+  const requestedAmount = parseFloat(amount);
+  if (isNaN(requestedAmount) || requestedAmount <= 0) {
+    throw new ApiError(400, "Invalid withdrawal amount");
+  }
+
+  // Validate destination
+  if (mode === "upi") {
+    if (!upi_id || typeof upi_id !== "string" || upi_id.length < 6) {
+      throw new ApiError(400, "Valid UPI ID is required for UPI withdrawals");
+    }
+  } else if (mode === "bank") {
+    if (!account_number || !ifsc) {
+      throw new ApiError(400, "Bank account number and IFSC are required for bank withdrawals");
+    }
+  } else {
+    throw new ApiError(400, "Invalid withdrawal mode. Use 'upi' or 'bank'");
+  }
+
+  // Fetch wallet
+  const wallet = await UserWallet.findOne({ user: hostId });
+  if (!wallet || !wallet.balance_inr) {
+    throw new ApiError(404, "Wallet not found or balance missing");
+  }
+
+  // Convert Decimal128 to float safely
+  const balanceRaw = wallet.balance_inr.toString?.() || "0.00";
+  const currentBalance = parseFloat(balanceRaw);
+  if (isNaN(currentBalance)) {
+    throw new ApiError(500, "Corrupted wallet balance");
+  }
+
+  if (requestedAmount > currentBalance) {
+    throw new ApiError(400, "Insufficient balance");
+  }
+
+  // Deduct and persist
+  const newBalance = (currentBalance - requestedAmount).toFixed(2);
+  wallet.balance_inr = mongoose.Types.Decimal128.fromString(newBalance);
+  await wallet.save();
+
+  // Simulate payout in test mode (mock UTR/refs)
+  const utr = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+  const payout = {
+    mode,
+    amount: requestedAmount,
+    status: "SUCCESS",
+    utr,
+    beneficiary: {
+      name: beneficiary_name || "Beneficiary",
+      ...(mode === "upi" ? { upi_id } : { account_number, ifsc }),
+    },
+    timestamp: new Date(),
+  };
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        new_balance: parseFloat(wallet.balance_inr.toString()),
+        payout,
+      },
+      "Withdrawal processed (test mode)"
+    )
+  );
+});
+
 // 9. Create Event
 export const createEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;

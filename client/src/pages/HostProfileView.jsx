@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../App";
 import {
@@ -19,6 +19,8 @@ import {
   FaTimesCircle,
   FaUpload,
   FaSignOutAlt,
+  FaWallet,
+  FaRupeeSign,
 } from "react-icons/fa";
 
 function HostProfileView() {
@@ -30,6 +32,28 @@ function HostProfileView() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(null);
+  const [walletVisible, setWalletVisible] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [withdrawVisible, setWithdrawVisible] = useState(false);
+  const [withdrawMode, setWithdrawMode] = useState("upi");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawUPI, setWithdrawUPI] = useState("");
+  const [withdrawName, setWithdrawName] = useState("");
+  const [withdrawBankAccount, setWithdrawBankAccount] = useState("");
+  const [withdrawIFSC, setWithdrawIFSC] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawError, setWithdrawError] = useState(null);
+  const [withdrawSuccess, setWithdrawSuccess] = useState(null);
+  const location = useLocation();
+  const [toast, setToast] = useState(null);
+  const [aadhaarNumber, setAadhaarNumber] = useState("");
+  const [otp, setOtp] = useState("");
+  const [kycSubmitting, setKycSubmitting] = useState(false);
+  const [kycError, setKycError] = useState(null);
+  const [kycSuccess, setKycSuccess] = useState("");
+  const [showKycForm, setShowKycForm] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -157,6 +181,27 @@ function HostProfileView() {
     );
   };
 
+  // Show success/error toast if coming back from Razorpay page
+  useEffect(() => {
+    const state = location.state;
+    if (state?.toast) {
+      setToast(state.toast);
+      // Optionally reveal wallet with updated balance
+      if (state.wallet?.visible) {
+        setWalletVisible(true);
+        if (state.wallet.balance !== undefined && state.wallet.balance !== null) {
+          setWalletBalance(state.wallet.balance);
+        }
+      }
+      // Clear navigation state to avoid duplicate toasts on reload
+      setTimeout(() => {
+        setToast(null);
+      }, 3000);
+      // Replace history state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -185,6 +230,41 @@ function HostProfileView() {
   }
 
   const { mergedProfile, documents = [], kyc } = profileData || {};
+  const hasBankDetails = !!(mergedProfile?.bank_details && Object.keys(mergedProfile.bank_details).length > 0);
+  const kycStatus = kyc?.status || "pending";
+  const aadhaarLast4 = kyc?.aadhaar_number ? kyc.aadhaar_number.slice(-4) : "";
+
+  const handleKycSubmit = async () => {
+    setKycError(null);
+    setKycSuccess("");
+    const aadhaarOk = /^\d{12}$/.test(aadhaarNumber);
+    const otpOk = /^\d{6}$/.test(otp);
+    if (!aadhaarOk) {
+      setKycError("Enter a valid 12-digit Aadhaar number");
+      return;
+    }
+    if (!otpOk) {
+      setKycError("Enter a valid 6-digit OTP");
+      return;
+    }
+    setKycSubmitting(true);
+    try {
+      await axios.post(
+        `${serverURL}/host/aadhaar/verify`,
+        { aadhaar_number: aadhaarNumber, otp },
+        { withCredentials: true }
+      );
+      setKycSuccess("KYC submitted and verified successfully");
+      setShowKycForm(false);
+      setAadhaarNumber("");
+      setOtp("");
+      await fetchProfile();
+    } catch (err) {
+      setKycError(err.response?.data?.message || "Failed to submit KYC");
+    } finally {
+      setKycSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -369,8 +449,326 @@ function HostProfileView() {
                     )
                   )}
                 </div>
+                {hasBankDetails && (
+                  <div className="mt-6 flex items-center gap-3 flex-wrap">
+                    <button
+                      onClick={async () => {
+                        setWalletVisible(true);
+                        setWalletLoading(true);
+                        setWalletError(null);
+                        setWalletBalance(null);
+                        try {
+                          const res = await axios.get(`${serverURL}/host/wallet/balance`, { withCredentials: true });
+                          const data = res.data?.data || res.data; 
+                          const num = data?.balance_inr?.$numberDecimal ?? data?.balance_inr ?? null;
+                          setWalletBalance(num);
+                        } catch (err) {
+                          setWalletError(err.response?.data?.message || "Failed to fetch wallet balance");
+                        } finally {
+                          setWalletLoading(false);
+                        }
+                      }}
+                      className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center space-x-2 shadow-md hover:shadow-lg"
+                    >
+                      <FaWallet className="text-lg" />
+                      <span>Show Balance</span>
+                    </button>
+                    {walletVisible && (
+                      <button
+                        onClick={() => {
+                          setWithdrawVisible((v) => !v);
+                          setWithdrawSuccess(null);
+                          setWithdrawError(null);
+                        }}
+                        className="px-6 py-3 bg-rose-600 text-white rounded-lg font-semibold hover:bg-rose-700 transition-colors flex items-center space-x-2 shadow-md hover:shadow-lg"
+                      >
+                        <FaSignOutAlt className="text-lg" />
+                        <span>Withdraw</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+                {walletVisible && (
+                  <div className="mt-4 p-4 border-2 border-indigo-200 rounded-xl bg-indigo-50 space-y-3">
+                    {walletLoading && (
+                      <div className="flex items-center space-x-2 text-indigo-700">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+                        <span className="text-sm font-semibold">Fetching balance...</span>
+                      </div>
+                    )}
+                    {!walletLoading && walletError && (
+                      <div className="text-red-700 text-sm font-semibold">{walletError}</div>
+                    )}
+                    {!walletLoading && !walletError && walletBalance !== null && (
+                      <div className="flex items-center justify-between bg-white rounded-md px-3 py-2 border">
+                        <div className="flex items-center space-x-2">
+                          <FaRupeeSign className="text-indigo-700" />
+                          <p className="text-sm text-gray-700">Current Wallet Balance</p>
+                        </div>
+                        <p className="text-xl font-extrabold text-gray-900">₹ {parseFloat(walletBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                    )}
+                    {withdrawVisible && !walletLoading && !walletError && (
+                      <div className="mt-4 bg-white border rounded-xl p-4 shadow-sm">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-3">Withdraw Funds <span className="text-xs text-gray-500 font-normal">(Simulated Razorpay • Test Mode)</span></h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Amount (INR)</label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="0.01"
+                              value={withdrawAmount}
+                              onChange={(e) => setWithdrawAmount(e.target.value)}
+                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              placeholder="e.g., 1000"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Destination</label>
+                            <select
+                              value={withdrawMode}
+                              onChange={(e) => setWithdrawMode(e.target.value)}
+                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="upi">UPI</option>
+                              <option value="bank">Bank</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Beneficiary Name</label>
+                            <input
+                              type="text"
+                              value={withdrawName}
+                              onChange={(e) => setWithdrawName(e.target.value)}
+                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              placeholder="Recipient name"
+                            />
+                          </div>
+                          {withdrawMode === "upi" ? (
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">UPI ID</label>
+                              <input
+                                type="text"
+                                value={withdrawUPI}
+                                onChange={(e) => setWithdrawUPI(e.target.value)}
+                                className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="example@bank"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <label className="block text-sm text-gray-600 mb-1">Account Number</label>
+                                <input
+                                  type="text"
+                                  value={withdrawBankAccount}
+                                  onChange={(e) => setWithdrawBankAccount(e.target.value)}
+                                  className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  placeholder="0000 0000 0000"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm text-gray-600 mb-1">IFSC</label>
+                                <input
+                                  type="text"
+                                  value={withdrawIFSC}
+                                  onChange={(e) => setWithdrawIFSC(e.target.value)}
+                                  className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  placeholder="ABCD0123456"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {withdrawError && (
+                          <p className="mt-3 text-sm text-red-600 font-semibold">{withdrawError}</p>
+                        )}
+                        {withdrawSuccess && (
+                          <div className="mt-3 p-3 border rounded-md bg-green-50 text-green-700">
+                            <p className="text-sm font-semibold">Withdrawal successful.</p>
+                            <p className="text-xs">UTR: {withdrawSuccess?.payout?.utr}</p>
+                          </div>
+                        )}
+                        <div className="mt-4 flex items-center gap-3">
+                          <button
+                            onClick={async () => {
+                              setWithdrawError(null);
+                              setWithdrawSuccess(null);
+                              try {
+                                const amountNum = parseFloat(withdrawAmount);
+                                if (isNaN(amountNum) || amountNum <= 0) {
+                                  throw new Error("Enter a valid amount greater than 0");
+                                }
+                                if (walletBalance !== null && amountNum > parseFloat(walletBalance)) {
+                                  throw new Error("Amount exceeds available wallet balance");
+                                }
+
+                                // Redirect to Razorpay checkout page with withdraw details
+                                const prefill = {
+                                  name: mergedProfile?.name || "Host User",
+                                  email: mergedProfile?.email || user?.email || "",
+                                  contact: mergedProfile?.phone || "9999999999",
+                                };
+                                navigate("/razorpay", {
+                                  state: {
+                                    checkoutPurpose: "withdraw",
+                                    amount: amountNum,
+                                    mode: withdrawMode,
+                                    beneficiary_name: withdrawName,
+                                    ...(withdrawMode === "upi"
+                                      ? { upi_id: withdrawUPI }
+                                      : { account_number: withdrawBankAccount, ifsc: withdrawIFSC }),
+                                    prefill,
+                                    returnPath: "/host/profile",
+                                  },
+                                });
+                              } catch (err) {
+                                const msg = err.response?.data?.message || err.message || "Failed to withdraw";
+                                setWithdrawError(msg);
+                              } finally {
+                                // no local loading here; navigation will take users to Razorpay page
+                              }
+                            }}
+                            disabled={withdrawLoading}
+                            className="px-6 py-2 bg-emerald-600 text-white rounded-md font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {withdrawLoading ? "Processing..." : "Confirm Withdraw"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setWithdrawVisible(false);
+                              setWithdrawAmount("");
+                              setWithdrawUPI("");
+                              setWithdrawName("");
+                              setWithdrawBankAccount("");
+                              setWithdrawIFSC("");
+                              setWithdrawError(null);
+                              setWithdrawSuccess(null);
+                            }}
+                            className="px-6 py-2 bg-gray-100 text-gray-800 rounded-md font-semibold hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Razorpay checkout handled on /razorpay route */}
+        </div>
+
+        {/* KYC Verification Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+          <h3 className="text-2xl font-bold text-gray-900 mb-6">KYC Verification</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              {kycStatus === "approved" ? (
+                <FaCheckCircle className="text-green-500" />
+              ) : (
+                <FaClock className="text-yellow-500" />
+              )}
+              <div>
+                <p className="text-sm text-gray-600">Current Status</p>
+                <p className="font-semibold">{getStatusBadge(kycStatus)}</p>
+              </div>
+            </div>
+            {kycStatus !== "approved" && (
+              <button
+                onClick={() => setShowKycForm((v) => !v)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                {showKycForm ? "Hide Form" : "Do KYC"}
+              </button>
+            )}
+          </div>
+
+          {kycStatus === "approved" ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Aadhaar Verified</span>
+                <FaCheckCircle className="text-green-500" />
+              </div>
+              {kyc?.aadhaar_number && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Aadhaar Number</span>
+                  <span className="font-semibold text-gray-900">**** **** **** {aadhaarLast4}</span>
+                </div>
+              )}
+              {kyc?.verified_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Verified On</span>
+                  <span className="font-semibold text-gray-900">{new Date(kyc.verified_at).toLocaleDateString('en-GB')}</span>
+                </div>
+              )}
+              {kyc?.video_kyc_url && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Video KYC</span>
+                  <a href={kyc.video_kyc_url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">View</a>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {kycError && (
+                <div className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{kycError}</div>
+              )}
+              {kycSuccess && (
+                <div className="px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{kycSuccess}</div>
+              )}
+              {showKycForm && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Aadhaar Number</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={12}
+                      value={aadhaarNumber}
+                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/[^\d]/g, ""))}
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-600 outline-none"
+                      placeholder="Enter 12-digit Aadhaar"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">OTP (6 digits)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, ""))}
+                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-600 outline-none"
+                      placeholder="Enter OTP"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">OTP sending is not implemented; any 6-digit OTP works.</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                {showKycForm && (
+                  <button
+                    onClick={handleKycSubmit}
+                    disabled={kycSubmitting}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                  >
+                    {kycSubmitting ? "Submitting..." : "Submit KYC"}
+                  </button>
+                )}
+                {showKycForm && (
+                  <button
+                    onClick={() => { setShowKycForm(false); setKycError(null); setKycSuccess(""); }}
+                    className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Documents Status Section */}
@@ -598,16 +996,24 @@ function HostProfileView() {
           </div>
         )}
 
-        {/* Logout Button */}
-        <div className="flex items-center justify-center mb-8">
-          <button
-            onClick={handleLogout}
-            className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-2"
-          >
-            <FaSignOutAlt />
-            <span>Logout</span>
-          </button>
+      {/* Logout Button */}
+      <div className="flex items-center justify-center mb-8">
+        <button
+          onClick={handleLogout}
+          className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-2"
+        >
+          <FaSignOutAlt />
+          <span>Logout</span>
+        </button>
+      </div>
+
+      {/* Success/Error Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border text-sm ${toast.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <p className="font-semibold">{toast.title}</p>
+          {toast.message && <p className="mt-1 text-xs">{toast.message}</p>}
         </div>
+      )}
       </main>
 
       {/* Image Upload Modal */}
