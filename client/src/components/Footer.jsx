@@ -54,7 +54,7 @@ function Footer() {
                 <FaInstagram className="text-xl" />
               </a>
               <a
-                href="https://linkedin.com"
+                href="https://linkedin.com/aadityathakre"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all duration-300 transform hover:scale-110"
@@ -130,22 +130,22 @@ function Footer() {
               <li className="flex items-start">
                 <FaEnvelope className="text-purple-400 mr-3 mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-gray-300">support@eventflex.com</p>
+                  <p className="text-gray-300">team.aditya.invincible@gmail.com</p>
                   <p className="text-gray-300">info@eventflex.com</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <FaPhone className="text-purple-400 mr-3 mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-gray-300">+91 98765 43210</p>
-                  <p className="text-gray-300">+91 87654 32109</p>
+                  <p className="text-gray-300">+91 6263332934</p>
+                  <p className="text-gray-300">+91 7803997106</p>
                 </div>
               </li>
               <li className="flex items-start">
                 <FaMapMarkerAlt className="text-purple-400 mr-3 mt-1 flex-shrink-0" />
                 <div>
-                  <p className="text-gray-300">Mumbai, Maharashtra</p>
-                  <p className="text-gray-300">India 400001</p>
+                  <p className="text-gray-300">Bhopal, Madhya Pradesh</p>
+                  <p className="text-gray-300">India 462044</p>
                 </div>
               </li>
             </ul>

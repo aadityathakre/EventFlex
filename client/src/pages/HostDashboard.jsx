@@ -305,15 +305,9 @@ function HostDashboard() {
               className="flex items-center space-x-3 p-4 border-2 border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-all duration-300"
             >
               <FaUsers />
-              <span className="font-semibold">Invited Organizers</span>
+              <span className="font-semibold">Organizers status</span>
             </button>
-            <button
-              onClick={() => navigate("/host/requests")}
-              className="flex items-center space-x-3 p-4 border-2 border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-all duration-300"
-            >
-              <FaUsers />
-              <span className="font-semibold">Requested Organizers</span>
-            </button>
+
             <button
               onClick={() => navigate("/host/pools")}
               className="flex items-center space-x-3 p-4 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-all duration-300"
