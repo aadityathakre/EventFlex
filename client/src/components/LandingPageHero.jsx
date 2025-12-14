@@ -11,12 +11,20 @@ const LandingPageHero = ({ onOpenAuth }) => {
       <div className="hero-content">
         <div className="hero-container">
           <h1 className="hero-title">
-            Find & Book Spaces for Your<br />
-            Creative Events
+            Connect with Event Professionals<br />
+            for Your Perfect Event
           </h1>
+          <p className="hero-subtitle">
+            The marketplace for hosts, organizers, and gig workers to collaborate and create unforgettable events
+          </p>
 
-          <div className="hero-search-wrapper">
-            <HeroSearch />
+          <div className="hero-cta">
+            <button className="cta-button primary" onClick={() => onOpenAuth('register')}>
+              Get Started
+            </button>
+            <button className="cta-button secondary" onClick={() => onOpenAuth('login')}>
+              Sign In
+            </button>
           </div>
         </div>
       </div>

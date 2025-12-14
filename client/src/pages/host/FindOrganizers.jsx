@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import SendInvitationDialog from '../../components/SendInvitationDialog';
+import OrganizerProfileDialog from '../../components/OrganizerProfileDialog';
 import { getOrganizers, getEvents } from '../../api/host';
 import './FindOrganizers.scss';
 
 function FindOrganizers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedOrganizer, setSelectedOrganizer] = useState(null);
   const [organizers, setOrganizers] = useState([]);
   const [events, setEvents] = useState([]);
@@ -90,7 +92,8 @@ function FindOrganizers() {
   };
 
   const handleViewProfile = (organizer) => {
-    console.log('View profile:', organizer);
+    setSelectedOrganizer(organizer);
+    setProfileDialogOpen(true);
   };
 
   const handleInvite = (organizer) => {
@@ -100,6 +103,11 @@ function FindOrganizers() {
 
   const handleCloseInviteDialog = () => {
     setInviteDialogOpen(false);
+    setSelectedOrganizer(null);
+  };
+
+  const handleCloseProfileDialog = () => {
+    setProfileDialogOpen(false);
     setSelectedOrganizer(null);
   };
 
@@ -229,6 +237,12 @@ function FindOrganizers() {
         onClose={handleCloseInviteDialog}
         organizer={selectedOrganizer}
         events={events}
+      />
+
+      <OrganizerProfileDialog
+        isOpen={profileDialogOpen}
+        onClose={handleCloseProfileDialog}
+        organizer={selectedOrganizer}
       />
     </div>
   );

@@ -65,17 +65,22 @@ export const FEATURED_ACTIVITIES = [
 export const HOW_IT_WORKS_STEPS = [
   {
     number: '01',
-    title: 'Browse your Venue',
-    description: 'Find your best suiting venue from our thousand of locations',
+    title: 'Post Your Event',
+    description: 'Hosts create events and invite experienced organizers to manage them.',
   },
   {
     number: '02',
-    title: 'Book the Palace',
-    description: 'After comparing and getting best, book your venue.',
+    title: 'Build Your Team',
+    description: 'Organizers create pools/teams and gig workers browse and apply to join.',
   },
   {
     number: '03',
-    title: 'Enjoy with your friends & family',
-    description: 'Bring your peoples, & Enjoy your visit.',
+    title: 'Collaborate & Deliver',
+    description: 'Teams communicate via messages, deliver the event, and get paid from escrow.',
+  },
+  {
+    number: '04',
+    title: 'Get Paid Securely',
+    description: 'Funds held in escrow are released upon successful event completion.',
   },
 ];
