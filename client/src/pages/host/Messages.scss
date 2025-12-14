@@ -42,6 +42,14 @@
       }
 
       .conversations-list {
+        .empty-message {
+          font-family: $font-family-primary;
+          font-size: $font-size-small;
+          color: $color-text-secondary;
+          padding: $spacing-md $spacing-lg;
+          text-align: center;
+        }
+
         .conversation-item {
           display: flex;
           align-items: center;
@@ -68,6 +76,14 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            overflow: hidden;
+
+            .avatar-image {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              border-radius: 50%;
+            }
 
             .avatar-text {
               font-family: $font-family-primary;
@@ -102,6 +118,19 @@
           }
         }
       }
+    }
+  }
+
+  .loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-2xl;
+
+    p {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
     }
   }
 

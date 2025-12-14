@@ -55,6 +55,8 @@ export const getOrganizers = () => hostAPI.get('/organizers');
 // Chat API
 export const getChat = () => hostAPI.get('/chat');
 
+export const startChat = (data) => hostAPI.post('/chat', data);
+
 // Payment APIs
 export const depositPayment = (data) => hostAPI.post('/payment/deposit', data);
 

@@ -1,87 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getOrganizers, startChat } from '../../api/host';
 import './Messages.scss';
 
 function HostMessages() {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageInput, setMessageInput] = useState('');
+  const [conversations, setConversations] = useState({
+    accepted: [],
+    invited: [],
+    declined: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Sample conversations data
-  const conversations = {
-    accepted: [
-      {
-        id: 1,
-        name: 'Iswaran',
-        avatar: 'IS',
-        event: 'Wedding #1',
-        lastMessage: 'Hello thanks for your invitation...',
-        status: 'accepted',
-      },
-    ],
-    invited: [
-      {
-        id: 2,
-        name: 'Iswaran',
-        avatar: 'IS',
-        event: 'Wedding #2',
-        lastMessage: '',
-        status: 'invited',
-      },
-      {
-        id: 3,
-        name: 'Iswaran',
-        avatar: 'IS',
-        event: 'Corporate Event',
-        lastMessage: '',
-        status: 'invited',
-      },
-      {
-        id: 4,
-        name: 'Iswaran',
-        avatar: 'IS',
-        event: 'Birthday Party',
-        lastMessage: '',
-        status: 'invited',
-      },
-    ],
-    declined: [
-      {
-        id: 5,
-        name: 'Iswaran',
-        avatar: 'IS',
-        event: 'Conference',
-        lastMessage: '',
-        status: 'declined',
-      },
-      {
-        id: 6,
-        name: 'Iswaran',
-        avatar: 'IS',
-        event: 'Festival',
-        lastMessage: '',
-        status: 'declined',
-      },
-    ],
+  useEffect(() => {
+    fetchOrganizers();
+  }, []);
+
+  const fetchOrganizers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await getOrganizers();
+      const organizersData = response.data.data || response.data.organizers || response.data;
+
+      console.log('Organizers for messages:', organizersData);
+
+      // Group organizers by status
+      const grouped = {
+        accepted: [],
+        invited: [],
+        declined: [],
+      };
+
+      if (Array.isArray(organizersData)) {
+        organizersData.forEach((org) => {
+          const organizerData = org.organizer || org;
+          const status = org.status || 'invited';
+
+          const conversation = {
+            id: organizerData._id || organizerData.id,
+            organizerId: organizerData._id || organizerData.id,
+            name: organizerData.fullName || organizerData.name ||
+                  `${organizerData.first_name || ''} ${organizerData.last_name || ''}`.trim() || 'Organizer',
+            avatar: organizerData.avatar || organizerData.profile_image_url,
+            event: org.event?.title || 'Event',
+            eventId: org.event?._id || org.event,
+            poolId: org.pool?._id || org.pool,
+            lastMessage: '',
+            status: status,
+          };
+
+          // Group by status
+          if (status === 'accepted') {
+            grouped.accepted.push(conversation);
+          } else if (status === 'declined') {
+            grouped.declined.push(conversation);
+          } else {
+            grouped.invited.push(conversation);
+          }
+        });
+      }
+
+      setConversations(grouped);
+    } catch (err) {
+      console.error('Error fetching organizers:', err);
+      setError(err.response?.data?.message || 'Failed to fetch organizers');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Sample messages for selected conversation
-  const messages = [
-    {
-      id: 1,
-      text: 'Hello thanks for your invitation, i think i am good to organize it starting tmrw',
-      sender: 'them',
-      timestamp: '10:30 AM',
-    },
-  ];
+  // Sample messages for selected conversation (no API yet)
+  const messages = [];
 
   const handleConversationClick = (conversation) => {
     setSelectedConversation(conversation);
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (messageInput.trim()) {
-      console.log('Send message:', messageInput);
-      setMessageInput('');
+    if (messageInput.trim() && selectedConversation) {
+      try {
+        const chatData = {
+          organizerId: selectedConversation.organizerId,
+          eventId: selectedConversation.eventId,
+          poolId: selectedConversation.poolId,
+          message: messageInput.trim(),
+        };
+
+        console.log('Sending chat message:', chatData);
+        const response = await startChat(chatData);
+        console.log('Chat response:', response.data);
+
+        setMessageInput('');
+        // Note: We don't have a get messages API yet, so we can't update the messages list
+      } catch (err) {
+        console.error('Error sending message:', err);
+        // Don't show error to user, just log it
+      }
     }
   };
 
@@ -94,71 +111,119 @@ function HostMessages() {
       .slice(0, 2);
   };
 
+  if (loading) {
+    return (
+      <div className="host-messages">
+        <div className="loading-state">
+          <p>Loading conversations...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="host-messages">
       <div className="messages-sidebar">
         <h1>Messages</h1>
 
+        {error && (
+          <div className="error-message" style={{
+            padding: '12px',
+            margin: '12px',
+            backgroundColor: '#fee',
+            border: '1px solid #fcc',
+            borderRadius: '8px',
+            color: '#c33',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
+
         <div className="conversations-section">
           <h3 className="section-title">ACCEPTED</h3>
           <div className="conversations-list">
-            {conversations.accepted.map((conversation) => (
-              <div
-                key={conversation.id}
-                className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
-                onClick={() => handleConversationClick(conversation)}
-              >
-                <div className="conversation-avatar">
-                  <span className="avatar-text">{conversation.avatar}</span>
+            {conversations.accepted.length === 0 ? (
+              <p className="empty-message">No accepted invitations</p>
+            ) : (
+              conversations.accepted.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
+                  onClick={() => handleConversationClick(conversation)}
+                >
+                  <div className="conversation-avatar">
+                    {conversation.avatar && conversation.avatar.startsWith('http') ? (
+                      <img src={conversation.avatar} alt={conversation.name} className="avatar-image" />
+                    ) : (
+                      <span className="avatar-text">{getInitials(conversation.name)}</span>
+                    )}
+                  </div>
+                  <div className="conversation-info">
+                    <span className="conversation-name">{conversation.name}</span>
+                    <span className="conversation-event">{conversation.event}</span>
+                  </div>
                 </div>
-                <div className="conversation-info">
-                  <span className="conversation-name">{conversation.name}</span>
-                  <span className="conversation-event">{conversation.event}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         <div className="conversations-section">
           <h3 className="section-title">INVITATION SENT</h3>
           <div className="conversations-list">
-            {conversations.invited.map((conversation) => (
-              <div
-                key={conversation.id}
-                className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
-                onClick={() => handleConversationClick(conversation)}
-              >
-                <div className="conversation-avatar">
-                  <span className="avatar-text">{conversation.avatar}</span>
+            {conversations.invited.length === 0 ? (
+              <p className="empty-message">No pending invitations</p>
+            ) : (
+              conversations.invited.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
+                  onClick={() => handleConversationClick(conversation)}
+                >
+                  <div className="conversation-avatar">
+                    {conversation.avatar && conversation.avatar.startsWith('http') ? (
+                      <img src={conversation.avatar} alt={conversation.name} className="avatar-image" />
+                    ) : (
+                      <span className="avatar-text">{getInitials(conversation.name)}</span>
+                    )}
+                  </div>
+                  <div className="conversation-info">
+                    <span className="conversation-name">{conversation.name}</span>
+                    <span className="conversation-event">{conversation.event}</span>
+                  </div>
                 </div>
-                <div className="conversation-info">
-                  <span className="conversation-name">{conversation.name}</span>
-                  <span className="conversation-event">{conversation.event}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         <div className="conversations-section">
           <h3 className="section-title">DECLINED</h3>
           <div className="conversations-list">
-            {conversations.declined.map((conversation) => (
-              <div
-                key={conversation.id}
-                className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
-                onClick={() => handleConversationClick(conversation)}
-              >
-                <div className="conversation-avatar">
-                  <span className="avatar-text">{conversation.avatar}</span>
+            {conversations.declined.length === 0 ? (
+              <p className="empty-message">No declined invitations</p>
+            ) : (
+              conversations.declined.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className={`conversation-item ${selectedConversation?.id === conversation.id ? 'active' : ''}`}
+                  onClick={() => handleConversationClick(conversation)}
+                >
+                  <div className="conversation-avatar">
+                    {conversation.avatar && conversation.avatar.startsWith('http') ? (
+                      <img src={conversation.avatar} alt={conversation.name} className="avatar-image" />
+                    ) : (
+                      <span className="avatar-text">{getInitials(conversation.name)}</span>
+                    )}
+                  </div>
+                  <div className="conversation-info">
+                    <span className="conversation-name">{conversation.name}</span>
+                    <span className="conversation-event">{conversation.event}</span>
+                  </div>
                 </div>
-                <div className="conversation-info">
-                  <span className="conversation-name">{conversation.name}</span>
-                  <span className="conversation-event">{conversation.event}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
