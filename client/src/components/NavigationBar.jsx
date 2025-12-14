@@ -23,7 +23,7 @@ const NavigationBar = ({ onOpenAuth }) => {
           <a href="#hosts" className="nav-link">FOR HOSTS</a>
           <a href="#organizers" className="nav-link">FOR ORGANIZERS</a>
           <a href="#gig-workers" className="nav-link">FOR GIG WORKERS</a>
-          <a onClick={() => navigate('/admin/login')} className="nav-link admin-link">ADMIN</a>
+          {/* <a onClick={() => navigate('/admin/login')} className="nav-link admin-link">ADMIN</a> */}
         </div>
 
         <div className="nav-cta">
