@@ -120,7 +120,7 @@ function EventDetails() {
   };
 
   const handleEditEvent = () => {
-    console.log('Edit event');
+    navigate(`/host/events/${id}/edit`);
   };
 
   const handleMarkEventCompleted = () => {
