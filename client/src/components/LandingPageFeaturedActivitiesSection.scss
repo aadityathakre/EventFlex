@@ -1,0 +1,70 @@
+@import '../styles/variables';
+
+.featured-activities-section {
+  background-color: $color-white;
+  padding: $spacing-4xl 0;
+
+  .featured-activities-container {
+    max-width: $container-max-width;
+    margin: 0 auto;
+    padding: 0 $container-padding;
+  }
+
+  .section-title {
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
+    letter-spacing: 1px;
+    margin: 0 0 $spacing-xl 0;
+  }
+
+  .activities-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-xl;
+  }
+
+  .activity-card {
+    background-color: $color-card-bg;
+    border-radius: $border-radius-xl;
+    overflow: hidden;
+    transition: transform $transition-base;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+
+    &:hover {
+      transform: translateY(-4px);
+    }
+
+    .activity-image-placeholder {
+      width: 100%;
+      height: 180px;
+      background-color: $color-card-bg;
+    }
+
+    .activity-name {
+      font-family: $font-family-primary;
+      font-size: $font-size-large;
+      font-weight: $font-weight-bold;
+      color: $color-text-primary;
+      padding: $spacing-lg;
+      text-align: left;
+    }
+  }
+
+  @media (max-width: $breakpoint-desktop) {
+    .activities-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    padding: $spacing-2xl 0;
+
+    .activities-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}

@@ -1,0 +1,302 @@
+@import '../../styles/variables';
+
+.admin-users {
+  padding: $spacing-2xl;
+
+  .page-header {
+    margin-bottom: $spacing-2xl;
+
+    h1 {
+      font-family: $font-family-primary;
+      font-size: $font-size-xlarge;
+      font-weight: $font-weight-bold;
+      color: $color-text-primary;
+      margin: 0 0 $spacing-xs 0;
+    }
+
+    .subtitle {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
+      margin: 0;
+    }
+  }
+
+  .filters-section {
+    margin-bottom: $spacing-lg;
+
+    .search-box {
+      margin-bottom: $spacing-md;
+
+      .search-input {
+        width: 100%;
+        max-width: 600px;
+        padding: $spacing-md $spacing-lg;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        color: $color-text-primary;
+        background-color: $color-white;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-md;
+        transition: all $transition-base;
+
+        &:focus {
+          outline: none;
+          border-color: $color-text-primary;
+        }
+
+        &::placeholder {
+          color: $color-input-placeholder;
+        }
+      }
+    }
+
+    .filter-controls {
+      display: flex;
+      gap: $spacing-md;
+      flex-wrap: wrap;
+
+      .filter-select {
+        padding: $spacing-sm $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        color: $color-text-primary;
+        background-color: $color-white;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-md;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:focus {
+          outline: none;
+          border-color: $color-text-primary;
+        }
+      }
+    }
+  }
+
+  .results-info {
+    font-family: $font-family-primary;
+    font-size: $font-size-small;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-md;
+  }
+
+  .users-table {
+    background-color: $color-white;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-lg;
+    overflow: hidden;
+    overflow-x: auto;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+
+      thead {
+        background-color: $color-background;
+
+        tr {
+          th {
+            padding: $spacing-md $spacing-lg;
+            font-family: $font-family-primary;
+            font-size: $font-size-small;
+            font-weight: $font-weight-semibold;
+            color: $color-text-secondary;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid $color-border;
+          }
+        }
+      }
+
+      tbody {
+        tr {
+          transition: background-color $transition-fast;
+
+          &:hover {
+            background-color: $color-background-light;
+          }
+
+          &:not(:last-child) {
+            border-bottom: 1px solid $color-border;
+          }
+
+          td {
+            padding: $spacing-md $spacing-lg;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-primary;
+
+            &.user-name {
+              font-weight: $font-weight-medium;
+            }
+
+            .role-badge,
+            .status-badge,
+            .kyc-badge {
+              display: inline-block;
+              padding: $spacing-xs $spacing-sm;
+              font-family: $font-family-primary;
+              font-size: $font-size-small;
+              font-weight: $font-weight-semibold;
+              border-radius: $border-radius-sm;
+              text-transform: capitalize;
+            }
+
+            .role-badge {
+              &.role-host {
+                background-color: #e6f7ff;
+                color: #0066cc;
+              }
+
+              &.role-organizer {
+                background-color: #f0f9ff;
+                color: #0284c7;
+              }
+
+              &.role-gig {
+                background-color: #f0fdf4;
+                color: #16a34a;
+              }
+            }
+
+            .status-badge {
+              &.status-active {
+                background-color: #d1fae5;
+                color: #065f46;
+              }
+
+              &.status-banned {
+                background-color: #fee2e2;
+                color: #991b1b;
+              }
+
+              &.status-deleted {
+                background-color: #f3f4f6;
+                color: #6b7280;
+              }
+            }
+
+            .kyc-badge {
+              &.kyc-verified {
+                background-color: #d1fae5;
+                color: #065f46;
+              }
+
+              &.kyc-pending {
+                background-color: #fff4e6;
+                color: #cc6600;
+              }
+
+              &.kyc-rejected {
+                background-color: #fee2e2;
+                color: #991b1b;
+              }
+            }
+
+            .action-buttons {
+              display: flex;
+              gap: $spacing-xs;
+
+              .btn-action {
+                padding: $spacing-xs $spacing-sm;
+                font-family: $font-family-primary;
+                font-size: $font-size-small;
+                font-weight: $font-weight-medium;
+                border: none;
+                border-radius: $border-radius-sm;
+                cursor: pointer;
+                transition: all $transition-base;
+
+                &.btn-ban {
+                  background-color: #fff4e6;
+                  color: #cc6600;
+
+                  &:hover {
+                    background-color: #cc6600;
+                    color: $color-white;
+                  }
+                }
+
+                &.btn-unban {
+                  background-color: #d1fae5;
+                  color: #065f46;
+
+                  &:hover {
+                    background-color: #065f46;
+                    color: $color-white;
+                  }
+                }
+
+                &.btn-delete {
+                  background-color: #fee2e2;
+                  color: #991b1b;
+
+                  &:hover {
+                    background-color: #991b1b;
+                    color: $color-white;
+                  }
+                }
+
+                &.btn-restore {
+                  background-color: #e6f7ff;
+                  color: #0066cc;
+
+                  &:hover {
+                    background-color: #0066cc;
+                    color: $color-white;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .loading,
+  .error,
+  .empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    color: $color-text-secondary;
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    padding: $spacing-lg;
+
+    .page-header h1 {
+      font-size: $font-size-large;
+    }
+
+    .filters-section .filter-controls {
+      flex-direction: column;
+
+      .filter-select {
+        width: 100%;
+      }
+    }
+
+    .users-table {
+      table {
+        font-size: $font-size-small;
+
+        thead tr th,
+        tbody tr td {
+          padding: $spacing-sm;
+        }
+      }
+    }
+  }
+}

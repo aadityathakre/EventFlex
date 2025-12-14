@@ -1,0 +1,103 @@
+@import '../styles/variables';
+
+.stats-section {
+  padding: $spacing-4xl 0;
+  background-color: $color-white;
+
+  .stats-container {
+    max-width: $container-max-width;
+    margin: 0 auto;
+    padding: 0 $container-padding;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: $spacing-xl;
+
+    @media (max-width: $breakpoint-desktop) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      grid-template-columns: 1fr;
+      gap: $spacing-lg;
+    }
+  }
+
+  .stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: $spacing-xl;
+    background-color: $color-background-light;
+    border-radius: $border-radius-lg;
+    transition: all $transition-base;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    .stat-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 80px;
+      margin-bottom: $spacing-md;
+      border-radius: 50%;
+      background: linear-gradient(135deg, $color-primary 0%, $color-secondary 100%);
+      color: $color-white;
+
+      svg {
+        width: 48px;
+        height: 48px;
+      }
+    }
+
+    .stat-content {
+      .stat-number {
+        font-family: $font-family-primary;
+        font-size: $font-size-hero;
+        font-weight: $font-weight-extrabold;
+        color: $color-text-primary;
+        margin: 0 0 $spacing-xs 0;
+        line-height: 1;
+      }
+
+      .stat-label {
+        font-family: $font-family-primary;
+        font-size: $font-size-large;
+        font-weight: $font-weight-medium;
+        color: $color-text-secondary;
+        margin: 0;
+      }
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      padding: $spacing-lg;
+
+      .stat-icon {
+        width: 64px;
+        height: 64px;
+
+        svg {
+          width: 36px;
+          height: 36px;
+        }
+      }
+
+      .stat-content {
+        .stat-number {
+          font-size: $font-size-section-title;
+        }
+
+        .stat-label {
+          font-size: $font-size-base;
+        }
+      }
+    }
+  }
+}

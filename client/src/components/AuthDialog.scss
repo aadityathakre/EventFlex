@@ -1,0 +1,265 @@
+@import '../styles/variables';
+
+.auth-dialog {
+  .auth-header {
+    background-color: $color-background;
+    padding: $spacing-4xl $spacing-2xl $spacing-lg $spacing-2xl;
+    border-radius: $border-radius-2xl $border-radius-2xl 0 0;
+    display: flex;
+    align-items: flex-end;
+    min-height: 140px;
+
+    .auth-title {
+      font-family: $font-family-primary;
+      font-size: $font-size-xlarge;
+      font-weight: $font-weight-extrabold;
+      color: $color-text-primary;
+      margin: 0;
+    }
+  }
+
+  .auth-body {
+    padding: $spacing-xl $spacing-2xl;
+  }
+
+  .role-selection {
+    margin-bottom: $spacing-lg;
+
+    .role-label {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-medium;
+      color: $color-text-secondary;
+      display: block;
+      margin-bottom: $spacing-sm;
+    }
+
+    .role-buttons {
+      display: flex;
+      gap: $spacing-sm;
+      flex-wrap: wrap;
+
+      .role-button {
+        flex: 1;
+        min-width: 100px;
+        padding: $spacing-sm $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $color-text-secondary;
+        background-color: transparent;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-full;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover {
+          border-color: $color-text-secondary;
+        }
+
+        &.active {
+          background-color: $color-secondary;
+          color: $color-white;
+          border-color: $color-secondary;
+        }
+      }
+    }
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-sm;
+  }
+
+  .form-group {
+    margin-bottom: $spacing-sm;
+
+    .form-input {
+      width: 100%;
+      padding: $spacing-md;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-primary;
+      background-color: $color-white;
+      border: 2px solid $color-border;
+      border-radius: $border-radius-md;
+      transition: all $transition-base;
+
+      &::placeholder {
+        color: $color-text-secondary;
+      }
+
+      &:focus {
+        outline: none;
+        border-color: $color-primary;
+      }
+
+      &:hover {
+        border-color: $color-text-light;
+      }
+    }
+  }
+
+  .error-message {
+    color: #e53e3e;
+    font-family: $font-family-primary;
+    font-size: $font-size-small;
+    margin: $spacing-sm 0;
+    text-align: center;
+  }
+
+  .success-message {
+    color: #38a169;
+    font-family: $font-family-primary;
+    font-size: $font-size-small;
+    margin: $spacing-sm 0;
+    text-align: center;
+    font-weight: $font-weight-medium;
+  }
+
+  .forgot-password-text {
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    color: $color-text-secondary;
+    text-align: center;
+    margin: 0 0 $spacing-lg 0;
+  }
+
+  .forgot-password-link-wrapper {
+    text-align: right;
+    margin-bottom: $spacing-sm;
+
+    .forgot-password-link {
+      background: none;
+      border: none;
+      color: $color-text-secondary;
+      font-family: $font-family-primary;
+      font-size: $font-size-small;
+      cursor: pointer;
+      text-decoration: none;
+      padding: 0;
+      transition: color $transition-base;
+
+      &:hover {
+        color: $color-text-primary;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .submit-button {
+    width: 100%;
+    padding: $spacing-md;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: $color-white;
+    background-color: $color-secondary;
+    border: none;
+    border-radius: $border-radius-md;
+    cursor: pointer;
+    transition: all $transition-base;
+    margin-bottom: $spacing-sm;
+    margin-top: $spacing-sm;
+
+    &:hover:not(:disabled) {
+      background-color: $color-primary-dark;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .google-button {
+    width: 100%;
+    padding: $spacing-md;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    color: $color-text-secondary;
+    background-color: $color-white;
+    border: 2px solid $color-border;
+    border-radius: $border-radius-md;
+    cursor: pointer;
+    transition: all $transition-base;
+    margin-bottom: $spacing-md;
+
+    &:hover:not(:disabled) {
+      border-color: $color-text-secondary;
+      background-color: $color-background;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .auth-footer {
+    text-align: center;
+
+    .switch-text {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
+      margin: 0;
+
+      .switch-link {
+        background: none;
+        border: none;
+        color: $color-text-primary;
+        font-weight: $font-weight-semibold;
+        cursor: pointer;
+        text-decoration: none;
+        transition: color $transition-base;
+        padding: 0;
+
+        &:hover {
+          color: $color-primary-dark;
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .auth-header {
+      padding: $spacing-2xl $spacing-md $spacing-md $spacing-md;
+      min-height: 100px;
+
+      .auth-title {
+        font-size: $font-size-large;
+      }
+    }
+
+    .auth-body {
+      padding: $spacing-md;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .role-buttons {
+      flex-direction: column;
+
+      .role-button {
+        min-width: unset;
+      }
+    }
+  }
+}

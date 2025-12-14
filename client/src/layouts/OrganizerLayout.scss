@@ -1,0 +1,23 @@
+@import '../styles/variables';
+
+.organizer-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: $color-background-light;
+
+  .organizer-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: $spacing-2xl;
+
+    @media (max-width: $breakpoint-tablet) {
+      margin-left: 240px;
+      padding: $spacing-xl;
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      margin-left: 0;
+      padding: $spacing-md;
+    }
+  }
+}

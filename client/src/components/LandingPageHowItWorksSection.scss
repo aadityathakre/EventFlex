@@ -1,0 +1,108 @@
+@import '../styles/variables';
+
+.how-it-works-section {
+  background-color: $color-white;
+  padding: $spacing-4xl 0;
+
+  .how-it-works-container {
+    max-width: $container-max-width;
+    margin: 0 auto;
+    padding: 0 $container-padding;
+  }
+
+  .section-title {
+    font-family: $font-family-primary;
+    font-size: $font-size-section-title;
+    font-weight: $font-weight-extrabold;
+    color: $color-text-primary;
+    text-align: center;
+    margin: 0 0 $spacing-4xl 0;
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: $spacing-xl;
+  }
+
+  .step-card {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+    padding: $spacing-xl;
+    background-color: $color-background-light;
+    border-radius: $border-radius-lg;
+    transition: all $transition-base;
+
+    &:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    .step-number {
+      font-family: $font-family-primary;
+      font-size: 64px;
+      font-weight: $font-weight-extrabold;
+      color: $color-text-light;
+      line-height: 1;
+    }
+
+    .step-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
+    }
+
+    .step-title {
+      font-family: $font-family-primary;
+      font-size: $font-size-large;
+      font-weight: $font-weight-extrabold;
+      color: $color-text-primary;
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .step-description {
+      font-family: $font-family-primary;
+      font-size: $font-size-small;
+      font-weight: $font-weight-regular;
+      color: $color-text-secondary;
+      margin: 0;
+      line-height: 1.6;
+    }
+  }
+
+  @media (max-width: $breakpoint-desktop) {
+    .steps-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-lg;
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    padding: $spacing-2xl 0;
+
+    .section-title {
+      font-size: 28px;
+      margin-bottom: $spacing-xl;
+    }
+
+    .steps-grid {
+      grid-template-columns: 1fr;
+      gap: $spacing-lg;
+    }
+
+    .step-card {
+      padding: $spacing-lg;
+
+      .step-number {
+        font-size: 48px;
+      }
+
+      .step-title {
+        font-size: $font-size-base;
+      }
+    }
+  }
+}

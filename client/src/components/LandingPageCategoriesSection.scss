@@ -1,0 +1,160 @@
+@import '../styles/variables';
+
+.categories-section {
+  background-color: $color-white;
+  padding: $spacing-4xl 0;
+
+  .categories-container {
+    max-width: $container-max-width;
+    margin: 0 auto;
+    padding: 0 $container-padding;
+  }
+
+  .section-title {
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
+    letter-spacing: 1px;
+    margin: 0 0 $spacing-xl 0;
+  }
+
+  .categories-tabs {
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-3xl;
+    flex-wrap: wrap;
+
+    .category-tab {
+      background-color: transparent;
+      border: none;
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      font-weight: $font-weight-medium;
+      color: $color-text-secondary;
+      padding: $spacing-md $spacing-lg;
+      border-radius: $border-radius-full;
+      cursor: pointer;
+      transition: all $transition-base;
+      white-space: nowrap;
+
+      &:hover {
+        color: $color-text-primary;
+        background-color: $color-background;
+      }
+
+      &.active {
+        background-color: $color-secondary;
+        color: $color-white;
+      }
+    }
+  }
+
+  .venues-grid-wrapper {
+    position: relative;
+  }
+
+  .venues-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-xl;
+
+    .venue-card {
+      background-color: $color-card-bg;
+      border-radius: $border-radius-xl;
+      overflow: hidden;
+      transition: transform $transition-base;
+      text-decoration: none;
+      display: block;
+
+      &:hover {
+        transform: translateY(-4px);
+      }
+
+      .venue-image-placeholder {
+        width: 100%;
+        height: 200px;
+        background-color: $color-card-bg;
+      }
+
+      .venue-info {
+        padding: $spacing-lg;
+
+        .venue-name {
+          font-family: $font-family-primary;
+          font-size: $font-size-large;
+          font-weight: $font-weight-bold;
+          color: $color-text-primary;
+          margin: 0 0 $spacing-xs 0;
+        }
+
+        .venue-price {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-regular;
+          color: $color-text-secondary;
+          margin: 0;
+        }
+      }
+    }
+  }
+
+  .next-button,
+  .prev-button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: $color-white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all $transition-base;
+    color: $color-text-primary;
+    z-index: 10;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    &:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+  }
+
+  .prev-button {
+    left: -30px;
+  }
+
+  .next-button {
+    right: -30px;
+  }
+
+  @media (max-width: $breakpoint-desktop) {
+    .venues-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .prev-button {
+      left: 0;
+    }
+
+    .next-button {
+      right: 0;
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    padding: $spacing-2xl 0;
+
+    .venues-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}

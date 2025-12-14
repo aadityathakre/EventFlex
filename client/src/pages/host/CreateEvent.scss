@@ -1,0 +1,246 @@
+@import '../../styles/variables';
+
+.create-event {
+  .back-button {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+    background: none;
+    border: none;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    color: $color-text-primary;
+    cursor: pointer;
+    padding: $spacing-sm;
+    margin-bottom: $spacing-lg;
+    transition: all $transition-base;
+
+    &:hover {
+      color: $color-primary;
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+
+  .create-event-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-3xl;
+    align-items: start;
+
+    .form-section {
+      h1 {
+        font-family: $font-family-primary;
+        font-size: $font-size-section-title;
+        font-weight: $font-weight-extrabold;
+        color: $color-text-primary;
+        margin: 0 0 $spacing-2xl 0;
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-lg;
+
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: $spacing-xs;
+
+          label {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-medium;
+            color: $color-text-primary;
+          }
+
+          .form-input,
+          .form-textarea {
+            width: 100%;
+            padding: $spacing-md;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-primary;
+            background-color: $color-white;
+            border: 2px solid $color-border;
+            border-radius: $border-radius-md;
+            transition: all $transition-base;
+
+            &::placeholder {
+              color: $color-text-secondary;
+            }
+
+            &:focus {
+              outline: none;
+              border-color: $color-primary;
+            }
+
+            &:hover {
+              border-color: $color-text-light;
+            }
+          }
+
+          .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+          }
+
+          .select-wrapper {
+            position: relative;
+
+            .form-select {
+              width: 100%;
+              padding: $spacing-md;
+              padding-right: 40px;
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              color: $color-text-primary;
+              background-color: $color-white;
+              border: 2px solid $color-border;
+              border-radius: $border-radius-md;
+              transition: all $transition-base;
+              appearance: none;
+              cursor: pointer;
+
+              &:focus {
+                outline: none;
+                border-color: $color-primary;
+              }
+
+              &:hover {
+                border-color: $color-text-light;
+              }
+
+              option {
+                color: $color-text-primary;
+              }
+            }
+
+            .select-icon {
+              position: absolute;
+              right: $spacing-md;
+              top: 50%;
+              transform: translateY(-50%);
+              pointer-events: none;
+              color: $color-text-secondary;
+            }
+          }
+        }
+
+        .time-group {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: $spacing-lg;
+        }
+
+        .submit-button {
+          width: 100%;
+          padding: $spacing-md;
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-white;
+          background-color: $color-secondary;
+          border: none;
+          border-radius: $border-radius-md;
+          cursor: pointer;
+          transition: all $transition-base;
+          margin-top: $spacing-md;
+
+          &:hover {
+            background-color: $color-primary-dark;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+        }
+      }
+    }
+
+    .preview-section {
+      position: sticky;
+      top: $spacing-2xl;
+
+      .preview-card {
+        background-color: $color-white;
+        border-radius: $border-radius-lg;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+        .preview-header {
+          background-color: $color-background;
+          padding: $spacing-2xl;
+          min-height: 200px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          h2 {
+            font-family: $font-family-primary;
+            font-size: $font-size-xlarge;
+            font-weight: $font-weight-extrabold;
+            color: $color-text-primary;
+            margin: 0;
+            text-align: center;
+          }
+        }
+
+        .preview-body {
+          padding: $spacing-2xl;
+          min-height: 300px;
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-desktop) {
+    .create-event-container {
+      grid-template-columns: 1fr;
+
+      .preview-section {
+        position: static;
+        order: -1;
+        margin-bottom: $spacing-2xl;
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .create-event-container {
+      .form-section {
+        h1 {
+          font-size: $font-size-large;
+        }
+
+        form {
+          .time-group {
+            grid-template-columns: 1fr;
+          }
+        }
+      }
+
+      .preview-section {
+        .preview-card {
+          .preview-header {
+            padding: $spacing-lg;
+            min-height: 150px;
+
+            h2 {
+              font-size: $font-size-large;
+            }
+          }
+
+          .preview-body {
+            padding: $spacing-lg;
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,213 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createEvent } from '../../api/host';
+import './CreateEvent.scss';
+
+function CreateEvent() {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    eventName: '',
+    description: '',
+    eventType: '',
+    startTime: '',
+    endTime: '',
+    budget: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const eventTypes = [
+    { value: 'function', label: 'Function' },
+    { value: 'corporate', label: 'Corporate' },
+    { value: 'festival', label: 'Festival' },
+    { value: 'exhibition', label: 'Exhibition' },
+    { value: 'hackathon', label: 'Hackathon' },
+    { value: 'workshop', label: 'Workshop' },
+    { value: 'webinar', label: 'Webinar' },
+    { value: 'networking', label: 'Networking' },
+    { value: 'fundraiser', label: 'Fundraiser' },
+    { value: 'retreat', label: 'Retreat' },
+  ];
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Transform form data to match API structure from Postman collection
+      const eventData = {
+        title: formData.eventName,
+        description: formData.description,
+        event_type: formData.eventType, // Already in correct format from select value
+        start_date: new Date(formData.startTime).toISOString(),
+        end_date: new Date(formData.endTime).toISOString(),
+        location: {
+          coordinates: [77.4126, 23.2599], // Default coordinates, can be updated with geolocation
+        },
+        budget: formData.budget,
+      };
+
+      console.log('Creating event with data:', eventData);
+      const response = await createEvent(eventData);
+      console.log('Event created successfully:', response.data);
+
+      // Navigate back to events page after successful creation
+      navigate('/host/events');
+    } catch (err) {
+      console.error('Error creating event:', err);
+      setError(err.response?.data?.message || 'Failed to create event');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    navigate('/host/events');
+  };
+
+  return (
+    <div className="create-event">
+      <button className="back-button" onClick={handleBack}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        Back
+      </button>
+
+      <div className="create-event-container">
+        <div className="form-section">
+          <h1>Create New Event</h1>
+
+          {error && (
+            <div className="error-message" style={{
+              padding: '12px',
+              marginBottom: '20px',
+              backgroundColor: '#fee',
+              border: '1px solid #fcc',
+              borderRadius: '8px',
+              color: '#c33',
+              fontSize: '14px'
+            }}>
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Event Name</label>
+              <input
+                type="text"
+                name="eventName"
+                placeholder="Wedding #1"
+                value={formData.eventName}
+                onChange={handleInputChange}
+                className="form-input"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Description</label>
+              <textarea
+                name="description"
+                placeholder="Enter event description..."
+                value={formData.description}
+                onChange={handleInputChange}
+                className="form-textarea"
+                rows="4"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Event type</label>
+              <div className="select-wrapper">
+                <select
+                  name="eventType"
+                  value={formData.eventType}
+                  onChange={handleInputChange}
+                  className="form-select"
+                  required
+                >
+                  <option value="">Select event type</option>
+                  {eventTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+                <svg className="select-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+
+            <div className="time-group">
+              <div className="form-group">
+                <label>Start time</label>
+                <input
+                  type="datetime-local"
+                  name="startTime"
+                  value={formData.startTime}
+                  onChange={handleInputChange}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>End time</label>
+                <input
+                  type="datetime-local"
+                  name="endTime"
+                  value={formData.endTime}
+                  onChange={handleInputChange}
+                  className="form-input"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Budget</label>
+              <input
+                type="text"
+                name="budget"
+                placeholder="Enter budget amount"
+                value={formData.budget}
+                onChange={handleInputChange}
+                className="form-input"
+                required
+              />
+            </div>
+
+            <button type="submit" className="submit-button" disabled={loading}>
+              {loading ? 'Creating Event...' : 'Create Event'}
+            </button>
+          </form>
+        </div>
+
+        <div className="preview-section">
+          <div className="preview-card">
+            <div className="preview-header">
+              <h2>{formData.eventName || 'Wedding #1'}</h2>
+            </div>
+            <div className="preview-body">
+              {/* Preview content will be displayed here */}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default CreateEvent;

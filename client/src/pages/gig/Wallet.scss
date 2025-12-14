@@ -1,0 +1,220 @@
+@import '../../styles/variables';
+
+.wallet-page {
+  .wallet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-3xl;
+
+    h1 {
+      font-family: $font-family-primary;
+      font-size: $font-size-section-title;
+      font-weight: $font-weight-extrabold;
+      color: $color-text-primary;
+      margin: 0;
+    }
+
+    .wallet-actions {
+      display: flex;
+      gap: $spacing-md;
+
+      button {
+        padding: $spacing-sm $spacing-lg;
+        border: none;
+        border-radius: $border-radius-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:active {
+          transform: scale(0.98);
+        }
+      }
+
+      .deposit-button {
+        background-color: $color-text-primary;
+        color: $color-white;
+
+        &:hover {
+          background-color: $color-primary-dark;
+        }
+      }
+
+      .withdraw-button {
+        background-color: $color-text-primary;
+        color: $color-white;
+
+        &:hover {
+          background-color: $color-primary-dark;
+        }
+      }
+    }
+  }
+
+  .wallet-info {
+    margin-bottom: $spacing-3xl;
+
+    .balance-section {
+      margin-bottom: $spacing-xl;
+
+      .balance-label {
+        display: block;
+        font-family: $font-family-primary;
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-text-secondary;
+        letter-spacing: 0.5px;
+        margin-bottom: $spacing-sm;
+      }
+
+      .balance-amount {
+        display: block;
+        font-family: $font-family-primary;
+        font-size: $font-size-hero;
+        font-weight: $font-weight-extrabold;
+        color: $color-text-primary;
+      }
+    }
+
+    .upi-section {
+      .upi-label {
+        display: block;
+        font-family: $font-family-primary;
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-text-secondary;
+        letter-spacing: 0.5px;
+        margin-bottom: $spacing-sm;
+      }
+
+      .upi-id {
+        display: block;
+        font-family: $font-family-primary;
+        font-size: $font-size-xlarge;
+        font-weight: $font-weight-semibold;
+        color: $color-text-primary;
+      }
+    }
+  }
+
+  .payment-history {
+    .history-title {
+      font-family: $font-family-primary;
+      font-size: $font-size-small;
+      font-weight: $font-weight-semibold;
+      color: $color-text-secondary;
+      letter-spacing: 0.5px;
+      margin: 0 0 $spacing-lg 0;
+    }
+
+    .transactions-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+
+      .transaction-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: $spacing-lg $spacing-xl;
+        background-color: $color-white;
+        border-radius: $border-radius-lg;
+        border: 1px solid $color-border;
+        transition: all $transition-base;
+
+        &:hover {
+          border-color: $color-text-light;
+        }
+
+        .transaction-event {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-text-primary;
+          flex: 1;
+        }
+
+        .transaction-amount {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-text-primary;
+          margin-right: $spacing-xl;
+        }
+
+        .transaction-status {
+          padding: $spacing-xs $spacing-md;
+          border-radius: $border-radius-md;
+          font-family: $font-family-primary;
+          font-size: $font-size-small;
+          font-weight: $font-weight-semibold;
+          border: 1px solid;
+
+          &.success {
+            color: #10B981;
+            border-color: #10B981;
+            background-color: transparent;
+          }
+
+          &.failed {
+            color: #EF4444;
+            border-color: #EF4444;
+            background-color: transparent;
+          }
+
+          &.pending {
+            color: #F59E0B;
+            border-color: #F59E0B;
+            background-color: transparent;
+          }
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    .wallet-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $spacing-md;
+
+      .wallet-actions {
+        width: 100%;
+
+        button {
+          flex: 1;
+        }
+      }
+    }
+
+    .wallet-info {
+      .balance-section {
+        .balance-amount {
+          font-size: $font-size-xlarge * 1.5;
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .transactions-list {
+      .transaction-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: $spacing-sm;
+        padding: $spacing-md;
+
+        .transaction-amount {
+          margin-right: 0;
+        }
+
+        .transaction-status {
+          align-self: flex-end;
+        }
+      }
+    }
+  }
+}

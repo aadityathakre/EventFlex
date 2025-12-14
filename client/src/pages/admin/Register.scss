@@ -1,0 +1,196 @@
+@import '../../styles/variables';
+
+.admin-register-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: $spacing-lg;
+
+  .register-container {
+    width: 100%;
+    max-width: 450px;
+
+    .register-card {
+      background-color: $color-white;
+      border-radius: $border-radius-xl;
+      padding: $spacing-4xl $spacing-2xl;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+
+      .register-header {
+        text-align: center;
+        margin-bottom: $spacing-2xl;
+
+        h1 {
+          font-family: $font-family-primary;
+          font-size: $font-size-xlarge;
+          font-weight: $font-weight-extrabold;
+          color: $color-text-primary;
+          margin: 0 0 $spacing-xs 0;
+          letter-spacing: 2px;
+        }
+
+        h2 {
+          font-family: $font-family-primary;
+          font-size: $font-size-large;
+          font-weight: $font-weight-semibold;
+          color: #667eea;
+          margin: 0 0 $spacing-sm 0;
+        }
+
+        p {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          color: $color-text-secondary;
+          margin: 0;
+        }
+      }
+
+      .register-form {
+        .form-group {
+          margin-bottom: $spacing-lg;
+
+          label {
+            display: block;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-medium;
+            color: $color-text-primary;
+            margin-bottom: $spacing-sm;
+          }
+
+          .form-control {
+            width: 100%;
+            padding: $spacing-md $spacing-lg;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-primary;
+            background-color: $color-white;
+            border: 2px solid $color-border;
+            border-radius: $border-radius-md;
+            transition: all $transition-base;
+
+            &:focus {
+              outline: none;
+              border-color: #667eea;
+              box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+
+            &::placeholder {
+              color: $color-input-placeholder;
+            }
+          }
+
+          .password-input {
+            position: relative;
+
+            .form-control {
+              padding-right: 48px;
+            }
+
+            .toggle-password {
+              position: absolute;
+              right: $spacing-md;
+              top: 50%;
+              transform: translateY(-50%);
+              background: none;
+              border: none;
+              padding: $spacing-xs;
+              cursor: pointer;
+              color: $color-text-secondary;
+              transition: color $transition-base;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              &:hover {
+                color: $color-text-primary;
+              }
+            }
+          }
+        }
+
+        .error-message {
+          padding: $spacing-md;
+          background-color: #fee2e2;
+          color: #991b1b;
+          font-family: $font-family-primary;
+          font-size: $font-size-small;
+          border-radius: $border-radius-md;
+          margin-bottom: $spacing-lg;
+        }
+
+        .btn-register {
+          width: 100%;
+          padding: $spacing-md $spacing-lg;
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          font-weight: $font-weight-semibold;
+          color: $color-white;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          border-radius: $border-radius-md;
+          cursor: pointer;
+          transition: all $transition-base;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+
+          &:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+          }
+
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+          }
+        }
+      }
+
+      .register-footer {
+        text-align: center;
+        margin-top: $spacing-xl;
+
+        p {
+          font-family: $font-family-primary;
+          font-size: $font-size-base;
+          color: $color-text-secondary;
+          margin: 0;
+
+          .link {
+            color: #667eea;
+            font-weight: $font-weight-semibold;
+            cursor: pointer;
+            transition: color $transition-base;
+
+            &:hover {
+              color: #764ba2;
+              text-decoration: underline;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    padding: $spacing-md;
+
+    .register-container {
+      .register-card {
+        padding: $spacing-2xl $spacing-lg;
+
+        .register-header {
+          h1 {
+            font-size: $font-size-large;
+          }
+
+          h2 {
+            font-size: $font-size-base;
+          }
+        }
+      }
+    }
+  }
+}

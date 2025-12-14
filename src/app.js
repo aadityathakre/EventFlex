@@ -14,7 +14,7 @@ app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: `${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}` ,
+    origin: `${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}`,
     credentials: true,
   })
 );

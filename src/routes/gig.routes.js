@@ -77,7 +77,7 @@ router.get(
   authorizeRoles("gig"),
   getAttendanceHistory
 );
-router.get(
+router.post(
   "/nearby-events",
   verifyToken,
   authorizeRoles("gig"),

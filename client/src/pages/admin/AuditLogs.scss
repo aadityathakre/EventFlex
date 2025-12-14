@@ -1,0 +1,278 @@
+@import '../../styles/variables';
+
+.admin-audit-logs {
+  padding: $spacing-2xl;
+
+  .page-header {
+    margin-bottom: $spacing-xl;
+
+    h1 {
+      font-family: $font-family-primary;
+      font-size: $font-size-xlarge;
+      font-weight: $font-weight-bold;
+      color: $color-text-primary;
+      margin: 0 0 $spacing-xs 0;
+    }
+
+    .subtitle {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
+      margin: 0;
+    }
+  }
+
+  .filters-section {
+    margin-bottom: $spacing-lg;
+
+    .search-box {
+      margin-bottom: $spacing-md;
+
+      .search-input {
+        width: 100%;
+        max-width: 600px;
+        padding: $spacing-md $spacing-lg;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        color: $color-text-primary;
+        background-color: $color-white;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-md;
+        transition: all $transition-base;
+
+        &:focus {
+          outline: none;
+          border-color: $color-text-primary;
+        }
+
+        &::placeholder {
+          color: $color-input-placeholder;
+        }
+      }
+    }
+
+    .filter-controls {
+      display: flex;
+      gap: $spacing-md;
+      margin-bottom: $spacing-sm;
+
+      .filter-select {
+        padding: $spacing-sm $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        color: $color-text-primary;
+        background-color: $color-white;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-md;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:focus {
+          outline: none;
+          border-color: $color-text-primary;
+        }
+      }
+    }
+
+    .results-info {
+      font-family: $font-family-primary;
+      font-size: $font-size-small;
+      color: $color-text-secondary;
+    }
+  }
+
+  .logs-table {
+    background-color: $color-white;
+    border: 1px solid $color-border;
+    border-radius: $border-radius-lg;
+    overflow: hidden;
+    overflow-x: auto;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+
+      thead {
+        background-color: $color-background;
+
+        tr {
+          th {
+            padding: $spacing-md $spacing-lg;
+            font-family: $font-family-primary;
+            font-size: $font-size-small;
+            font-weight: $font-weight-semibold;
+            color: $color-text-secondary;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid $color-border;
+            white-space: nowrap;
+          }
+        }
+      }
+
+      tbody {
+        tr {
+          transition: background-color $transition-fast;
+
+          &:hover {
+            background-color: $color-background-light;
+          }
+
+          &:not(:last-child) {
+            border-bottom: 1px solid $color-border;
+          }
+
+          td {
+            padding: $spacing-md $spacing-lg;
+            font-family: $font-family-primary;
+            font-size: $font-size-small;
+            color: $color-text-primary;
+
+            &.log-timestamp {
+              font-family: monospace;
+              color: $color-text-secondary;
+              white-space: nowrap;
+            }
+
+            &.log-user {
+              font-weight: $font-weight-medium;
+            }
+
+            &.log-entity {
+              color: $color-text-secondary;
+            }
+
+            &.log-description {
+              max-width: 300px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            &.log-ip {
+              font-family: monospace;
+              color: $color-text-secondary;
+            }
+
+            .action-badge {
+              display: inline-block;
+              padding: $spacing-xs $spacing-sm;
+              font-family: $font-family-primary;
+              font-size: $font-size-small;
+              font-weight: $font-weight-semibold;
+              border-radius: $border-radius-sm;
+              text-transform: capitalize;
+              white-space: nowrap;
+
+              &.action-create {
+                background-color: #d1fae5;
+                color: #065f46;
+              }
+
+              &.action-update {
+                background-color: #e6f7ff;
+                color: #0066cc;
+              }
+
+              &.action-delete {
+                background-color: #fee2e2;
+                color: #991b1b;
+              }
+
+              &.action-ban {
+                background-color: #fff4e6;
+                color: #cc6600;
+              }
+
+              &.action-unban {
+                background-color: #dcfce7;
+                color: #15803d;
+              }
+
+              &.action-approve {
+                background-color: #f0fdf4;
+                color: #16a34a;
+              }
+
+              &.action-reject {
+                background-color: #fef3c7;
+                color: #a16207;
+              }
+
+              &.action-login,
+              &.action-logout {
+                background-color: #f0f9ff;
+                color: #0284c7;
+              }
+
+              &.action-default {
+                background-color: $color-background;
+                color: $color-text-secondary;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .loading,
+  .error,
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    color: $color-text-secondary;
+    gap: $spacing-md;
+
+    svg {
+      color: $color-text-light;
+    }
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    padding: $spacing-lg;
+
+    .page-header h1 {
+      font-size: $font-size-large;
+    }
+
+    .filters-section {
+      .filter-controls {
+        flex-direction: column;
+
+        .filter-select {
+          width: 100%;
+        }
+      }
+    }
+
+    .logs-table {
+      table {
+        font-size: $font-size-small;
+
+        thead tr th,
+        tbody tr td {
+          padding: $spacing-sm;
+
+          &.log-description {
+            max-width: 150px;
+          }
+        }
+      }
+    }
+  }
+}
