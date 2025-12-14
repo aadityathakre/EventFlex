@@ -8,6 +8,7 @@ import {
   updateProfileImage,
   deleteProfileImage,
   uploadOrganizerDocs,
+  updateOrganizerDocs,
   submitESignature,
   verifyAadhaarOrganizer,
 
@@ -58,7 +59,8 @@ router.put("/profile/image", verifyToken, authorizeRoles("organizer"), upload.fi
 router.delete("/profile/image", verifyToken, authorizeRoles("organizer"), deleteProfileImage);
 
 // 📄 Document & E-Signature Management
-router.post("/upload-docs", verifyToken, authorizeRoles("organizer"),upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
+router.post("/upload-docs", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
+router.put("/update-docs", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), updateOrganizerDocs);
 router.post("/e-signature", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), submitESignature);
 router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyAadhaarOrganizer);
 

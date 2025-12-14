@@ -2,11 +2,32 @@ import React, { useEffect } from "react";
 import axios from "axios";
 import { serverURL } from "../App.jsx";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function Razorpay() {
   const navigate = useNavigate();
   const location = useLocation();
   const flow = location.state || {};
+  const { user } = useAuth();
+
+  const role = user?.role || (flow?.returnPath?.startsWith("/organizer")
+    ? "organizer"
+    : flow?.returnPath?.startsWith("/gig")
+    ? "gig"
+    : "host");
+
+  const withdrawPathMap = {
+    host: "/host/wallet/withdraw",
+    organizer: "/organizer/withdraw",
+    gig: "/gig/withdraw",
+  };
+  const defaultReturnPathMap = {
+    host: "/host/profile",
+    organizer: "/organizer/profile",
+    gig: "/gig/profile",
+  };
+  const withdrawEndpoint = withdrawPathMap[role] || "/host/wallet/withdraw";
+  const defaultReturnPath = defaultReturnPathMap[role] || "/host/profile";
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -34,10 +55,11 @@ function Razorpay() {
               : { account_number: flow.account_number, ifsc: flow.ifsc }),
           };
           try {
-            const wres = await axios.post(`${serverURL}/host/wallet/withdraw`, payload, { withCredentials: true });
+            const wres = await axios.post(`${serverURL}${withdrawEndpoint}`, payload, { withCredentials: true });
             const wdata = wres.data?.data || wres.data;
-            const newBalance = wdata?.new_balance ?? null;
-            navigate(flow.returnPath || "/host/profile", {
+            const newBalance =
+              wdata?.new_balance ?? (wdata?.balance_inr ? parseFloat(wdata.balance_inr.toString?.() || wdata.balance_inr) : null);
+            navigate(flow.returnPath || defaultReturnPath, {
               state: {
                 toast: {
                   type: "success",
@@ -48,7 +70,7 @@ function Razorpay() {
               },
             });
           } catch (e) {
-            navigate(flow.returnPath || "/host/profile", {
+            navigate(flow.returnPath || defaultReturnPath, {
               state: {
                 toast: { type: "error", title: "Payment failed", message: "Could not complete withdrawal in demo mode." },
               },
@@ -87,10 +109,11 @@ function Razorpay() {
                   ? { upi_id: flow.upi_id }
                   : { account_number: flow.account_number, ifsc: flow.ifsc }),
               };
-              const wres = await axios.post(`${serverURL}/host/wallet/withdraw`, payload, { withCredentials: true });
+              const wres = await axios.post(`${serverURL}${withdrawEndpoint}`, payload, { withCredentials: true });
               const wdata = wres.data?.data || wres.data;
-              const newBalance = wdata?.new_balance ?? null;
-              navigate(flow.returnPath || "/host/profile", {
+              const newBalance =
+                wdata?.new_balance ?? (wdata?.balance_inr ? parseFloat(wdata.balance_inr.toString?.() || wdata.balance_inr) : null);
+              navigate(flow.returnPath || defaultReturnPath, {
                 state: {
                   toast: {
                     type: "success",
@@ -120,7 +143,7 @@ function Razorpay() {
           } catch (verifyError) {
             console.error("Payment or withdraw error:", verifyError);
             // Redirect back with error toast (no window alert)
-            navigate(flow.returnPath || "/host/profile", {
+            navigate(flow.returnPath || defaultReturnPath, {
               state: {
                 toast: {
                   type: "error",
@@ -134,7 +157,7 @@ function Razorpay() {
         modal: {
           ondismiss: function () {
             // User closed the Razorpay modal — return to profile quietly
-            navigate(flow.returnPath || "/host/profile", {
+            navigate(flow.returnPath || defaultReturnPath, {
               state: {
                 toast: {
                   type: "error",
@@ -171,10 +194,11 @@ function Razorpay() {
               ? { upi_id: flow.upi_id }
               : { account_number: flow.account_number, ifsc: flow.ifsc }),
           };
-          const wres = await axios.post(`${serverURL}/host/wallet/withdraw`, payload, { withCredentials: true });
+          const wres = await axios.post(`${serverURL}${withdrawEndpoint}`, payload, { withCredentials: true });
           const wdata = wres.data?.data || wres.data;
-          const newBalance = wdata?.new_balance ?? null;
-          navigate(flow.returnPath || "/host/profile", {
+          const newBalance =
+            wdata?.new_balance ?? (wdata?.balance_inr ? parseFloat(wdata.balance_inr.toString?.() || wdata.balance_inr) : null);
+          navigate(flow.returnPath || defaultReturnPath, {
             state: {
               toast: {
                 type: "success",
@@ -185,7 +209,7 @@ function Razorpay() {
             },
           });
         } catch (e) {
-          navigate(flow.returnPath || "/host/profile", {
+          navigate(flow.returnPath || defaultReturnPath, {
             state: {
               toast: { type: "error", title: "Payment failed", message: "Could not complete withdrawal in demo mode." },
             },

@@ -43,7 +43,7 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
     });
   }
 
-  // Merge and return
+  // Merge
   const mergedProfile = {
     user: organizerId,
     name: user.fullName || `${user.first_name} ${user.last_name}`,
@@ -59,9 +59,13 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
     updatedAt: profile.updatedAt || user.updatedAt,
   };
 
+  // Also include documents and KYC summary for a complete profile view
+  const documents = await UserDocument.find({ user: organizerId }).select("-__v").lean();
+  const kyc = await KYCVerification.findOne({ user: organizerId }).select("-__v").lean();
+
   return res
     .status(200)
-    .json(new ApiResponse(200, mergedProfile, "Organizer profile fetched"));
+    .json(new ApiResponse(200, { mergedProfile, documents, kyc }, "Organizer profile fetched"));
 });
 
 // 2. Update profile
@@ -186,6 +190,42 @@ export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
+// Update Organizer Documents
+export const updateOrganizerDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body; // optional: which doc type to update
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+  const userId = req.user._id;
+
+  if (!localFilePath) {
+    throw new ApiError(400, "Document file is required for update");
+  }
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  // Find the most recent doc or by provided type
+  let doc;
+  if (type) {
+    doc = await UserDocument.findOne({ user: userId, type });
+  } else {
+    doc = await UserDocument.findOne({ user: userId }).sort({ uploadedAt: -1 });
+  }
+
+  if (!doc) {
+    // If no doc exists, create one instead of failing
+    doc = await UserDocument.create({ user: userId, type: type || "generic", fileUrl: cloudinaryRes.url });
+  } else {
+    doc.fileUrl = cloudinaryRes.url;
+    doc.status = "pending"; // reset for re-verification
+    doc.uploadedAt = new Date();
+    await doc.save();
+  }
+
+  return res.status(200).json(new ApiResponse(200, doc, "Document updated"));
+});
+
 // 6. Submit E-Signature
 export const submitESignature = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
@@ -290,16 +330,34 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { amount, upi_id } = req.body;
 
+  const requestedAmount = parseFloat(amount);
+  if (isNaN(requestedAmount) || requestedAmount <= 0) {
+    throw new ApiError(400, "Invalid withdrawal amount");
+  }
+
   const wallet = await UserWallet.findOne({ user: organizerId });
-  if (!wallet || parseFloat(wallet.balance_inr.toString()) < amount) {
+  if (!wallet || !wallet.balance_inr) {
+    throw new ApiError(404, "Wallet not found or balance missing");
+  }
+
+  const balanceRaw = wallet.balance_inr.toString?.() || "0.00";
+  const currentBalance = parseFloat(balanceRaw);
+  if (isNaN(currentBalance)) {
+    throw new ApiError(500, "Corrupted wallet balance");
+  }
+
+  if (requestedAmount > currentBalance) {
     throw new ApiError(400, "Insufficient balance");
   }
 
-  wallet.balance_inr = parseFloat(wallet.balance_inr.toString()) - amount;
+  const newBalance = (currentBalance - requestedAmount).toFixed(2);
+  wallet.balance_inr = mongoose.Types.Decimal128.fromString(newBalance);
   wallet.upi_id = upi_id || wallet.upi_id;
   await wallet.save();
 
-  return res.status(200).json(new ApiResponse(200, wallet, "Withdrawal successful"));
+  return res.status(200).json(
+    new ApiResponse(200, { new_balance: parseFloat(wallet.balance_inr.toString()) }, "Withdrawal successful")
+  );
 });
 
 // 10. get all active events by host

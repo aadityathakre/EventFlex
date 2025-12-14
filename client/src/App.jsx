@@ -20,6 +20,9 @@ import HostChat from "./pages/host/HostChat.jsx";
 import HostInvites from "./pages/host/HostInvites.jsx";
 import HostRequests from "./pages/host/HostRequests.jsx";
 import HostOrganizerPools from "./pages/host/HostOrganizerPools.jsx";
+import OrganizerDashboard from "./pages/organizer/OrganizerDashboard.jsx";
+import OrganizerProfileView from "./pages/organizer/OrganizerProfileView.jsx";
+import OrganizerProfileEdit from "./pages/organizer/OrganizerProfileEdit.jsx";
 
 export const serverURL = `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1`;
 
@@ -67,6 +70,32 @@ function App() {
             <HostDashboard />
           </ProtectedRoute>
         } 
+      />
+
+      {/* Protected Organizer Routes */}
+      <Route 
+        path='/organizer/dashboard'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/profile'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerProfileView />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/profile/edit'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerProfileEdit />
+          </ProtectedRoute>
+        }
       />
       {/* Host Profile View Route */}
       <Route
