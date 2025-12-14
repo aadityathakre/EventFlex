@@ -169,22 +169,30 @@ const AdminDisputes = () => {
               </div>
 
               <div className="dispute-content">
-                <h3>{dispute.title || dispute.subject || 'Dispute'}</h3>
+                <h3>{dispute.event?.title || 'Dispute'}</h3>
                 <p className="dispute-description">
-                  {dispute.description || dispute.message || 'No description provided'}
+                  {dispute.reason || 'No reason provided'}
                 </p>
 
                 <div className="dispute-details">
                   <div className="detail-item">
                     <span className="label">Raised by:</span>
                     <span className="value">
-                      {dispute.raised_by?.name || dispute.raised_by?.email || 'N/A'}
+                      {dispute.raised_by?.fullName || dispute.raised_by?.email || 'N/A'}
                     </span>
                   </div>
-                  {dispute.event_id && (
+                  {dispute.event && (
                     <div className="detail-item">
-                      <span className="label">Event ID:</span>
-                      <span className="value">{dispute.event_id}</span>
+                      <span className="label">Event:</span>
+                      <span className="value">{dispute.event.title}</span>
+                    </div>
+                  )}
+                  {dispute.against && (
+                    <div className="detail-item">
+                      <span className="label">Against:</span>
+                      <span className="value">
+                        {dispute.against.fullName || dispute.against.email || 'N/A'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -227,26 +235,34 @@ const AdminDisputes = () => {
                 <div className="info-row">
                   <span className="label">Raised by:</span>
                   <span className="value">
-                    {selectedDispute.raised_by?.name || selectedDispute.raised_by?.email || 'N/A'}
+                    {selectedDispute.raised_by?.fullName || selectedDispute.raised_by?.email || 'N/A'}
                   </span>
                 </div>
+                {selectedDispute.against && (
+                  <div className="info-row">
+                    <span className="label">Against:</span>
+                    <span className="value">
+                      {selectedDispute.against?.fullName || selectedDispute.against?.email || 'N/A'}
+                    </span>
+                  </div>
+                )}
                 <div className="info-row">
                   <span className="label">Created:</span>
                   <span className="value">
                     {formatDate(selectedDispute.createdAt || selectedDispute.created_at)}
                   </span>
                 </div>
-                {selectedDispute.event_id && (
+                {selectedDispute.event && (
                   <div className="info-row">
-                    <span className="label">Event ID:</span>
-                    <span className="value">{selectedDispute.event_id}</span>
+                    <span className="label">Event:</span>
+                    <span className="value">{selectedDispute.event.title}</span>
                   </div>
                 )}
               </div>
 
               <div className="dispute-description-section">
-                <h3>Description</h3>
-                <p>{selectedDispute.description || selectedDispute.message || 'No description provided'}</p>
+                <h3>Reason</h3>
+                <p>{selectedDispute.reason || 'No reason provided'}</p>
               </div>
 
               {selectedDispute.status !== 'resolved' && selectedDispute.status !== 'closed' && (
