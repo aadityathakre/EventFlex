@@ -94,6 +94,21 @@
       align-items: center;
       gap: $spacing-md;
       margin-bottom: $spacing-md;
+      padding: $spacing-xs;
+      border-radius: $border-radius-md;
+      transition: background-color $transition-base;
+
+      &.clickable {
+        cursor: pointer;
+
+        &:hover {
+          background-color: $color-background;
+        }
+
+        &:active {
+          transform: scale(0.98);
+        }
+      }
 
       .user-avatar {
         width: 48px;

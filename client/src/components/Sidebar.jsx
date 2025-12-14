@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Sidebar.scss';
 import { useAuth } from '../context/AuthContext';
 import { adminLogout } from '../api/admin';
+import ProfileEditDialog from './ProfileEditDialog';
 
 const Sidebar = ({ menuItems }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
 
   const handleLogout = async () => {
     const storedRole = localStorage.getItem('userRole');
@@ -145,6 +147,19 @@ const Sidebar = ({ menuItems }) => {
     return roleMap[user.role] || user.role.toUpperCase();
   };
 
+  const handleProfileClick = () => {
+    const storedRole = localStorage.getItem('userRole');
+    // Only open dialog for gig users
+    if (storedRole === 'gig' || user?.role === 'gig') {
+      setIsProfileDialogOpen(true);
+    }
+  };
+
+  const handleProfileUpdate = async () => {
+    // Refresh auth context after profile update
+    window.location.reload();
+  };
+
   return (
     <aside className="sidebar">
       <div className="sidebar-content">
@@ -166,7 +181,10 @@ const Sidebar = ({ menuItems }) => {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="user-profile">
+          <div
+            className={`user-profile ${user?.role === 'gig' || localStorage.getItem('userRole') === 'gig' ? 'clickable' : ''}`}
+            onClick={handleProfileClick}
+          >
             {(user?.profile_image_url || user?.avatar) ? (
               <div className="user-avatar">
                 <img src={user.profile_image_url || user.avatar} alt={getUserName()} className="avatar-image" />
@@ -191,6 +209,12 @@ const Sidebar = ({ menuItems }) => {
           </button>
         </div>
       </div>
+
+      <ProfileEditDialog
+        isOpen={isProfileDialogOpen}
+        onClose={() => setIsProfileDialogOpen(false)}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </aside>
   );
 };
