@@ -20,6 +20,7 @@ import {
   getEventDetails,
   getHostEvents,
   completeEvent,
+  deleteEvent,
 
   // 🧑‍🤝‍🧑 Organizer Management
   getAllOrganizers,
@@ -66,6 +67,7 @@ router.put("/events/edit/:id", verifyToken, authorizeRoles("host"), editEvent);
 router.get("/events/:id", verifyToken, authorizeRoles("host"), getEventDetails);
 router.get("/events", verifyToken, authorizeRoles("host"), getHostEvents);
 router.put("/events/complete/:id", verifyToken, authorizeRoles("host"), completeEvent);
+router.delete("/events/:id", verifyToken, authorizeRoles("host"), deleteEvent);
 
 //
 // 🧑‍🤝‍🧑 Organizer Management

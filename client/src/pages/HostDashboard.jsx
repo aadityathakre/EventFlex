@@ -20,6 +20,7 @@ function HostDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -77,6 +78,27 @@ function HostDashboard() {
   }
 
   const { events = [], escrows = [], payments = [] } = dashboardData || {};
+  const recentEvents = [...events]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 3);
+
+  const handleDelete = async (eventId) => {
+    const confirm = window.confirm("Delete this event? This action can’t be undone.");
+    if (!confirm) return;
+    try {
+      setDeletingId(eventId);
+      await axios.delete(`${serverURL}/host/events/${eventId}`, { withCredentials: true });
+      setDashboardData((prev) => ({
+        ...prev,
+        events: (prev?.events || []).filter((e) => e._id !== eventId),
+      }));
+    } catch (err) {
+      const msg = err.response?.data?.message || "Failed to delete event";
+      setError(msg);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -230,7 +252,7 @@ function HostDashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {events.slice(0, 5).map((event) => (
+              {recentEvents.map((event) => (
                 <div
                   key={event._id}
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-300"
@@ -253,12 +275,23 @@ function HostDashboard() {
                       {event.status}
                     </span>
                   </div>
-                  <button
-                    onClick={() => navigate(`/host/events/${event._id}`)}
-                    className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300"
-                  >
-                    View
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/host/events/${event._id}`)}
+                      className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300"
+                    >
+                      View
+                    </button>
+                    {event.status === "completed" && (
+                      <button
+                        onClick={() => handleDelete(event._id)}
+                        disabled={deletingId === event._id}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-60"
+                      >
+                        {deletingId === event._id ? "Deleting..." : "Delete"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -10,6 +10,10 @@ import HostProfileEdit from "./pages/HostProfileEdit.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Razorpay from "./pages/razorpay.jsx";
+import HostEventCreate from "./pages/HostEventCreate.jsx";
+import HostEventsList from "./pages/HostEventsList.jsx";
+import HostEventDetail from "./pages/HostEventDetail.jsx";
+import HostEventEdit from "./pages/HostEventEdit.jsx";
 
 export const serverURL = `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1`;
 
@@ -73,6 +77,40 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['host']}>
             <HostProfileEdit />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Host Event Routes */}
+      <Route
+        path='/host/events/create'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostEventCreate />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/events'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostEventsList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/events/:id'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostEventDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/events/:id/edit'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostEventEdit />
           </ProtectedRoute>
         }
       />

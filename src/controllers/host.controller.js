@@ -505,7 +505,31 @@ export const editEvent = asyncHandler(async (req, res) => {
   const event = await Event.findOne({ _id: eventId, host: hostId });
   if (!event) throw new ApiError(404, "Event not found or unauthorized");
 
-  Object.assign(event, req.body);
+  // Disallow edits on completed events per business rule
+  if (event.status === "completed") {
+    throw new ApiError(400, "Completed events cannot be edited");
+  }
+
+  const update = { ...req.body };
+
+  // Ensure GeoJSON structure remains valid when updating location
+  if (update.location?.coordinates) {
+    update.location = {
+      type: "Point",
+      coordinates: update.location.coordinates,
+    };
+  }
+
+  // Optional: normalize budget to Decimal128 like createEvent
+  if (update.budget !== undefined) {
+    const budgetAmount = parseFloat(update.budget);
+    if (isNaN(budgetAmount) || budgetAmount <= 0) {
+      throw new ApiError(400, "Budget must be a positive number");
+    }
+    update.budget = mongoose.Types.Decimal128.fromString(budgetAmount.toString());
+  }
+
+  Object.assign(event, update);
   await event.save();
 
   return res.status(200).json(new ApiResponse(200, event, "Event updated"));
@@ -547,6 +571,26 @@ export const completeEvent = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, event, "Event marked as completed"));
+});
+
+// 13.1 Delete Event (soft delete)
+export const deleteEvent = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const eventId = req.params.id;
+
+  const event = await Event.findOne({ _id: eventId, host: hostId });
+  if (!event) throw new ApiError(404, "Event not found or unauthorized");
+
+  // Only allow deleting completed events per business rule
+  if (event.status !== "completed") {
+    throw new ApiError(400, "Only completed events can be deleted");
+  }
+
+  await event.softDelete();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Event deleted successfully"));
 });
 
 // 14 Get all organizers
