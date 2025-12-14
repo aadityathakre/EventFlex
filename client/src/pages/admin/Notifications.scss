@@ -1,0 +1,323 @@
+@import '../../styles/variables';
+
+.admin-notifications {
+  padding: $spacing-2xl;
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: $spacing-2xl;
+
+    h1 {
+      font-family: $font-family-primary;
+      font-size: $font-size-xlarge;
+      font-weight: $font-weight-bold;
+      color: $color-text-primary;
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: $spacing-md;
+
+      .btn-broadcast,
+      .btn-notify-user {
+        padding: $spacing-sm $spacing-lg;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-medium;
+        color: $color-white;
+        background-color: $color-text-primary;
+        border: none;
+        border-radius: $border-radius-md;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover {
+          background-color: $color-primary-dark;
+        }
+      }
+
+      .btn-notify-user {
+        background-color: #0284c7;
+
+        &:hover {
+          background-color: #0369a1;
+        }
+      }
+    }
+  }
+
+  .notifications-section {
+    h2 {
+      font-family: $font-family-primary;
+      font-size: $font-size-large;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+      margin: 0 0 $spacing-lg 0;
+    }
+
+    .notifications-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+
+      .notification-card {
+        padding: $spacing-lg;
+        background-color: $color-white;
+        border: 1px solid $color-border;
+        border-radius: $border-radius-lg;
+        transition: all $transition-base;
+
+        &:hover {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .notification-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: $spacing-md;
+
+          .notification-type {
+            padding: $spacing-xs $spacing-sm;
+            font-family: $font-family-primary;
+            font-size: $font-size-small;
+            font-weight: $font-weight-semibold;
+            border-radius: $border-radius-sm;
+            text-transform: capitalize;
+
+            &.type-system {
+              background-color: #e6f7ff;
+              color: #0066cc;
+            }
+
+            &.type-info {
+              background-color: #f0f9ff;
+              color: #0284c7;
+            }
+
+            &.type-warning {
+              background-color: #fff4e6;
+              color: #cc6600;
+            }
+
+            &.type-alert {
+              background-color: #fee2e2;
+              color: #991b1b;
+            }
+          }
+
+          .notification-date {
+            font-family: $font-family-primary;
+            font-size: $font-size-small;
+            color: $color-text-secondary;
+          }
+        }
+
+        .notification-content {
+          .notification-message {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-primary;
+            margin: 0 0 $spacing-sm 0;
+            line-height: 1.6;
+          }
+
+          .notification-meta {
+            .recipient {
+              font-family: $font-family-primary;
+              font-size: $font-size-small;
+              color: $color-text-secondary;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: $spacing-lg;
+
+    .modal-content {
+      width: 100%;
+      max-width: 600px;
+      background-color: $color-white;
+      border-radius: $border-radius-lg;
+      overflow: hidden;
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: $spacing-lg;
+        border-bottom: 1px solid $color-border;
+
+        h2 {
+          font-family: $font-family-primary;
+          font-size: $font-size-large;
+          font-weight: $font-weight-semibold;
+          color: $color-text-primary;
+          margin: 0;
+        }
+
+        .btn-close {
+          padding: $spacing-xs;
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: $color-text-secondary;
+          transition: color $transition-base;
+
+          &:hover {
+            color: $color-text-primary;
+          }
+        }
+      }
+
+      .modal-body {
+        padding: $spacing-lg;
+
+        .form-group {
+          margin-bottom: $spacing-lg;
+
+          label {
+            display: block;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-medium;
+            color: $color-text-primary;
+            margin-bottom: $spacing-sm;
+          }
+
+          .form-control {
+            width: 100%;
+            padding: $spacing-sm $spacing-md;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-primary;
+            background-color: $color-white;
+            border: 2px solid $color-border;
+            border-radius: $border-radius-md;
+            transition: all $transition-base;
+
+            &:focus {
+              outline: none;
+              border-color: $color-text-primary;
+            }
+
+            &::placeholder {
+              color: $color-input-placeholder;
+            }
+          }
+
+          textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+          }
+        }
+
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: $spacing-md;
+          padding-top: $spacing-lg;
+          border-top: 1px solid $color-border;
+
+          .btn-cancel,
+          .btn-send {
+            padding: $spacing-sm $spacing-lg;
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            font-weight: $font-weight-medium;
+            border: none;
+            border-radius: $border-radius-md;
+            cursor: pointer;
+            transition: all $transition-base;
+
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+            }
+          }
+
+          .btn-cancel {
+            color: $color-text-primary;
+            background-color: $color-background;
+
+            &:hover {
+              background-color: $color-border;
+            }
+          }
+
+          .btn-send {
+            color: $color-white;
+            background-color: $color-text-primary;
+
+            &:hover:not(:disabled) {
+              background-color: $color-primary-dark;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .loading,
+  .error,
+  .empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    font-family: $font-family-primary;
+    font-size: $font-size-base;
+    color: $color-text-secondary;
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (max-width: $breakpoint-tablet) {
+    padding: $spacing-lg;
+
+    .page-header {
+      flex-direction: column;
+      gap: $spacing-md;
+
+      h1 {
+        font-size: $font-size-large;
+      }
+
+      .header-actions {
+        width: 100%;
+
+        .btn-broadcast,
+        .btn-notify-user {
+          flex: 1;
+        }
+      }
+    }
+
+    .modal-overlay {
+      padding: 0;
+
+      .modal-content {
+        max-height: 100vh;
+        border-radius: 0;
+      }
+    }
+  }
+}

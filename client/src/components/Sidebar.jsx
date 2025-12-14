@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import './Sidebar.scss';
 import { useAuth } from '../context/AuthContext';
+import { adminLogout } from '../api/admin';
 
 const Sidebar = ({ menuItems }) => {
   const location = useLocation();
@@ -9,8 +10,24 @@ const Sidebar = ({ menuItems }) => {
   const { user, logout } = useAuth();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
+    const storedRole = localStorage.getItem('userRole');
+
+    // If admin, use admin logout
+    if (storedRole === 'admin') {
+      try {
+        await adminLogout();
+        localStorage.removeItem('userRole');
+        navigate('/admin/login');
+      } catch (err) {
+        console.error('Admin logout error:', err);
+        localStorage.removeItem('userRole');
+        navigate('/admin/login');
+      }
+    } else {
+      // Otherwise use regular logout
+      await logout();
+      navigate('/');
+    }
   };
 
   const defaultMenuItems = [
@@ -98,6 +115,10 @@ const Sidebar = ({ menuItems }) => {
   };
 
   const getUserName = () => {
+    // Check if admin
+    const storedRole = localStorage.getItem('userRole');
+    if (storedRole === 'admin') return 'Admin';
+
     // Profile endpoint returns 'name' field directly
     if (user?.name) return user.name;
     // Fallback for other endpoints that might return fullName or first_name/last_name
@@ -110,11 +131,16 @@ const Sidebar = ({ menuItems }) => {
   };
 
   const getUserRole = () => {
+    // Check localStorage for admin role
+    const storedRole = localStorage.getItem('userRole');
+    if (storedRole === 'admin') return 'ADMIN';
+
     if (!user?.role) return '';
     const roleMap = {
       gig: 'GIG',
       organizer: 'ORG',
       host: 'HOST',
+      admin: 'ADMIN',
     };
     return roleMap[user.role] || user.role.toUpperCase();
   };

@@ -46,9 +46,19 @@
       text-decoration: none;
       transition: color $transition-base;
       white-space: nowrap;
+      cursor: pointer;
 
       &:hover {
         color: $color-text-primary;
+      }
+
+      &.admin-link {
+        color: #667eea;
+        font-weight: $font-weight-semibold;
+
+        &:hover {
+          color: #764ba2;
+        }
       }
     }
   }

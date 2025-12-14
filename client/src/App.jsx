@@ -38,6 +38,18 @@ import GigMessages from "./pages/gig/Messages.jsx";
 import GigNotifications from "./pages/gig/Notifications.jsx";
 import GigWallet from "./pages/gig/Wallet.jsx";
 
+// Admin imports
+import AdminLayout from "./components/AdminLayout.jsx";
+import AdminLogin from "./pages/admin/Login.jsx";
+import AdminRegister from "./pages/admin/Register.jsx";
+import AdminDashboard from "./pages/admin/Dashboard.jsx";
+import AdminUsers from "./pages/admin/Users.jsx";
+import AdminKYC from "./pages/admin/KYC.jsx";
+import AdminDisputes from "./pages/admin/Disputes.jsx";
+import AdminAnalytics from "./pages/admin/Analytics.jsx";
+import AdminNotifications from "./pages/admin/Notifications.jsx";
+import AdminAuditLogs from "./pages/admin/AuditLogs.jsx";
+
 export const serverURL = "http://localhost:8080/api/v1";
 
 function App() {
@@ -51,6 +63,10 @@ function App() {
       <Route path='/forgot-password' element={<ForgotPassword/>} />
       {/* Add other routes here */}
       <Route path='/razorpay' element={<Razorpay/>} />
+
+      {/* Admin auth pages */}
+      <Route path='/admin/login' element={<AdminLogin/>} />
+      <Route path='/admin/register' element={<AdminRegister/>} />
 
       {/* Gig pages */}
       <Route path="/gig" element={<GigLayout />}>
@@ -86,6 +102,18 @@ function App() {
         <Route path="messages" element={<OrganizerMessages />} />
         <Route path="notifications" element={<OrganizerNotifications />} />
         <Route path="wallet" element={<OrganizerWallet />} />
+      </Route>
+
+      {/* Admin pages */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="kyc" element={<AdminKYC />} />
+        <Route path="disputes" element={<AdminDisputes />} />
+        <Route path="analytics" element={<AdminAnalytics />} />
+        <Route path="notifications" element={<AdminNotifications />} />
+        <Route path="audit-logs" element={<AdminAuditLogs />} />
       </Route>
 
       </Routes>

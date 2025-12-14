@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import ButtonPrimary from './ButtonPrimary';
 import './NavigationBar.scss';
 
 const NavigationBar = ({ onOpenAuth }) => {
+  const navigate = useNavigate();
+
   const handleBookVenue = () => {
     if (onOpenAuth) {
       onOpenAuth('register');
@@ -20,6 +23,7 @@ const NavigationBar = ({ onOpenAuth }) => {
           <a href="#organisers" className="nav-link">FOR ORGANISERS</a>
           <a href="#visitors" className="nav-link">FOR VISITORS</a>
           <a href="#staffs" className="nav-link">FOR STAFFS</a>
+          <a onClick={() => navigate('/admin/login')} className="nav-link admin-link">ADMIN</a>
         </div>
 
         <div className="nav-cta">
