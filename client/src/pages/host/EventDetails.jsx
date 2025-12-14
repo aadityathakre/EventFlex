@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getEvent, getOrganizers } from '../../api/host';
+import PaymentDepositDialog from '../../components/PaymentDepositDialog';
 import './EventDetails.scss';
 
 function EventDetails() {
@@ -11,6 +12,7 @@ function EventDetails() {
   const [organizers, setOrganizers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -153,6 +155,14 @@ function EventDetails() {
 
   const handleMarkEventCompleted = () => {
     console.log('Mark event completed');
+  };
+
+  const handleDepositNow = () => {
+    setDepositDialogOpen(true);
+  };
+
+  const handleCloseDepositDialog = () => {
+    setDepositDialogOpen(false);
   };
 
   const getStatusLabel = (status) => {
@@ -353,7 +363,7 @@ function EventDetails() {
                 </div>
               </div>
 
-              <button className="deposit-button">
+              <button className="deposit-button" onClick={handleDepositNow}>
                 Deposit now
               </button>
             </div>
@@ -371,6 +381,13 @@ function EventDetails() {
           )}
         </div>
       </div>
+
+      <PaymentDepositDialog
+        isOpen={depositDialogOpen}
+        onClose={handleCloseDepositDialog}
+        event={event}
+        organizers={organizers}
+      />
     </div>
   );
 }

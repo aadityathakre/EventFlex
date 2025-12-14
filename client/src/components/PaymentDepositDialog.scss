@@ -1,0 +1,187 @@
+@import '../styles/variables';
+
+.payment-deposit-dialog {
+  .dialog-header {
+    background-color: $color-background;
+    padding: $spacing-2xl;
+    border-radius: $border-radius-2xl $border-radius-2xl 0 0;
+
+    .dialog-title {
+      font-family: $font-family-primary;
+      font-size: $font-size-xlarge;
+      font-weight: $font-weight-extrabold;
+      color: $color-text-primary;
+      margin: 0 0 $spacing-xs 0;
+    }
+
+    .event-title {
+      font-family: $font-family-primary;
+      font-size: $font-size-base;
+      color: $color-text-secondary;
+      margin: 0;
+    }
+  }
+
+  .dialog-body {
+    padding: $spacing-xl $spacing-2xl;
+    max-height: calc(80vh - 200px);
+    overflow-y: auto;
+
+    .form-group {
+      margin-bottom: $spacing-lg;
+
+      label {
+        display: block;
+        font-family: $font-family-primary;
+        font-size: $font-size-small;
+        font-weight: $font-weight-semibold;
+        color: $color-text-primary;
+        margin-bottom: $spacing-xs;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .form-input,
+      .form-select {
+        width: 100%;
+        padding: $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        color: $color-text-primary;
+        background-color: $color-white;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-md;
+        transition: all $transition-base;
+
+        &::placeholder {
+          color: $color-text-secondary;
+        }
+
+        &:focus {
+          outline: none;
+          border-color: $color-primary;
+        }
+
+        &:hover {
+          border-color: $color-text-light;
+        }
+
+        &:disabled {
+          background-color: $color-background-light;
+          cursor: not-allowed;
+        }
+      }
+
+      .select-wrapper {
+        position: relative;
+
+        .form-select {
+          appearance: none;
+          padding-right: 40px;
+          cursor: pointer;
+
+          option {
+            color: $color-text-primary;
+          }
+        }
+
+        .select-icon {
+          position: absolute;
+          right: $spacing-md;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: $color-text-secondary;
+        }
+      }
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: $spacing-md;
+
+      @media (max-width: $breakpoint-mobile) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
+      margin-top: $spacing-xl;
+
+      .submit-button {
+        width: 100%;
+        padding: $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $color-white;
+        background-color: $color-secondary;
+        border: none;
+        border-radius: $border-radius-md;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover:not(:disabled) {
+          background-color: $color-primary-dark;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        &:disabled {
+          background-color: $color-text-light;
+          cursor: not-allowed;
+        }
+      }
+
+      .cancel-button {
+        width: 100%;
+        padding: $spacing-md;
+        font-family: $font-family-primary;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        color: $color-text-secondary;
+        background-color: $color-white;
+        border: 2px solid $color-border;
+        border-radius: $border-radius-md;
+        cursor: pointer;
+        transition: all $transition-base;
+
+        &:hover:not(:disabled) {
+          border-color: $color-text-secondary;
+          background-color: $color-background;
+        }
+
+        &:active:not(:disabled) {
+          transform: scale(0.98);
+        }
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+      }
+    }
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    .dialog-header {
+      padding: $spacing-lg;
+
+      .dialog-title {
+        font-size: $font-size-large;
+      }
+    }
+
+    .dialog-body {
+      padding: $spacing-md;
+    }
+  }
+}
