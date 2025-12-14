@@ -606,7 +606,7 @@ export const getAllOrganizers = asyncHandler(async (req, res) => {
 
 // 15. invite organizer to event
 export const inviteOrganizer = asyncHandler(async (req, res) => {
-  const orgId = req.params;
+  const orgId = req.params.id;
   const {eventId, cover_letter} = req.body;
   //create an event application for the organizer
   let eventApplication = await EventApplication.create({
@@ -634,8 +634,17 @@ export const approveOrganizer = asyncHandler(async (req, res) => {
   eventApplication.application_status = "accepted";
   await eventApplication.save();
 
-  eventApplication.event.organizer = eventApplication.applicant;
-  await eventApplication.save();
+  // Update the Event's organizer field to the accepted applicant
+  const eventId = eventApplication.event;
+  const organizerId = eventApplication.applicant;
+  const updatedEvent = await Event.findByIdAndUpdate(
+    eventId,
+    { $set: { organizer: organizerId } },
+    { new: true }
+  );
+  if (!updatedEvent) {
+    throw new ApiError(404, "Event not found to assign organizer");
+  }
 
   return res
     .status(200)

@@ -14,6 +14,8 @@ import HostEventCreate from "./pages/HostEventCreate.jsx";
 import HostEventsList from "./pages/HostEventsList.jsx";
 import HostEventDetail from "./pages/HostEventDetail.jsx";
 import HostEventEdit from "./pages/HostEventEdit.jsx";
+import HostOrganizers from "./pages/HostOrganizers.jsx";
+import HostPayments from "./pages/HostPayments.jsx";
 
 export const serverURL = `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1`;
 
@@ -111,6 +113,24 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['host']}>
             <HostEventEdit />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Host Organizers & Payments */}
+      <Route
+        path='/host/organizers'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostOrganizers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/payments'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostPayments />
           </ProtectedRoute>
         }
       />
