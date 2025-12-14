@@ -14,6 +14,14 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Filter out events where organizer is already assigned
+  const availableEvents = events.filter(event => {
+    if (!organizer?.assignments) return true;
+
+    // Check if organizer is already assigned to this event
+    return !organizer.assignments.some(assignment => assignment.eventId === event.id);
+  });
+
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -89,7 +97,11 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
         {organizer && (
           <div className="organizer-info">
             <div className="organizer-avatar">
-              <span className="avatar-text">{getInitials(organizer.name)}</span>
+              {organizer.profile_image_url ? (
+                <img src={organizer.profile_image_url} alt={organizer.name} className="avatar-image" />
+              ) : (
+                <span className="avatar-text">{getInitials(organizer.name)}</span>
+              )}
             </div>
             <span className="organizer-name">{organizer.name}</span>
           </div>
@@ -119,11 +131,15 @@ const SendInvitationDialog = ({ isOpen, onClose, organizer, events = [] }) => {
               disabled={loading}
             >
               <option value="">Select event</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.title}
-                </option>
-              ))}
+              {availableEvents.length === 0 ? (
+                <option value="" disabled>No available events (organizer already assigned to all)</option>
+              ) : (
+                availableEvents.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.title}
+                  </option>
+                ))
+              )}
             </select>
             <svg className="select-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
