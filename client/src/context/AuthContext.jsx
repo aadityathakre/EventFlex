@@ -58,26 +58,20 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      console.log("🔐 Checking auth status on mount...");
       // Check if we have tokens in cookies
       const hasAccessToken = document.cookie.includes("accessToken=");
       const hasRefreshToken = document.cookie.includes("refreshToken=");
 
-      console.log("📦 Cookies - hasAccessToken:", hasAccessToken, "hasRefreshToken:", hasRefreshToken);
-
       if (hasAccessToken || hasRefreshToken) {
         // Verify token with backend (server-side validation)
         try {
-          console.log("🔄 Verifying token with backend...");
+    
           const response = await axios.get(
             `${serverURL}/auth/users/verify-token`,
             { withCredentials: true }
           );
 
-          console.log("✅ Token verification response:", response.data);
-
           if (response.data?.data?.user) {
-            console.log("✅ User authenticated:", response.data.data.user);
             setUser(response.data.data.user);
             setIsAuthenticated(true);
           } else {

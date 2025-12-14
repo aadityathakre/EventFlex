@@ -71,17 +71,30 @@ function Login() {
     }
   };
 
+  // Test function to check if backend can set cookies
+  const testCookie = async () => {
+    try {
+     
+      const result = await axios.get(
+        `${import.meta.env.VITE_SERVER_URL}:${import.meta.env.VITE_PORT}/api/v1/test-cookie`,
+        { withCredentials: true }
+      );
+    } catch (error) {
+      console.error("🧪 Test cookie failed:", error.message);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErr("");
     
     try {
+      
       const result = await axios.post(
         `${serverURL}/auth/users/login`,
         { email, password },
         { withCredentials: true }
       );
-
       const { user, accessToken, refreshToken } = result.data.data;
       
       // Update auth context
@@ -100,7 +113,8 @@ function Login() {
       const redirectTo = roleRoutes[user.role] || "/";
       navigate(redirectTo);
     } catch (error) {
-      console.log("Login error:", error.response?.data || error.message);
+      console.log("❌ Login error:", error.response?.data || error.message);
+      console.error("Full error:", error);
       setErr(error.response?.data?.message || "Login failed. Please check your credentials.");
     }
   };

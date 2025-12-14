@@ -18,10 +18,18 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
+
+// Build CORS origin
+const corsOrigin = `http://${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}`;
+console.log("🔐 CORS Origin:", corsOrigin);
+
 app.use(
   cors({
-    origin: `${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}` ,
+    origin: corsOrigin,
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    exposedHeaders: ['Set-Cookie'],
   })
 );
 
@@ -64,6 +72,19 @@ import blockchainRoutes from './routes/blockchain.routes.js';
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', blockchain: process.env.BLOCKCHAIN_ENABLED === 'true' });
 });
+
+// TEST ENDPOINT - Simple cookie test
+app.get('/api/v1/test-cookie', (req, res) => {
+  console.log("🧪 Test cookie endpoint called");
+  res.cookie('testCookie', 'testValue123', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'Lax',
+  });
+  console.log("🍪 Set test cookie");
+  res.json({ success: true, message: 'Cookie set' });
+});
+
 // Routes
 app.use('/api/blockchain', blockchainRoutes);
 

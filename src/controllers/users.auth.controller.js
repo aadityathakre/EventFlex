@@ -119,20 +119,30 @@ export const loginUser = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   const options = {
-    httpOnly: true,
-    secure: false, // Allow cookies on http://localhost
+    httpOnly: false, // Temporarily disable httpOnly to test if cookies work at all
+    secure: false,
     sameSite: 'Lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   }
+
+  console.log("🔐 LOGIN DEBUG:");
+  console.log("✅ Setting cookies with options:", options);
+  console.log("📝 Access Token:", accessToken.substring(0, 20) + "...");
+  console.log("📝 Refresh Token:", refreshToken.substring(0, 20) + "...");
 
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
   const msg = `${user.role} logged in successfully`;
-  return res.status(200)
-  .cookie("refreshToken", refreshToken, options)
-  .cookie("accessToken", accessToken, options)
-  .json(
+  
+  // Set cookies explicitly
+  res.cookie("accessToken", accessToken, options);
+  res.cookie("refreshToken", refreshToken, options);
+  
+  console.log("🍪 Cookies set on response object");
+  console.log("📤 Sending response...");
+  
+  return res.status(200).json(
     new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, msg)
   );
 });

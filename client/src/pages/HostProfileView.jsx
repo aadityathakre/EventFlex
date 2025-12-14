@@ -37,19 +37,12 @@ function HostProfileView() {
 
   const fetchProfile = async () => {
     try {
-      console.log("🔍 Fetching profile from:", `${serverURL}/host/profile`);
-      console.log("📦 Sending credentials: true");
       
       const response = await axios.get(`${serverURL}/host/profile`, {
         withCredentials: true,
       });
       
-      console.log("✅ Profile response received:", response.data);
       const { mergedProfile, documents, kyc } = response.data.data;
-      
-      console.log("📋 Merged Profile:", mergedProfile);
-      console.log("📄 Documents:", documents);
-      console.log("🔐 KYC:", kyc);
       
       setProfileData({ mergedProfile, documents, kyc });
       setError(null);
@@ -125,8 +118,6 @@ function HostProfileView() {
         : `${serverURL}/host/upload-docs`;
       
       const method = hasAnyDoc ? axios.put : axios.post;
-
-      console.log(`🔗 Calling ${method.name.toUpperCase()} ${endpoint}`);
       
       await method(endpoint, formData, {
         withCredentials: true,

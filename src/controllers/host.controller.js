@@ -72,10 +72,28 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const userUpdates = {};
   const profileUpdates = {};
 
-  if (updates.first_name) userUpdates.first_name = updates.first_name;
-  if (updates.last_name) userUpdates.last_name = updates.last_name;
-  if (updates.email) userUpdates.email = updates.email;
-  if (updates.phone) userUpdates.phone = updates.phone;
+  if (updates.first_name) {
+    if(updates.first_name.length > 2 && updates.first_name.length < 30){
+    userUpdates.first_name = updates.first_name;
+    }
+  }
+
+  if (updates.last_name) {
+    if(updates.last_name.length > 2 && updates.last_name.length < 30){
+    userUpdates.last_name = updates.last_name;
+    }
+  }
+
+  if (updates.email){ 
+    if(/\S+@\S+\.\S+/.test(updates.email)){  
+    userUpdates.email = updates.email;}
+  }
+
+  if (updates.phone) {
+    if(/^[6-9]\d{9}$/.test(updates.phone)){
+    userUpdates.phone = updates.phone;
+    }
+  }
 
   if (updates.bio) profileUpdates.bio = updates.bio;
   if (updates.location) profileUpdates.location = updates.location;
@@ -253,25 +271,16 @@ export const submitESignature = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Cloudinary upload failed");
   }
 
-  const existing = await UserDocument.findOne({
+  const existing = await User.findOne({
     user: userId,
-    type: "signature",
   });
 
-  let signatureDoc;
-
-  if (existing) {
-    existing.fileUrl = cloudinaryRes.url;
-    existing.status = "pending";
-    existing.uploadedAt = new Date();
-    signatureDoc = await existing.save();
-  } else {
-    signatureDoc = await UserDocument.create({
-      user: userId,
-      type: "signature",
-      fileUrl: cloudinaryRes.url,
-    });
+  if(!existing){
+    throw new ApiError(404, "User not found");
   }
+
+  existing.digital_signature = cloudinaryRes.url;
+  const signatureDoc = await existing.save();
 
   return res
     .status(201)
