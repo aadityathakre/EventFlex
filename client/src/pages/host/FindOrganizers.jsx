@@ -29,22 +29,25 @@ function FindOrganizers() {
       // Extract data from response - it's an array of assignments with nested organizer objects
       const assignmentsData = response.data.data || [];
 
-      // Map to extract unique organizers and add pool/event context
+      // Map to extract unique organizers and add assignment/event context
       const organizersMap = new Map();
 
       assignmentsData.forEach((assignment) => {
         const org = assignment.organizer;
         if (org && org._id) {
-          // If organizer already exists, just add the new pool info
+          // If organizer already exists, just add the new assignment info
           if (organizersMap.has(org._id)) {
             const existing = organizersMap.get(org._id);
-            existing.pools.push({
+            existing.assignments.push({
+              assignmentId: assignment._id,
               poolName: assignment.pool_name,
               eventTitle: assignment.event?.title,
+              eventId: assignment.event?._id,
               skills: assignment.required_skills,
+              status: assignment.status,
             });
           } else {
-            // Create new organizer entry with pool context
+            // Create new organizer entry with assignment context
             organizersMap.set(org._id, {
               ...org,
               id: org._id,
@@ -52,6 +55,15 @@ function FindOrganizers() {
               profile_image_url: org.avatar,
               skills: assignment.required_skills || [],
               rating: org.rating || null,
+              assignments: [{
+                assignmentId: assignment._id,
+                poolName: assignment.pool_name,
+                eventTitle: assignment.event?.title,
+                eventId: assignment.event?._id,
+                skills: assignment.required_skills,
+                status: assignment.status,
+              }],
+              // Keep pools for backward compatibility with ProfileDialog
               pools: [{
                 poolName: assignment.pool_name,
                 eventTitle: assignment.event?.title,
@@ -173,59 +185,83 @@ function FindOrganizers() {
               </div>
             ) : (
               filteredOrganizers.map((organizer) => (
-                <div key={organizer._id || organizer.id} className="table-row">
-                  <div className="cell name">
-                    {organizer.profile_image_url ? (
-                      <div className="organizer-avatar">
-                        <img
-                          src={organizer.profile_image_url}
-                          alt={organizer.name}
-                          className="avatar-image"
-                        />
+                <React.Fragment key={organizer._id || organizer.id}>
+                  <div className="table-row">
+                    <div className="cell name">
+                      {organizer.profile_image_url ? (
+                        <div className="organizer-avatar">
+                          <img
+                            src={organizer.profile_image_url}
+                            alt={organizer.name}
+                            className="avatar-image"
+                          />
+                        </div>
+                      ) : (
+                        <div className="organizer-avatar">
+                          <span className="avatar-text">{getInitials(organizer.name)}</span>
+                        </div>
+                      )}
+                      <span className="organizer-name">{organizer.name || 'Unknown'}</span>
+                    </div>
+                    <div className="cell skills">
+                      {organizer.skills && organizer.skills.length > 0 ? (
+                        <div className="skills-list">
+                          {organizer.skills.slice(0, 2).map((skill, index) => (
+                            <span key={index} className="skill-tag">{skill}</span>
+                          ))}
+                          {organizer.skills.length > 2 && (
+                            <span className="skill-tag">+{organizer.skills.length - 2} more</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="no-data">-</span>
+                      )}
+                    </div>
+                    <div className="cell rating">
+                      {organizer.rating ? (
+                        <span className="rating-value">⭐ {organizer.rating.toFixed(1)}</span>
+                      ) : (
+                        <span className="no-data">-</span>
+                      )}
+                    </div>
+                    <div className="cell actions">
+                      <button
+                        className="view-profile-button"
+                        onClick={() => handleViewProfile(organizer)}
+                      >
+                        View full profile
+                      </button>
+                      <button
+                        className="invite-button"
+                        onClick={() => handleInvite(organizer)}
+                      >
+                        Assign event
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Assignment Information Row */}
+                  {organizer.assignments && organizer.assignments.length > 0 && (
+                    <div className="assignment-row">
+                      <div className="assignment-info">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <span className="assignment-label">Assigned to:</span>
+                        <div className="assignment-events">
+                          {organizer.assignments.map((assignment, index) => (
+                            <span key={index} className="assignment-event">
+                              {assignment.eventTitle}
+                              {assignment.poolName && (
+                                <span className="pool-name"> ({assignment.poolName})</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="organizer-avatar">
-                        <span className="avatar-text">{getInitials(organizer.name)}</span>
-                      </div>
-                    )}
-                    <span className="organizer-name">{organizer.name || 'Unknown'}</span>
-                  </div>
-                  <div className="cell skills">
-                    {organizer.skills && organizer.skills.length > 0 ? (
-                      <div className="skills-list">
-                        {organizer.skills.slice(0, 2).map((skill, index) => (
-                          <span key={index} className="skill-tag">{skill}</span>
-                        ))}
-                        {organizer.skills.length > 2 && (
-                          <span className="skill-tag">+{organizer.skills.length - 2} more</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="no-data">-</span>
-                    )}
-                  </div>
-                  <div className="cell rating">
-                    {organizer.rating ? (
-                      <span className="rating-value">⭐ {organizer.rating.toFixed(1)}</span>
-                    ) : (
-                      <span className="no-data">-</span>
-                    )}
-                  </div>
-                  <div className="cell actions">
-                    <button
-                      className="view-profile-button"
-                      onClick={() => handleViewProfile(organizer)}
-                    >
-                      View full profile
-                    </button>
-                    <button
-                      className="invite-button"
-                      onClick={() => handleInvite(organizer)}
-                    >
-                      Invite to event
-                    </button>
-                  </div>
-                </div>
+                    </div>
+                  )}
+                </React.Fragment>
               ))
             )}
           </div>

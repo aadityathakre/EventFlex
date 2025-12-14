@@ -20,24 +20,22 @@
   }
 
   .steps-grid {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-2xl;
-    max-width: 800px;
-    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: $spacing-xl;
   }
 
   .step-card {
     display: flex;
-    align-items: flex-start;
-    gap: $spacing-xl;
+    flex-direction: column;
+    gap: $spacing-lg;
     padding: $spacing-xl;
     background-color: $color-background-light;
     border-radius: $border-radius-lg;
     transition: all $transition-base;
 
     &:hover {
-      transform: translateX(8px);
+      transform: translateY(-8px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     }
 
@@ -47,8 +45,6 @@
       font-weight: $font-weight-extrabold;
       color: $color-text-light;
       line-height: 1;
-      flex-shrink: 0;
-      min-width: 80px;
     }
 
     .step-content {
@@ -60,7 +56,7 @@
 
     .step-title {
       font-family: $font-family-primary;
-      font-size: $font-size-xlarge;
+      font-size: $font-size-large;
       font-weight: $font-weight-extrabold;
       color: $color-text-primary;
       margin: 0;
@@ -69,7 +65,7 @@
 
     .step-description {
       font-family: $font-family-primary;
-      font-size: $font-size-base;
+      font-size: $font-size-small;
       font-weight: $font-weight-regular;
       color: $color-text-secondary;
       margin: 0;
@@ -79,7 +75,8 @@
 
   @media (max-width: $breakpoint-desktop) {
     .steps-grid {
-      gap: $spacing-xl;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-lg;
     }
   }
 
@@ -92,7 +89,20 @@
     }
 
     .steps-grid {
-      gap: $spacing-xl;
+      grid-template-columns: 1fr;
+      gap: $spacing-lg;
+    }
+
+    .step-card {
+      padding: $spacing-lg;
+
+      .step-number {
+        font-size: 48px;
+      }
+
+      .step-title {
+        font-size: $font-size-base;
+      }
     }
   }
 }

@@ -101,10 +101,6 @@
           background-color: $color-background-light;
         }
 
-        &:last-child {
-          border-bottom: none;
-        }
-
         .cell {
           display: flex;
           align-items: center;
@@ -184,7 +180,8 @@
             justify-content: flex-end;
 
             .view-profile-button,
-            .invite-button {
+            .invite-button,
+            .assigned-button {
               background: none;
               border: none;
               font-family: $font-family-primary;
@@ -214,8 +211,72 @@
                 background-color: $color-background;
               }
             }
+
+            .assigned-button {
+              color: $color-text-light;
+              font-weight: $font-weight-medium;
+              cursor: not-allowed;
+              background-color: $color-background;
+              font-size: $font-size-small;
+
+              &:hover {
+                background-color: $color-background;
+              }
+            }
           }
         }
+      }
+
+      .assignment-row {
+        padding: $spacing-sm $spacing-xl $spacing-lg $spacing-xl;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid $color-border;
+
+        .assignment-info {
+          display: flex;
+          align-items: center;
+          gap: $spacing-sm;
+          font-family: $font-family-primary;
+          font-size: $font-size-small;
+          color: $color-text-secondary;
+
+          svg {
+            flex-shrink: 0;
+            color: $color-text-light;
+          }
+
+          .assignment-label {
+            font-weight: $font-weight-medium;
+            color: $color-text-secondary;
+          }
+
+          .assignment-events {
+            display: flex;
+            flex-wrap: wrap;
+            gap: $spacing-xs;
+
+            .assignment-event {
+              display: inline-flex;
+              align-items: center;
+              padding: $spacing-xs $spacing-sm;
+              background-color: white;
+              border: 1px solid $color-border;
+              border-radius: $border-radius-sm;
+              font-weight: $font-weight-medium;
+              color: $color-text-primary;
+
+              .pool-name {
+                color: $color-text-light;
+                font-weight: $font-weight-regular;
+              }
+            }
+          }
+        }
+      }
+
+      .table-row:last-of-type,
+      .assignment-row:last-of-type {
+        border-bottom: none;
       }
     }
   }
@@ -257,6 +318,25 @@
               width: 100%;
               text-align: center;
               padding: $spacing-sm;
+            }
+          }
+        }
+      }
+
+      .table-body .assignment-row {
+        padding: $spacing-sm $spacing-md $spacing-md $spacing-md;
+
+        .assignment-info {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: $spacing-xs;
+
+          .assignment-events {
+            width: 100%;
+            flex-direction: column;
+
+            .assignment-event {
+              width: 100%;
             }
           }
         }

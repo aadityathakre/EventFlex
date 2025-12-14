@@ -104,7 +104,36 @@ const OrganizerProfileDialog = ({ isOpen, onClose, organizer }) => {
               </div>
             )}
 
-            {organizer.pools && organizer.pools.length > 0 && (
+            {organizer.assignments && organizer.assignments.length > 0 && (
+              <div className="detail-section">
+                <h4>Current Assignments</h4>
+                <div className="assignments-list">
+                  {organizer.assignments.map((assignment, index) => (
+                    <div key={index} className="assignment-item">
+                      <div className="assignment-header">
+                        <div className="assignment-event-title">{assignment.eventTitle}</div>
+                        <span className={`assignment-status status-${assignment.status}`}>
+                          {assignment.status}
+                        </span>
+                      </div>
+                      {assignment.poolName && (
+                        <div className="assignment-pool">Pool: {assignment.poolName}</div>
+                      )}
+                      {assignment.skills && assignment.skills.length > 0 && (
+                        <div className="assignment-skills">
+                          <span className="skills-label">Required Skills:</span>
+                          {assignment.skills.map((skill, idx) => (
+                            <span key={idx} className="skill-tag-sm">{skill}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {organizer.pools && organizer.pools.length > 0 && (!organizer.assignments || organizer.assignments.length === 0) && (
               <div className="detail-section">
                 <h4>Active in Pools</h4>
                 <div className="pools-list">
