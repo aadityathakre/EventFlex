@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getEvent, getOrganizers } from '../../api/host';
+import { getEvent, getOrganizers, getPaymentStatus } from '../../api/host';
 import PaymentDepositDialog from '../../components/PaymentDepositDialog';
 import './EventDetails.scss';
 
@@ -13,11 +13,14 @@ function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchEventDetails();
       fetchOrganizers();
+      fetchPaymentStatus();
     }
   }, [id]);
 
@@ -125,6 +128,24 @@ function EventDetails() {
     }
   };
 
+  const fetchPaymentStatus = async () => {
+    try {
+      setPaymentLoading(true);
+      const response = await getPaymentStatus(id);
+      const paymentData = response.data.data || response.data;
+
+      console.log('Payment status response:', paymentData);
+
+      setPaymentStatus(paymentData);
+    } catch (err) {
+      console.error('Error fetching payment status:', err);
+      // Don't set error state - payment might not exist yet
+      setPaymentStatus(null);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const handleBack = () => {
     navigate('/host/events');
   };
@@ -163,6 +184,8 @@ function EventDetails() {
 
   const handleCloseDepositDialog = () => {
     setDepositDialogOpen(false);
+    // Refresh payment status after deposit
+    fetchPaymentStatus();
   };
 
   const getStatusLabel = (status) => {
@@ -334,38 +357,111 @@ function EventDetails() {
 
           {activeTab === 'budget' && (
             <div className="budget-content">
-              <div className="budget-grid">
-                <div className="budget-item">
-                  <span className="budget-label">Total funds</span>
-                  <span className="budget-value">₹{parseFloat(event.budget).toFixed(2)}</span>
+              {paymentLoading ? (
+                <div className="loading-state">
+                  <p>Loading payment information...</p>
                 </div>
+              ) : paymentStatus ? (
+                <>
+                  {/* Event Budget and Funded Amount */}
+                  <div className="budget-overview">
+                    <div className="budget-overview-item">
+                      <span className="overview-label">Event Budget</span>
+                      <span className="overview-value">₹{parseFloat(event.budget).toFixed(2)}</span>
+                    </div>
+                    <div className="budget-overview-item">
+                      <span className="overview-label">Funded Amount</span>
+                      <span className="overview-value">
+                        ₹{parseFloat(paymentStatus.total_amount?.$numberDecimal || paymentStatus.total_amount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="budget-overview-item">
+                      <span className="overview-label">Remaining</span>
+                      <span className="overview-value">
+                        ₹{(parseFloat(event.budget) - parseFloat(paymentStatus.total_amount?.$numberDecimal || paymentStatus.total_amount || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
 
-                <div className="budget-item">
-                  <span className="budget-label">Organizers share</span>
-                  <span className="budget-value">{event.rawData?.organizers_share || 20}%</span>
-                </div>
+                  <div className="budget-grid">
+                    <div className="budget-item">
+                      <span className="budget-label">Organizers Share</span>
+                      <span className="budget-value">
+                        {parseFloat(paymentStatus.organizer_percentage?.$numberDecimal || paymentStatus.organizer_percentage || 0).toFixed(2)}%
+                      </span>
+                    </div>
 
-                <div className="budget-item">
-                  <span className="budget-label">Gig Workers share</span>
-                  <span className="budget-value">{event.rawData?.gig_workers_share || 20}%</span>
-                </div>
-              </div>
+                    <div className="budget-item">
+                      <span className="budget-label">Gig Workers Share</span>
+                      <span className="budget-value">
+                        {parseFloat(paymentStatus.gigs_percentage?.$numberDecimal || paymentStatus.gigs_percentage || 0).toFixed(2)}%
+                      </span>
+                    </div>
 
-              <div className="budget-grid">
-                <div className="budget-item">
-                  <span className="budget-label">Platform fee</span>
-                  <span className="budget-value">{event.rawData?.platform_fee || 20}%</span>
-                </div>
+                    <div className="budget-item">
+                      <span className="budget-label">Created Date</span>
+                      <span className="budget-value">
+                        {new Date(paymentStatus.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
 
-                <div className="budget-item">
-                  <span className="budget-label">In escrow</span>
-                  <span className="budget-value">₹{parseFloat(event.rawData?.escrow_amount?.$numberDecimal || event.rawData?.escrow_amount || 0).toFixed(2)}</span>
-                </div>
-              </div>
+                  <div className="budget-grid">
+                    <div className="budget-item">
+                      <span className="budget-label">Organizers Amount</span>
+                      <span className="budget-value">
+                        ₹{(parseFloat(paymentStatus.total_amount?.$numberDecimal || paymentStatus.total_amount || 0) *
+                          parseFloat(paymentStatus.organizer_percentage?.$numberDecimal || paymentStatus.organizer_percentage || 0) / 100).toFixed(2)}
+                      </span>
+                    </div>
 
-              <button className="deposit-button" onClick={handleDepositNow}>
-                Deposit now
-              </button>
+                    <div className="budget-item">
+                      <span className="budget-label">Gig Workers Amount</span>
+                      <span className="budget-value">
+                        ₹{(parseFloat(paymentStatus.total_amount?.$numberDecimal || paymentStatus.total_amount || 0) *
+                          parseFloat(paymentStatus.gigs_percentage?.$numberDecimal || paymentStatus.gigs_percentage || 0) / 100).toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="budget-item">
+                      <span className="budget-label">In Escrow</span>
+                      <span className="budget-value">
+                        ₹{parseFloat(paymentStatus.total_amount?.$numberDecimal || paymentStatus.total_amount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button className="deposit-button" onClick={handleDepositNow}>
+                    Make Another Deposit
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="no-payment-state">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M9 22V12H15V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <h3>No Payment Deposited</h3>
+                    <p>Deposit funds to escrow to secure payment for this event</p>
+                  </div>
+
+                  <div className="budget-grid">
+                    <div className="budget-item">
+                      <span className="budget-label">Event Budget</span>
+                      <span className="budget-value">₹{parseFloat(event.budget).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <button className="deposit-button" onClick={handleDepositNow}>
+                    Deposit now
+                  </button>
+                </>
+              )}
             </div>
           )}
 

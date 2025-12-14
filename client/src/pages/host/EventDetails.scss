@@ -295,6 +295,133 @@
       .budget-content {
         padding: $spacing-2xl 0;
 
+        .loading-state {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: $spacing-3xl 0;
+
+          p {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-secondary;
+          }
+        }
+
+        .payment-status-card {
+          margin-bottom: $spacing-xl;
+          padding: $spacing-lg;
+          background-color: $color-background-light;
+          border-radius: $border-radius-lg;
+
+          .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            .status-label {
+              font-family: $font-family-primary;
+              font-size: $font-size-base;
+              font-weight: $font-weight-semibold;
+              color: $color-text-primary;
+            }
+
+            .status-badge {
+              padding: $spacing-xs $spacing-md;
+              font-family: $font-family-primary;
+              font-size: $font-size-small;
+              font-weight: $font-weight-semibold;
+              border-radius: $border-radius-sm;
+              text-transform: uppercase;
+
+              &.status-funded {
+                background-color: #E8F5E9;
+                color: #388E3C;
+              }
+
+              &.status-pending {
+                background-color: #FFF3E0;
+                color: #F57C00;
+              }
+
+              &.status-released {
+                background-color: #E3F2FD;
+                color: #1976D2;
+              }
+
+              &.status-cancelled {
+                background-color: #FFEBEE;
+                color: #D32F2F;
+              }
+            }
+          }
+        }
+
+        .budget-overview {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: $spacing-3xl;
+          margin-bottom: $spacing-3xl;
+
+          .budget-overview-item {
+            display: flex;
+            flex-direction: column;
+            gap: $spacing-sm;
+
+            .overview-label {
+              font-family: $font-family-primary;
+              font-size: $font-size-small;
+              font-weight: $font-weight-semibold;
+              color: $color-text-secondary;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+
+            .overview-value {
+              font-family: $font-family-primary;
+              font-size: $font-size-section-title;
+              font-weight: $font-weight-extrabold;
+              color: $color-text-primary;
+              line-height: 1;
+            }
+          }
+
+          @media (max-width: $breakpoint-mobile) {
+            grid-template-columns: 1fr;
+            gap: $spacing-lg;
+          }
+        }
+
+        .no-payment-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: $spacing-3xl 0;
+          text-align: center;
+
+          svg {
+            color: $color-text-light;
+            margin-bottom: $spacing-lg;
+          }
+
+          h3 {
+            font-family: $font-family-primary;
+            font-size: $font-size-large;
+            font-weight: $font-weight-bold;
+            color: $color-text-primary;
+            margin: 0 0 $spacing-sm 0;
+          }
+
+          p {
+            font-family: $font-family-primary;
+            font-size: $font-size-base;
+            color: $color-text-secondary;
+            margin: 0;
+            max-width: 400px;
+          }
+        }
+
         .budget-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
