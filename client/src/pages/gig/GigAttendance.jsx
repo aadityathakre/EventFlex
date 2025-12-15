@@ -13,7 +13,7 @@ function GigAttendance() {
   const fetchMyEvents = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${serverURL}/gig/my-events`, { withCredentials: true });
+      const res = await axios.get(`${serverURL}/gigs/my-events`, { withCredentials: true });
       setMyEvents(res.data?.data || []);
     } catch (e) {
       showToast(e?.response?.data?.message || "Failed to load events", "error");
@@ -24,7 +24,7 @@ function GigAttendance() {
 
   const checkIn = async (eventId) => {
     try {
-      const res = await axios.post(`${serverURL}/gig/check-in/${eventId}`, {}, { withCredentials: true });
+      const res = await axios.post(`${serverURL}/gigs/check-in/${eventId}`, {}, { withCredentials: true });
       showToast(res.data?.message || "Checked in", "success");
       fetchMyEvents();
     } catch (e) {
@@ -34,7 +34,7 @@ function GigAttendance() {
 
   const checkOut = async (eventId) => {
     try {
-      const res = await axios.post(`${serverURL}/gig/check-out/${eventId}`, {}, { withCredentials: true });
+      const res = await axios.post(`${serverURL}/gigs/check-out/${eventId}`, {}, { withCredentials: true });
       showToast(res.data?.message || "Checked out", "success");
       fetchMyEvents();
     } catch (e) {

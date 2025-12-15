@@ -42,7 +42,7 @@ function OrganizerDashboard() {
   }, [activeModule]);
 
   // Shared UI helpers
-  const ModuleCard = ({ title, description, image, onClick, icon }) => (
+  const ModuleCard = ({ title, description, image, onClick, icon, badgeIcon }) => (
     <div
       onClick={onClick}
       role="button"
@@ -57,6 +57,11 @@ function OrganizerDashboard() {
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30"></div>
+        {badgeIcon && (
+          <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/90 shadow flex items-center justify-center text-purple-600">
+            {badgeIcon}
+          </div>
+        )}
       </div>
       <div className="p-5">
         <div className="flex items-center space-x-3 mb-2">
@@ -75,6 +80,7 @@ function OrganizerDashboard() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState(null);
   const [details, setDetails] = useState(null);
+  const activeEvents = useMemo(() => (events || []).filter((ev) => ev?.status !== "completed"), [events]);
   const fetchEvents = async () => {
     setEventsLoading(true);
     try {
@@ -336,6 +342,7 @@ function OrganizerDashboard() {
             image={getCardImage("myPools")}
             onClick={() => navigate("/organizer/pools")}
             icon={<FaTools className="text-purple-600" />}
+            badgeIcon={<FaComments />}
             />
           </div>
           <div className="basis-[30%] shrink-0">
@@ -352,8 +359,9 @@ function OrganizerDashboard() {
             title="Manage Gigs"
             description="View gigs and chat"
             image={getCardImage("manageGigs")}
-            onClick={() => navigate("/organizer/manage-gigs")}
+            onClick={() => navigate("/organizer/gig-chat")}
             icon={<FaComments className="text-purple-600" />}
+            // badgeIcon={<FaComments />}
             />
           </div>
         </div>
@@ -368,14 +376,14 @@ function OrganizerDashboard() {
               )}
             </div>
             {eventsError && <p className="text-red-600 mb-4">{eventsError}</p>}
-            {events.length === 0 ? (
+            {activeEvents.length === 0 ? (
               <p className="text-gray-600">No events found.</p>
             ) : (
               <div className="flex flex-wrap gap-4">
-                {events.map((e) => (
+                {activeEvents.map((e) => (
                   <div key={e._id} className="w-[30%] border rounded-xl p-4 hover:shadow-md transition relative">
                     <img
-                      src={e.banner_url || getEventTypeImage(e.event_type)}
+                      src={getEventTypeImage(e.event_type)}
                       alt={e.title}
                       className="w-full h-32 object-cover rounded-lg mb-3"
                       loading="lazy"

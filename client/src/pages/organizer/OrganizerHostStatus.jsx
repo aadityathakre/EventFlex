@@ -34,8 +34,9 @@ function OrganizerHostStatus() {
     () => applications.filter((a) => a.application_status === "pending"),
     [applications]
   );
+  // Requested should show only items accepted by host
   const requestedApps = useMemo(
-    () => applications.filter((a) => a.application_status !== "pending"),
+    () => applications.filter((a) => a.application_status === "accepted"),
     [applications]
   );
   const rejectedApps = useMemo(
@@ -129,7 +130,7 @@ function OrganizerHostStatus() {
           </div>
         </div>
 
-        {activeTab === "invited" ? (
+        {activeTab === "invited" && (
           <div>
             {invitedApps.length === 0 ? (
               <p className="text-gray-600">No invitations.</p>
@@ -160,7 +161,9 @@ function OrganizerHostStatus() {
               </div>
             )}
           </div>
-        ) : (
+        )}
+
+        {activeTab === "requested" && (
           <div>
             {requestedApps.length === 0 ? (
               <p className="text-gray-600">No requests yet.</p>
@@ -181,11 +184,9 @@ function OrganizerHostStatus() {
                         <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
                         <p className="text-sm text-gray-600">Status: {a.application_status}</p>
                       </div>
-                      {a.application_status === "accepted" && (
-                        <div>
-                          <button onClick={() => openPoolModal(a)} className="px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">Create Pool</button>
-                        </div>
-                      )}
+                      <div>
+                        <button onClick={() => openPoolModal(a)} className="px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">Create Pool</button>
+                      </div>
                     </div>
                   </div>
                 ))}

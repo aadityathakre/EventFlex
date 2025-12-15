@@ -11,9 +11,30 @@ function TopNavbar({ title = null }) {
   const role = user?.role || "guest";
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const profilePath = role === "host" ? "/host/profile" : role === "organizer" ? "/organizer/profile" : "/login";
-  const dashboardPath = role === "host" ? "/host/dashboard" : role === "organizer" ? "/organizer/dashboard" : "/";
-  const chatPath = role === "host" ? "/host/chat" : role === "organizer" ? "/organizer/chat" : "/";
+  const profilePath =
+    role === "host"
+      ? "/host/profile"
+      : role === "organizer"
+      ? "/organizer/profile"
+      : role === "gig"
+      ? "/gig/profile"
+      : "/login";
+  const dashboardPath =
+    role === "host"
+      ? "/host/dashboard"
+      : role === "organizer"
+      ? "/organizer/dashboard"
+      : role === "gig"
+      ? "/gig/dashboard"
+      : "/";
+  const chatPath =
+    role === "host"
+      ? "/host/chat"
+      : role === "organizer"
+      ? "/organizer/chat"
+      : role === "gig"
+      ? "/gig/chat"
+      : "/";
 
   useEffect(() => {
     let cancelled = false;

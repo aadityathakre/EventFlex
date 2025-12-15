@@ -5,6 +5,7 @@ import {
   // Auth & KYC
   verifyAadhaar,
   uploadDocuments,
+  updateGigDocs,
   uploadKycVideo,
   getKYCStatus,
 
@@ -38,6 +39,7 @@ import {
 
   // Messaging
   getConversations,
+  getGigConversationMessages,
   sendMessage,
 
   // Notifications & Disputes
@@ -140,6 +142,12 @@ router.get(
   authorizeRoles("gig"),
   getConversations
 );
+router.get(
+  "/messages/:conversationId",
+  verifyToken,
+  authorizeRoles("gig"),
+  getGigConversationMessages
+);
 router.post(
   "/message/:conversationId",
   verifyToken,
@@ -186,6 +194,13 @@ router.post(
   authorizeRoles("gig"),
   upload.fields([{ name: "fileUrl", maxCount: 1 }]),
   uploadDocuments
+);
+router.put(
+  "/update-docs",
+  verifyToken,
+  authorizeRoles("gig"),
+  upload.fields([{ name: "fileUrl", maxCount: 1 }]),
+  updateGigDocs
 );
 router.post(
   "/kyc/video",

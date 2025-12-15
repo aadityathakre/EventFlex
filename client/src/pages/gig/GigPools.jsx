@@ -17,7 +17,7 @@ function GigPools() {
     setLoading(true);
     try {
       // Demo coordinates; replace with real location later
-      const res = await axios.get(`${serverURL}/gig/nearby-events`, {
+      const res = await axios.get(`${serverURL}/gigs/nearby-events`, {
         withCredentials: true,
         // If backend expects coordinates in body, switch to POST. Using GET here based on route.
       });
@@ -32,7 +32,7 @@ function GigPools() {
 
   const fetchDetails = async (poolId) => {
     try {
-      const res = await axios.get(`${serverURL}/gig/organizer-pool/${poolId}`, { withCredentials: true });
+      const res = await axios.get(`${serverURL}/gigs/organizer-pool/${poolId}`, { withCredentials: true });
       setDetails(res.data?.data || null);
     } catch (e) {
       showToast(e?.response?.data?.message || "Failed to fetch pool details", "error");
@@ -42,7 +42,7 @@ function GigPools() {
   const join = async (poolId) => {
     try {
       const res = await axios.post(
-        `${serverURL}/gig/join-pool/${poolId}`,
+        `${serverURL}/gigs/join-pool/${poolId}`,
         { proposed_rate: rate || 0, cover_message: cover },
         { withCredentials: true }
       );

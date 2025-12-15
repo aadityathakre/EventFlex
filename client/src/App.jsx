@@ -31,6 +31,7 @@ import OrganizerPools from "./pages/organizer/OrganizerPools.jsx";
 import OrganizerPoolApplications from "./pages/organizer/OrganizerPoolApplications.jsx";
 import OrganizerManageGigs from "./pages/organizer/OrganizerManageGigs.jsx";
 import OrganizerChat from "./pages/organizer/OrganizerChat.jsx";
+import OrganizerGigChat from "./pages/organizer/OrganizerGigChat.jsx";
 import GigDashboard from "./pages/gig/GigDashboard.jsx";
 import GigProfile from "./pages/gig/GigProfile.jsx";
 import GigWallet from "./pages/gig/GigWallet.jsx";
@@ -151,6 +152,22 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['organizer']}>
             <OrganizerChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/gig-chat'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerGigChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/gig-chat/:conversationId'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerGigChat />
           </ProtectedRoute>
         }
       />

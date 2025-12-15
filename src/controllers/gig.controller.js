@@ -322,6 +322,34 @@ const uploadDocuments = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
+// 9.1 update existing document //
+const updateGigDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+  const userId = req.user._id;
+
+  if (!type || !localFilePath) {
+    throw new ApiError(400, "Document type and file is required");
+  }
+
+  const existingDoc = await UserDocument.findOne({ user: userId, type });
+  if (!existingDoc) {
+    throw new ApiError(404, "No existing document of this type found");
+  }
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes?.secure_url) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  existingDoc.fileUrl = cloudinaryRes.secure_url;
+  await existingDoc.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, existingDoc, "Document updated successfully"));
+});
+
 // 10.  Aadhaar verification 
  const verifyAadhaar = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -775,15 +803,10 @@ const sendMessage = asyncHandler(async (req, res) => {
   const { conversationId } = req.params;
   const { message_text } = req.body;
 
-  const conversation = await Conversation.findById(conversationId);
- if (
-  !conversation ||
-  !conversation.participants.some(
-    (p) => p.userId?.toString() === gigId.toString()
-  )
-) {
-  throw new ApiError(403, "Access denied to this conversation");
-}
+ const conversation = await Conversation.findById(conversationId);
+ if (!conversation || !conversation.participants.some((p) => p.toString() === gigId.toString())) {
+   throw new ApiError(403, "Access denied to this conversation");
+ }
 
 
   const message = await Message.create({
@@ -795,13 +818,29 @@ const sendMessage = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, message, "Message sent"));
 });
 
+//  List messages in a conversation (gig)
+const getGigConversationMessages = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === gigId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const messages = await Message.find({ conversation: conversationId })
+    .populate("sender", "email role")
+    .sort({ createdAt: 1 });
+
+  return res.status(200).json(new ApiResponse(200, messages, "Messages fetched"));
+});
+
 //  List chat threads
 const getConversations = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
 const conversations = await Conversation.find({
-  "participants.gig": gigId 
-
+  participants: gigId
 }).populate("event", "name date location")
     .populate("pool", "name")
     .sort({ createdAt: -1 });
@@ -842,6 +881,7 @@ export {
   getBadges,
   getLeaderboard,
   getConversations,
+  getGigConversationMessages,
   sendMessage,
   raiseDispute,
   getNotifications,
@@ -852,6 +892,7 @@ export {
   getKYCStatus,
   getGigDashboard,
   uploadDocuments,
+  updateGigDocs,
   uploadKycVideo,
   createWallet,
   

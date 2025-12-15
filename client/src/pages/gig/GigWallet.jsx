@@ -46,7 +46,7 @@ function GigWallet() {
   const fetchWallet = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${serverURL}/gig/wallet`, { withCredentials: true });
+      const res = await axios.get(`${serverURL}/gigs/wallet`, { withCredentials: true });
       const rawBal = res.data?.data?.balance_inr ?? res.data?.data?.balance;
       const bal = asNumber(rawBal) ?? 0;
       const upi = res.data?.data?.upi_id || "";
@@ -60,7 +60,7 @@ function GigWallet() {
 
   const fetchPayments = async () => {
     try {
-      const res = await axios.get(`${serverURL}/gig/payment-history`, { withCredentials: true });
+      const res = await axios.get(`${serverURL}/gigs/payment-history`, { withCredentials: true });
       setPayments(res.data?.data || []);
     } catch (e) {}
   };
