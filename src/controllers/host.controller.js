@@ -18,6 +18,7 @@ import User from "../models/User.model.js";
 import EventApplication from "../models/EventApplications.js";
 import mongoose from "mongoose";
 import UserProfile from "../models/UserProfile.model.js";
+import Notification from "../models/Notification.model.js";
 
 // 1. Host Profile
 export const getHostProfile = asyncHandler(async (req, res) => {
@@ -607,15 +608,45 @@ export const getAllOrganizers = asyncHandler(async (req, res) => {
 // 15. invite organizer to event
 export const inviteOrganizer = asyncHandler(async (req, res) => {
   const orgId = req.params.id;
-  const {eventId, cover_letter} = req.body;
-  //create an event application for the organizer
+  const hostId = req.user._id;
+  const {eventId, cover_letter, proposed_rate} = req.body;
+
+  const eventDoc = await Event.findOne({ _id: eventId, host: hostId }).select("title host organizer");
+  if (!eventDoc) {
+    throw new ApiError(404, "Event not found or unauthorized");
+  }
+
+  const existing = await EventApplication.findOne({
+    event: eventId,
+    organizer: orgId,
+    application_status: { $in: ["pending", "accepted"] }
+  });
+  if (existing) {
+    return res.status(200).json(new ApiResponse(200, existing, "Application already exists"));
+  }
+
   let eventApplication = await EventApplication.create({
     event: eventId ,
     applicant: orgId,
+    organizer: orgId,
+    host: hostId,
+    sender: hostId,
+    receiver: orgId,
     application_status: "pending",
     cover_letter,
+    proposed_rate: proposed_rate
+      ? mongoose.Types.Decimal128.fromString(proposed_rate.toString())
+      : undefined,
   });
   eventApplication.save();
+
+  const hostUser = await User.findById(hostId).select("first_name last_name");
+  await Notification.create({
+    user: orgId,
+    type: "event",
+    message: `Host ${hostUser?.fullName || hostUser?.first_name} invited you for ${eventDoc.title}`,
+  });
+
   return res
     .status(201)
     .json(new ApiResponse(201, eventApplication, "Organizer invited to event"));
@@ -646,9 +677,17 @@ export const approveOrganizer = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Event not found to assign organizer");
   }
 
+  const orgPoolExists = await OrganizerPool.findOne({ organizer: organizerId, event: eventId });
+  const organizerUser = await User.findById(organizerId).select("first_name last_name");
+  await Notification.create({
+    user: organizerId,
+    type: "event",
+    message: `Your application for ${updatedEvent.title} has been accepted`,
+  });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, eventApplication, "Organizer approved for event"));
+    .json(new ApiResponse(200, { application: eventApplication, organizer_pool_exists: !!orgPoolExists }, "Organizer approved for event"));
 });
 
 // 16.1 Reject organizer application
@@ -663,6 +702,13 @@ export const rejectOrganizer = asyncHandler(async (req, res) => {
   }
   eventApplication.application_status = "rejected";
   await eventApplication.save();
+
+  const updatedEvent = await Event.findById(eventApplication.event).select("title");
+  await Notification.create({
+    user: eventApplication.applicant,
+    type: "event",
+    message: `Your application for ${updatedEvent?.title} has been rejected`,
+  });
 
   return res
     .status(200)
@@ -692,6 +738,19 @@ export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required fields");
   }
 
+  const eventDoc = await Event.findOne({ _id: eventId, host: hostId }).select("organizer title");
+  if (!eventDoc) {
+    throw new ApiError(404, "Event not found or unauthorized");
+  }
+  if (eventDoc.organizer?.toString() !== organizerId.toString()) {
+    throw new ApiError(400, "Organizer not yet accepted for this event");
+  }
+
+  const existingPool = await OrganizerPool.findOne({ organizer: organizerId, event: eventId });
+  if (existingPool) {
+    return res.status(200).json(new ApiResponse(200, existingPool, "Organizer pool already exists"));
+  }
+
   const pool = await OrganizerPool.create({
     organizer: organizerId,
     event: eventId,
@@ -704,6 +763,12 @@ export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
     required_skills,
     pay_range,
     status: "open",
+  });
+
+  await Notification.create({
+    user: organizerId,
+    type: "event",
+    message: `Organizer pool created for ${eventDoc.title}`,
   });
 
   return res
@@ -851,13 +916,55 @@ export const getInvitedOrganizerStatus = asyncHandler(async (req, res) => {
   const eventIds = events.map((e) => e._id);
 
   const applications = await EventApplication.find({ event: { $in: eventIds } })
-    .populate("applicant", "email role")
+    .populate("applicant", "email role first_name last_name")
     .populate("event", "title organizer")
     .sort({ createdAt: -1 });
 
+  const requested = applications.filter(a => a.application_status === "pending" && a.sender?.toString() !== hostId.toString());
+  const invited = applications.filter(a => a.application_status === "pending" && a.sender?.toString() === hostId.toString());
+  const accepted = applications.filter(a => a.application_status === "accepted");
+  const rejected = applications.filter(a => a.application_status === "rejected");
+
+  const acceptedWithFlags = await Promise.all(accepted.map(async (a) => {
+    const exists = await OrganizerPool.findOne({ organizer: a.organizer, event: a.event._id });
+    return { ...a.toObject(), organizer_pool_exists: !!exists };
+  }));
+
   return res
     .status(200)
-    .json(new ApiResponse(200, applications, "Invited organizers status fetched"));
+    .json(new ApiResponse(200, { requested, invited, accepted: acceptedWithFlags, rejected }, "Invited organizers status fetched"));
+});
+
+export const deleteHostApplication = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+  const app = await EventApplication.findById(id);
+  if (!app) throw new ApiError(404, "Application not found");
+  const events = await Event.find({ host: hostId }).select("_id");
+  const eventIds = events.map(e => e._id.toString());
+  if (!eventIds.includes(app.event?.toString())) {
+    throw new ApiError(403, "Not authorized to delete this application");
+  }
+  if (!["accepted", "rejected"].includes(app.application_status)) {
+    throw new ApiError(400, "Only accepted or rejected applications can be deleted");
+  }
+  await EventApplication.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Application deleted"));
+});
+
+export const getHostNotifications = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const notifications = await Notification.find({ user: hostId }).sort({ createdAt: -1 });
+  return res.status(200).json(new ApiResponse(200, notifications, "Notifications fetched"));
+});
+
+export const markHostNotificationRead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updated = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
+  if (!updated) {
+    return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
+  }
+  return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
 });
 
 // 21. Deposit to Escrow

@@ -32,6 +32,7 @@ import {
   // 📅 Event Management
   getEventDetails,
   getOrganizerApplications,
+  getOrganizerApplicationSummary,
   getLiveEventTracking,
 
   // 💰 Wallet & Escrow
@@ -56,6 +57,7 @@ import {
   // 🧠 Wellness & Analytics
   getWellnessScore,
   getNoShowRisk,
+  deleteOrganizerApplication,
 } from "../controllers/organizer.controller.js";
 
 const router = express.Router();
@@ -106,6 +108,8 @@ router.get("/no-show-risk/:gigId", verifyToken, authorizeRoles("organizer"), get
 //
 router.get("/events/:id", verifyToken, authorizeRoles("organizer"), getEventDetails);
 router.get("/applications", verifyToken, authorizeRoles("organizer"), getOrganizerApplications);
+router.get("/applications/summary", verifyToken, authorizeRoles("organizer"), getOrganizerApplicationSummary);
+router.delete("/applications/:id", verifyToken, authorizeRoles("organizer"), deleteOrganizerApplication);
 router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
 
 

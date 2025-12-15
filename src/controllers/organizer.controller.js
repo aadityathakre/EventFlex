@@ -380,9 +380,14 @@ export const reqHostForEvent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required field: eventId");
   }
 
+  const eventDoc = await Event.findById(eventId).select("host organizer title");
+  if (!eventDoc) {
+    throw new ApiError(404, "Event not found");
+  }
+
   const existing = await EventApplication.findOne({
     event: eventId,
-    applicant: organizerId,
+    organizer: organizerId,
     application_status: { $in: ["pending", "accepted"] },
   });
   if (existing) {
@@ -394,10 +399,25 @@ export const reqHostForEvent = asyncHandler(async (req, res) => {
   const eventApplication = await EventApplication.create({
     event: eventId,
     applicant: organizerId,
+    organizer: organizerId,
+    host: eventDoc.host,
+    sender: organizerId,
+    receiver: eventDoc.host,
     application_status: "pending",
     cover_letter,
-    proposed_rate,
+    proposed_rate: proposed_rate
+      ? mongoose.Types.Decimal128.fromString(proposed_rate.toString())
+      : undefined,
   });
+
+  if (eventDoc.host) {
+    const organizer = await User.findById(organizerId).select("first_name last_name");
+    await Notification.create({
+      user: eventDoc.host,
+      type: "event",
+      message: `Organizer ${organizer?.fullName || organizer?.first_name} requested to manage ${eventDoc.title}`,
+    });
+  }
 
   return res
     .status(201)
@@ -437,9 +457,17 @@ export const acceptInvitationFromHost = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Event not found to assign organizer");
   }
 
+  const poolExists = await Pool.findOne({ organizer: organizerId, event: eventId });
+  const orgUser = await User.findById(organizerId).select("first_name last_name");
+  await Notification.create({
+    user: eventApplication.host,
+    type: "event",
+    message: `Organizer ${orgUser?.fullName || orgUser?.first_name} accepted invitation for ${updatedEvent.title}`,
+  });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, eventApplication, "Organizer accepted for event"));
+    .json(new ApiResponse(200, { application: eventApplication, pool_exists: !!poolExists }, "Organizer accepted for event"));
 });
 
 // 12.1 Reject invitation from host
@@ -456,6 +484,14 @@ export const rejectInvitationFromHost = asyncHandler(async (req, res) => {
   eventApplication.application_status = "rejected";
   await eventApplication.save();
 
+  const updatedEvent = await Event.findById(eventApplication.event).select("title");
+  const orgUser = await User.findById(eventApplication.applicant).select("first_name last_name");
+  await Notification.create({
+    user: eventApplication.host,
+    type: "event",
+    message: `Organizer ${orgUser?.fullName || orgUser?.first_name} rejected invitation for ${updatedEvent?.title}`,
+  });
+
   return res
     .status(200)
     .json(new ApiResponse(200, eventApplication, "Invitation rejected"));
@@ -466,7 +502,20 @@ export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { name,eventId, description } = req.body;
 
-    const pool = await Pool.create({
+  const eventDoc = await Event.findById(eventId).select("organizer title host");
+  if (!eventDoc) throw new ApiError(404, "Event not found");
+  if (eventDoc.organizer?.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to create pool for this event");
+  }
+
+  const existingPool = await Pool.findOne({ organizer: organizerId, event: eventId });
+  if (existingPool) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, existingPool, "Pool already exists"));
+  }
+
+  const pool = await Pool.create({
     organizer: organizerId,
     event:eventId,
     name,
@@ -474,7 +523,11 @@ export const createPool = asyncHandler(async (req, res) => {
     status :"active"
   });
 
-  
+  await Notification.create({
+    user: eventDoc.host,
+    type: "event",
+    message: `Organizer created a gig pool for ${eventDoc.title}`,
+  });
 
   return res
     .status(201)
@@ -655,11 +708,53 @@ export const getEventDetails = asyncHandler(async (req, res) => {
 // 18.1 List my event applications
 export const getOrganizerApplications = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const apps = await EventApplication.find({ applicant: organizerId })
+  const apps = await EventApplication.find({ organizer: organizerId })
     .populate("event", "title start_date end_date location host organizer status")
     .select("-__v")
     .sort({ createdAt: -1 });
   return res.status(200).json(new ApiResponse(200, apps, "Organizer applications fetched"));
+});
+
+export const getOrganizerApplicationSummary = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const apps = await EventApplication.find({ organizer: organizerId })
+    .populate("event", "title host organizer status")
+    .populate("host", "first_name last_name")
+    .populate("organizer", "first_name last_name")
+    .sort({ createdAt: -1 });
+
+  const requested = apps.filter(a => a.application_status === "pending" && a.sender?.toString() === organizerId.toString());
+  const invited = apps.filter(a => a.application_status === "pending" && a.sender?.toString() !== organizerId.toString());
+  const accepted = apps.filter(a => a.application_status === "accepted");
+  const rejected = apps.filter(a => a.application_status === "rejected");
+
+  const acceptedWithFlags = await Promise.all(accepted.map(async (a) => {
+    const exists = await Pool.findOne({ organizer: organizerId, event: a.event._id });
+    return { ...a.toObject(), pool_exists: !!exists };
+  }));
+
+  return res.status(200).json(
+    new ApiResponse(200, { requested, invited, accepted: acceptedWithFlags, rejected }, "Applications summary fetched")
+  );
+});
+
+export const deleteOrganizerApplication = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const app = await EventApplication.findById(id);
+  if (!app) throw new ApiError(404, "Application not found");
+  if (
+    app.organizer?.toString() !== organizerId.toString() &&
+    app.receiver?.toString() !== organizerId.toString() &&
+    app.sender?.toString() !== organizerId.toString()
+  ) {
+    throw new ApiError(403, "Not authorized to delete this application");
+  }
+  if (!["accepted", "rejected"].includes(app.application_status)) {
+    throw new ApiError(400, "Only accepted or rejected applications can be deleted");
+  }
+  await EventApplication.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Application deleted"));
 });
 
 // 19. Payment History

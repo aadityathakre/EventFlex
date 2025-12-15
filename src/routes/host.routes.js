@@ -47,6 +47,9 @@ import {
   getLeaderboard,
   createRatingReview,
   createFeedback,
+  deleteHostApplication,
+  getHostNotifications,
+  markHostNotificationRead,
   
 } from "../controllers/host.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -81,6 +84,7 @@ router.post("/invite-organizer/:id", verifyToken, authorizeRoles("host"), invite
 router.post("/approve-organizer/:id", verifyToken, authorizeRoles("host"), approveOrganizer);
 router.post("/reject-organizer/:id", verifyToken, authorizeRoles("host"), rejectOrganizer);
 router.get("/organizers/invites", verifyToken, authorizeRoles("host"), getInvitedOrganizerStatus);
+router.delete("/organizers/applications/:id", verifyToken, authorizeRoles("host"), deleteHostApplication);
 router.post("/pools/create", verifyToken, authorizeRoles("host"), createOrganizerPoolForEvent);
 router.get("/organizer", verifyToken, authorizeRoles("host"), getAssignedOrganizer);
 router.post("/chat", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
@@ -103,6 +107,8 @@ router.get("/dashboard", verifyToken, authorizeRoles("host"), getHostDashboard);
 router.get("/leaderboard", verifyToken, authorizeRoles("host"), getLeaderboard);
 router.post("/reviews/rating", verifyToken, authorizeRoles("host"), createRatingReview); // Host
 router.post("/reviews/feedback", verifyToken, authorizeRoles("host"), createFeedback);   // Gig
+router.get("/notifications", verifyToken, authorizeRoles("host"), getHostNotifications);
+router.put("/notifications/:id/read", verifyToken, authorizeRoles("host"), markHostNotificationRead);
 
 
 export default router;

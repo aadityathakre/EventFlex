@@ -6,11 +6,11 @@ import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostOrganizerStatus() {
   const navigate = useNavigate();
-  const [applications, setApplications] = useState([]);
+  const [appsSummary, setAppsSummary] = useState({ invited: [], requested: [], accepted: [], rejected: [] });
   const [assignedPools, setAssignedPools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("invited"); // invited | requested | rejected
+  const [activeTab, setActiveTab] = useState("invited"); // invited | requested | accepted | rejected
   const [poolForm, setPoolForm] = useState({ open: false, organizerId: "", eventId: "", pool_name: "", max_capacity: 10, required_skills: "", pay_min: "", pay_max: "", lat: "", lng: "" });
 
   const fetchAll = async () => {
@@ -19,7 +19,7 @@ function HostOrganizerStatus() {
         axios.get(`${serverURL}/host/organizers/invites`, { withCredentials: true }),
         axios.get(`${serverURL}/host/organizer`, { withCredentials: true }),
       ]);
-      setApplications(appsRes.data?.data || []);
+      setAppsSummary(appsRes.data?.data || { invited: [], requested: [], accepted: [], rejected: [] });
       setAssignedPools(poolsRes.data?.data || []);
       setError(null);
     } catch (e) {
@@ -41,18 +41,10 @@ function HostOrganizerStatus() {
     return (eventId) => map.get(eventId);
   }, [assignedPools]);
 
-  const invitedApps = useMemo(
-    () => applications.filter((a) => (a?.proposed_rate === undefined || a?.proposed_rate === null) && a?.application_status === "pending"),
-    [applications]
-  );
-  const requestedApps = useMemo(
-    () => applications.filter((a) => (a?.proposed_rate !== undefined && a?.proposed_rate !== null) && a?.application_status !== "rejected"),
-    [applications]
-  );
-  const rejectedApps = useMemo(
-    () => applications.filter((a) => a?.application_status === "rejected"),
-    [applications]
-  );
+  const invitedApps = appsSummary.invited || [];
+  const requestedApps = appsSummary.requested || [];
+  const acceptedApps = appsSummary.accepted || [];
+  const rejectedApps = appsSummary.rejected || [];
 
   const approveApplication = async (appId) => {
     try {
@@ -134,6 +126,7 @@ function HostOrganizerStatus() {
           <div className="m-4 p-4 mb-5 flex items-center gap-2">
             <button onClick={() => setActiveTab("invited")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "invited" ? "bg-purple-600 text-white" : "border border-purple-200 text-purple-700 hover:bg-purple-50"}`}>Invited</button>
             <button onClick={() => setActiveTab("requested")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "requested" ? "bg-purple-600 text-white" : "border border-purple-200 text-purple-700 hover:bg-purple-50"}`}>Requested</button>
+            <button onClick={() => setActiveTab("accepted")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "accepted" ? "bg-green-600 text-white" : "border border-green-200 text-green-700 hover:bg-green-50"}`}>Accepted</button>
             <button onClick={() => setActiveTab("rejected")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "rejected" ? "bg-pink-600 text-white" : "border border-pink-200 text-pink-700 hover:bg-pink-50"}`}>Rejected</button>
           </div>
         </div>
@@ -174,11 +167,24 @@ function HostOrganizerStatus() {
                     )}
                     {app.application_status === 'accepted' && (
                       <div className="px-4 pb-4">
-                        {pool ? (
-                          <button disabled className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-100 text-slate-600">Org pool has created</button>
+                        {app?.organizer_pool_exists ? (
+                          <button disabled className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-100 text-slate-600">Organizer pool created</button>
                         ) : (
                           <button onClick={() => openPoolForm(app.applicant?._id, app.event?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Create Organizer Pool</button>
                         )}
+                        <button
+                          onClick={async () => {
+                            try {
+                              await axios.delete(`${serverURL}/host/organizers/applications/${app._id}`, { withCredentials: true });
+                              await fetchAll();
+                            } catch (e) {
+                              setError(e.response?.data?.message || "Failed to delete");
+                            }
+                          }}
+                          className="mt-2 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50"
+                        >
+                          Delete
+                        </button>
                       </div>
                     )}
                   </div>
@@ -222,13 +228,75 @@ function HostOrganizerStatus() {
                     )}
                     {app.application_status === 'accepted' && (
                       <div className="px-4 pb-4">
-                        {hasPoolForEvent(app?.event?._id) ? (
-                          <button disabled className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-100 text-slate-600">Org pool has created</button>
+                        {app?.organizer_pool_exists ? (
+                          <button disabled className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-100 text-slate-600">Organizer pool created</button>
                         ) : (
                           <button onClick={() => openPoolForm(app.applicant?._id, app.event?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Create Organizer Pool</button>
                         )}
+                        <button
+                          onClick={async () => {
+                            try {
+                              await axios.delete(`${serverURL}/host/organizers/applications/${app._id}`, { withCredentials: true });
+                              await fetchAll();
+                            } catch (e) {
+                              setError(e.response?.data?.message || "Failed to delete");
+                            }
+                          }}
+                          className="mt-2 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50"
+                        >
+                          Delete
+                        </button>
                       </div>
                     )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {activeTab === "accepted" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {acceptedApps.length === 0 ? (
+              <p className="text-gray-600">No accepted items yet.</p>
+            ) : (
+              acceptedApps.map((app) => {
+                const statusClass = 'bg-green-100 text-green-700';
+                return (
+                  <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
+                    {app?.event?.event_type && (
+                      <div className="h-28 w-full overflow-hidden">
+                        <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                      </div>
+                    )}
+                    <div className="p-4 flex items-start justify-between">
+                      <div>
+                        <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
+                        <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${statusClass}`}>{app.application_status}</span>
+                    </div>
+                    <div className="px-4 pb-4">
+                      {app?.organizer_pool_exists ? (
+                        <button disabled className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-100 text-slate-600">Organizer pool created</button>
+                      ) : (
+                        <button onClick={() => openPoolForm(app.applicant?._id, app.event?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Create Organizer Pool</button>
+                      )}
+                      <button
+                        onClick={async () => {
+                          try {
+                            await axios.delete(`${serverURL}/host/organizers/applications/${app._id}`, { withCredentials: true });
+                            await fetchAll();
+                          } catch (e) {
+                            setError(e.response?.data?.message || "Failed to delete");
+                          }
+                        }}
+                        className="mt-2 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -256,7 +324,21 @@ function HostOrganizerStatus() {
                     </div>
                     <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 capitalize">{app.application_status}</span>
                   </div>
-                  <p className="px-4 pb-4 text-sm text-slate-500">Rejected by you or the organizer.</p>
+                  <div className="px-4 pb-4">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await axios.delete(`${serverURL}/host/organizers/applications/${app._id}`, { withCredentials: true });
+                          await fetchAll();
+                        } catch (e) {
+                          setError(e.response?.data?.message || "Failed to delete");
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))
             )}

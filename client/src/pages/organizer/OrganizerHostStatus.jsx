@@ -7,17 +7,17 @@ import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function OrganizerHostStatus() {
   const { showToast } = useToast();
-  const [applications, setApplications] = useState([]);
+  const [summary, setSummary] = useState({ invited: [], requested: [], accepted: [], rejected: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("invited"); // invited | requested | rejected
+  const [activeTab, setActiveTab] = useState("invited"); // invited | requested | accepted | rejected
   const [poolModal, setPoolModal] = useState({ open: false, app: null, name: "", description: "" });
 
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${serverURL}/organizer/applications`, { withCredentials: true });
-      setApplications(res.data?.data || []);
+      const res = await axios.get(`${serverURL}/organizer/applications/summary`, { withCredentials: true });
+      setSummary(res.data?.data || { invited: [], requested: [], accepted: [], rejected: [] });
       setError(null);
     } catch (e) {
       setError(e?.response?.data?.message || "Failed to load applications");
@@ -30,19 +30,10 @@ function OrganizerHostStatus() {
     fetchApplications();
   }, []);
 
-  const invitedApps = useMemo(
-    () => applications.filter((a) => a.application_status === "pending"),
-    [applications]
-  );
-  // Requested should show only items accepted by host
-  const requestedApps = useMemo(
-    () => applications.filter((a) => a.application_status === "accepted"),
-    [applications]
-  );
-  const rejectedApps = useMemo(
-    () => applications.filter((a) => a.application_status === "rejected"),
-    [applications]
-  );
+  const invitedApps = summary.invited || [];
+  const requestedApps = summary.requested || [];
+  const acceptedApps = summary.accepted || [];
+  const rejectedApps = summary.rejected || [];
 
   const acceptInvite = async (appId) => {
     try {
@@ -122,6 +113,12 @@ function OrganizerHostStatus() {
               Requested
             </button>
             <button
+              onClick={() => setActiveTab("accepted")}
+              className={`px-3 py-2 text-sm rounded-lg ${activeTab === "accepted" ? "bg-green-600 text-white" : "border"}`}
+            >
+              Accepted
+            </button>
+            <button
               onClick={() => setActiveTab("rejected")}
               className={`px-3 py-2 text-sm rounded-lg ${activeTab === "rejected" ? "bg-pink-600 text-white" : "border"}`}
             >
@@ -184,8 +181,56 @@ function OrganizerHostStatus() {
                         <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
                         <p className="text-sm text-gray-600">Status: {a.application_status}</p>
                       </div>
+                      <p className="text-sm text-gray-500">Awaiting host response</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "accepted" && (
+          <div>
+            {acceptedApps.length === 0 ? (
+              <p className="text-gray-600">No accepted items yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {acceptedApps.map((a) => (
+                  <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
+                    <div className="relative h-28 overflow-hidden">
+                      <img
+                        src={getEventTypeImage(a?.event?.event_type)}
+                        alt={a?.event?.title || "Event"}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
+                    </div>
+                    <div className="p-5 flex items-center justify-between">
                       <div>
-                        <button onClick={() => openPoolModal(a)} className="px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">Create Pool</button>
+                        <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
+                        <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {a?.pool_exists ? (
+                          <button disabled className="px-3 py-2 text-sm border rounded-lg bg-slate-100 text-slate-600">Pool created</button>
+                        ) : (
+                          <button onClick={() => openPoolModal(a)} className="px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">Create Pool</button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            try {
+                              await axios.delete(`${serverURL}/organizer/applications/${a._id}`, { withCredentials: true });
+                              await fetchApplications();
+                              showToast("Application deleted", "success");
+                            } catch (e) {
+                              showToast(e?.response?.data?.message || "Failed to delete", "error");
+                            }
+                          }}
+                          className="px-3 py-2 text-sm border rounded-lg"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -216,7 +261,23 @@ function OrganizerHostStatus() {
                         <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
                         <p className="text-sm text-gray-600">Status: {a.application_status}</p>
                       </div>
-                      <span className="px-3 py-1 rounded-lg text-xs bg-pink-100 text-pink-700">Rejected</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-lg text-xs bg-pink-100 text-pink-700">Rejected</span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await axios.delete(`${serverURL}/organizer/applications/${a._id}`, { withCredentials: true });
+                              await fetchApplications();
+                              showToast("Application deleted", "success");
+                            } catch (e) {
+                              showToast(e?.response?.data?.message || "Failed to delete", "error");
+                            }
+                          }}
+                          className="px-3 py-2 text-sm border rounded-lg"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
