@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { serverURL } from "../../App";
 import { useNavigate } from "react-router-dom";
+import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostInvites() {
   const navigate = useNavigate();
@@ -110,8 +111,18 @@ function HostInvites() {
                 : 'bg-amber-100 text-amber-700';
 
               return (
-                <div key={app._id} className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition">
-                  <div className="flex items-start justify-between">
+                <div key={app._id} className="group rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
+                  {app?.event?.event_type && (
+                    <div className="h-32 w-full overflow-hidden">
+                      <img
+                        src={getEventTypeImage(app.event.event_type)}
+                        alt={app.event.event_type}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+                  <div className="p-4 flex items-start justify-between">
                     <div>
                       <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
                       <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>

@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
+import { getCardImage, getEventTypeImage } from "../../utils/imageMaps.js";
 import {
   FaCalendarAlt,
   FaUsers,
@@ -13,6 +14,7 @@ import {
   FaSearch,
   FaBell,
   FaArrowRight,
+  FaComments,
 } from "react-icons/fa";
 
 function HostDashboard() {
@@ -193,6 +195,14 @@ function HostDashboard() {
             </div>
 
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate("/host/chat")}
+                className="relative p-2 text-gray-600 hover:text-purple-600 transition-colors"
+                title="Conversations"
+                aria-label="Conversations"
+              >
+                <FaComments className="text-xl" />
+              </button>
               <button className="relative p-2 text-gray-600 hover:text-purple-600 transition-colors">
                 <FaBell className="text-xl" />
                 <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -285,8 +295,7 @@ function HostDashboard() {
                 title: "Create Event",
                 description: "Plan and publish a new event",
                 path: "/host/events/create",
-                image:
-                  "https://www.mbatuts.com/wp-content/uploads/2019/11/Event-Planning-Business-in-plan.jpg",
+                image: getCardImage("createEvent"),
                 color: "from-purple-600/50 via-indigo-600/40 to-pink-600/30",
                 icon: <FaCalendarAlt className="text-2xl" />,
               },
@@ -294,8 +303,7 @@ function HostDashboard() {
                 title: "Find Organizers",
                 description: "Search and invite organizers",
                 path: "/host/organizers",
-                image:
-                  "https://www.magnetevents.com/wp-content/uploads/2022/04/svartvit_trio-1536x1024.jpg",
+                image: getCardImage("findOrganizers"),
                 color: "from-indigo-600/50 via-purple-600/40 to-pink-600/30",
                 icon: <FaUsers className="text-2xl" />,
               },
@@ -303,17 +311,15 @@ function HostDashboard() {
                 title: "Payments",
                 description: "Manage wallet, escrow and payouts",
                 path: "/host/payments",
-                image:
-                  "https://www.paymentscardsandmobile.com/wp-content/uploads/2022/06/Digital-wallet_PCM.jpg",
+                image: getCardImage("payments"),
                 color: "from-pink-600/40 via-indigo-600/40 to-purple-600/30",
                 icon: <FaWallet className="text-2xl" />,
               },
               {
                 title: "Organizer Status",
                 description: "Track invites and requests",
-                path: "/host/invites",
-                image:
-                  "https://www.4foreverything.com/uploads/1727967931_350fb5609100bfc84cab.jpg",
+                path: "/host/status",
+                image: getCardImage("organizerStatus"),
                 color: "from-purple-600/50 via-indigo-600/40 to-pink-600/30",
                 icon: <FaUsers className="text-2xl" />,
               },
@@ -321,8 +327,7 @@ function HostDashboard() {
                 title: "Organizer Pools",
                 description: "Create and assign organizer pools",
                 path: "/host/pools",
-                image:
-                  "https://www.ensuite.fr/img/modules/totblog/87-image-4982dcfd3fa0a4733e4748489bc9bff5.jpg",
+                image: getCardImage("organizerPools"),
                 color: "from-indigo-600/50 via-purple-600/40 to-pink-600/30",
                 icon: <FaUsers className="text-2xl" />,
               },
@@ -401,23 +406,33 @@ function HostDashboard() {
                   key={event._id}
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-300"
                 >
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{event.title}</h4>
-                    <p className="text-sm text-gray-600">
-                      {new Date(event.start_date).toLocaleDateString()} -{" "}
-                      {new Date(event.end_date).toLocaleDateString()}
-                    </p>
-                    <span
-                      className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                        event.status === "published"
-                          ? "bg-blue-100 text-blue-800"
-                          : event.status === "in_progress"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {event.status}
-                    </span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      <img
+                        src={getEventTypeImage(event.event_type)}
+                        alt={event.event_type || "Event"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{event.title}</h4>
+                      <p className="text-sm text-gray-600">
+                        {new Date(event.start_date).toLocaleDateString()} -{" "}
+                        {new Date(event.end_date).toLocaleDateString()}
+                      </p>
+                      <span
+                        className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                          event.status === "published"
+                            ? "bg-blue-100 text-blue-800"
+                            : event.status === "in_progress"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {event.status}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -438,9 +453,9 @@ function HostDashboard() {
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
       </main>
 
       {/* Pool creation modal */}

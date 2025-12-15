@@ -4,7 +4,7 @@ import axios from "axios";
 import { serverURL } from "../../App";
 import { FaComments, FaArrowLeft, FaPaperPlane, FaTrash } from "react-icons/fa";
 
-function HostChat() {
+function OrganizerChat() {
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const [conversations, setConversations] = useState([]);
@@ -33,7 +33,8 @@ function HostChat() {
 
   const loadConversations = async () => {
     try {
-      const res = await axios.get(`${serverURL}/host/conversations`, { withCredentials: true });
+      // Attempt to get organizer conversations; if unavailable, fallback to host conversations structure that includes organizer's view
+      const res = await axios.get(`${serverURL}/organizer/conversations`, { withCredentials: true });
       setConversations(res.data?.data || []);
     } catch (e) {
       setError(e.response?.data?.message || "Failed to fetch conversations");
@@ -42,7 +43,7 @@ function HostChat() {
 
   const loadMessages = async (id) => {
     try {
-      const res = await axios.get(`${serverURL}/host/messages/${id}`, { withCredentials: true });
+      const res = await axios.get(`${serverURL}/organizer/messages/${id}`, { withCredentials: true });
       setMessages(res.data?.data || []);
     } catch (e) {
       setError(e.response?.data?.message || "Failed to fetch messages");
@@ -54,7 +55,7 @@ function HostChat() {
     setSending(true);
     try {
       await axios.post(
-        `${serverURL}/host/message/${conversationId}`,
+        `${serverURL}/organizer/message/${conversationId}`,
         { message_text: messageText },
         { withCredentials: true }
       );
@@ -77,14 +78,14 @@ function HostChat() {
     if (!q) return conversations;
     return conversations.filter((c) => {
       const title = c?.event?.title || c?.pool?.pool_name || "";
-      const org = c?.organizer?.name || c?.organizer?.email || "";
-      return title.toLowerCase().includes(q) || org.toLowerCase().includes(q);
+      const host = c?.host?.name || c?.host?.email || "";
+      return title.toLowerCase().includes(q) || host.toLowerCase().includes(q);
     });
   }, [conversationSearch, conversations]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-gray-50 to-indigo-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading chat...</p>
@@ -103,7 +104,7 @@ function HostChat() {
                 <FaArrowLeft />
               </button>
               <h1 className="text-xl font-extrabold bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                Host Chat
+                Organizer Chat
               </h1>
             </div>
           </div>
@@ -128,7 +129,7 @@ function HostChat() {
               <input
                 value={conversationSearch}
                 onChange={(e) => setConversationSearch(e.target.value)}
-                placeholder="Search by event or organizer"
+                placeholder="Search by event or host"
                 className="w-full border rounded-lg px-3 py-2 text-sm"
               />
             </div>
@@ -140,24 +141,24 @@ function HostChat() {
                 {filteredConversations.map((c) => (
                   <button
                     key={c._id}
-                    onClick={() => navigate(`/host/chat/${c._id}`)}
+                    onClick={() => navigate(`/organizer/chat/${c._id}`)}
                     className={`w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition ${c._id === conversationId ? "border-indigo-600" : ""}`}
                   >
                     <div className="flex items-center gap-3">
-                      {c?.organizer?.profile_image_url || c?.organizer?.avatar || c?.organizer?.photo ? (
+                      {c?.host?.profile_image_url || c?.host?.avatar || c?.host?.photo ? (
                         <img
-                          src={c?.organizer?.profile_image_url || c?.organizer?.avatar || c?.organizer?.photo}
-                          alt="Organizer"
+                          src={c?.host?.profile_image_url || c?.host?.avatar || c?.host?.photo}
+                          alt="Host"
                           className="w-8 h-8 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center text-green-800 text-sm font-bold">
-                          {avatarFor(c?.organizer?.email)}
+                        <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 text-sm font-bold">
+                          {avatarFor(c?.host?.email)}
                         </div>
                       )}
                       <div className="min-w-0">
                         <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.pool?.pool_name || "Conversation"}</p>
-                        <p className="text-xs text-gray-600 truncate">{c?.organizer?.name || c?.organizer?.email || "Organizer"} • Pool: {c?.pool?.pool_name || "N/A"}</p>
+                        <p className="text-xs text-gray-600 truncate">{c?.host?.name || c?.host?.email || "Host"} • Pool: {c?.pool?.pool_name || "N/A"}</p>
                       </div>
                     </div>
                   </button>
@@ -172,19 +173,19 @@ function HostChat() {
               <div className="flex flex-col md:h-full">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    {selectedConversation?.organizer?.profile_image_url || selectedConversation?.organizer?.avatar || selectedConversation?.organizer?.photo ? (
+                    {selectedConversation?.host?.profile_image_url || selectedConversation?.host?.avatar || selectedConversation?.host?.photo ? (
                       <img
-                        src={selectedConversation?.organizer?.profile_image_url || selectedConversation?.organizer?.avatar || selectedConversation?.organizer?.photo}
-                        alt="Organizer"
+                        src={selectedConversation?.host?.profile_image_url || selectedConversation?.host?.avatar || selectedConversation?.host?.photo}
+                        alt="Host"
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center text-green-800 font-bold">
-                        {avatarFor(selectedConversation?.organizer?.email)}
+                      <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 font-bold">
+                        {avatarFor(selectedConversation?.host?.email)}
                       </div>
                     )}
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">{selectedConversation?.organizer?.name || selectedConversation?.organizer?.email || "Organizer"}</h3>
+                      <h3 className="text-lg font-bold text-gray-900">{selectedConversation?.host?.name || selectedConversation?.host?.email || "Host"}</h3>
                       <p className="text-xs text-gray-600">{selectedConversation?.event?.title || "Event"} • Pool: {selectedConversation?.pool?.pool_name || "N/A"}</p>
                     </div>
                   </div>
@@ -199,11 +200,11 @@ function HostChat() {
                     <p className="text-gray-600">No messages yet. Say hello!</p>
                   ) : (
                     messages.map((m) => (
-                      <div key={m._id} className={`max-w-[80%] flex items-end gap-2 ${m?.sender?.role === "host" ? "ml-auto flex-row-reverse" : ""}`}>
+                      <div key={m._id} className={`max-w-[80%] flex items-end gap-2 ${m?.sender?.role === "organizer" ? "ml-auto flex-row-reverse" : ""}`}>
                         <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-700">
                           {avatarFor(m?.sender?.email)}
                         </div>
-                        <div className={`p-2 rounded-2xl shadow-sm ${m?.sender?.role === "host" ? "bg-green-100" : "bg-gray-100"}`}>
+                        <div className={`p-2 rounded-2xl shadow-sm ${m?.sender?.role === "organizer" ? "bg-indigo-100" : "bg-gray-100"}`}>
                           <p className="text-xs text-gray-500">{m?.sender?.email}</p>
                           <p className="text-sm text-gray-900">{m?.message_text}</p>
                         </div>
@@ -245,4 +246,4 @@ function HostChat() {
   );
 }
 
-export default HostChat;
+export default OrganizerChat;

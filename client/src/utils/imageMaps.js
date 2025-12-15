@@ -23,6 +23,7 @@ export const getEventTypeImage = (type) => {
 export const getCardImage = (key) => {
   const base = "/cards_images";
   const map = {
+    // Existing keys
     events: `${base}/host.png`,
     hostStatus: `${base}/host.png`,
     wallet: `${base}/wallet.png`,
@@ -30,6 +31,12 @@ export const getCardImage = (key) => {
     poolApplications: `${base}/poolApplication.png`,
     manageGigs: `${base}/gigs.png`,
     escrow: `${base}/escrow.png`,
+    // Host dashboard specific modules
+    createEvent: `${base}/host.png`,
+    findOrganizers: `${base}/gigs.png`,
+    payments: `${base}/wallet.png`,
+    organizerStatus: `${base}/poolApplication.png`,
+    organizerPools: `${base}/pool.png`,
   };
   return map[key] || `${base}/escrow.png`;
 };

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { serverURL } from "../../App";
 import { useNavigate } from "react-router-dom";
+import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostOrganizerPools() {
   const navigate = useNavigate();
@@ -53,24 +54,52 @@ function HostOrganizerPools() {
         {assignedPools.length === 0 ? (
           <p className="text-gray-600">No organizer pools yet.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {assignedPools.map((p) => (
-              <div key={p._id} className="p-4 border rounded-lg flex items-center justify-between bg-white">
-                <div>
-                  <p className="font-medium text-gray-900">{p.pool_name || p?.event?.title}</p>
-                  <p className="text-sm text-gray-600">Event: {p?.event?.title} • Organizer: {p?.organizer?.email}</p>
+              <div key={p._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden h-72 flex flex-col">
+                {/* Banner */}
+                <div className="relative h-24 overflow-hidden">
+                  {p?.event?.event_type && (
+                    <img
+                      src={getEventTypeImage(p.event.event_type)}
+                      alt={p.event.event_type}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Content scroll area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                  <p className="text-lg font-semibold text-slate-900">{p.pool_name || p?.event?.title}</p>
+                  <p className="text-sm text-slate-600">Event: {p?.event?.title}</p>
+                  <p className="text-sm text-slate-600">Organizer: {p?.organizer?.email}</p>
+                  {p?.max_capacity && (
+                    <p className="text-xs text-slate-500">Capacity: {p.max_capacity}</p>
+                  )}
+                  {p?.required_skills && (
+                    <p className="text-xs text-slate-500">Skills: {p.required_skills}</p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="p-4 border-t border-slate-200 flex items-center justify-between">
                   <button onClick={() => navigate(`/host/events/${p?.event?._id}`)} className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">View Event</button>
-                  <button onClick={async () => {
-                    try {
-                      const res = await axios.post(`${serverURL}/host/chat`, { organizerId: p?.organizer?._id, eventId: p?.event?._id, poolId: p?._id }, { withCredentials: true });
-                      const convId = res.data?.data?.conversation?._id;
-                      if (convId) navigate(`/host/chat/${convId}`);
-                    } catch (e) {
-                      setError(e.response?.data?.message || 'Failed to start chat');
-                    }
-                  }} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">Chat with organizer</button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await axios.post(`${serverURL}/host/chat`, { organizerId: p?.organizer?._id, eventId: p?.event?._id, poolId: p?._id }, { withCredentials: true });
+                        const convId = res.data?.data?.conversation?._id;
+                        if (convId) navigate(`/host/chat/${convId}`);
+                      } catch (e) {
+                        setError(e.response?.data?.message || 'Failed to start chat');
+                      }
+                    }}
+                    className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg"
+                  >
+                    Chat with organizer
+                  </button>
                 </div>
               </div>
             ))}

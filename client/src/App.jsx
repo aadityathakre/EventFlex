@@ -18,6 +18,7 @@ import HostOrganizers from "./pages/host/HostOrganizers.jsx";
 import HostPayments from "./pages/host/HostPayments.jsx";
 import HostChat from "./pages/host/HostChat.jsx";
 import HostInvites from "./pages/host/HostInvites.jsx";
+import HostOrganizerStatus from "./pages/host/HostOrganizerStatus.jsx";
 import HostRequests from "./pages/host/HostRequests.jsx";
 import HostOrganizerPools from "./pages/host/HostOrganizerPools.jsx";
 import OrganizerDashboard from "./pages/organizer/OrganizerDashboard.jsx";
@@ -29,6 +30,7 @@ import OrganizerWallet from "./pages/organizer/OrganizerWallet.jsx";
 import OrganizerPools from "./pages/organizer/OrganizerPools.jsx";
 import OrganizerPoolApplications from "./pages/organizer/OrganizerPoolApplications.jsx";
 import OrganizerManageGigs from "./pages/organizer/OrganizerManageGigs.jsx";
+import OrganizerChat from "./pages/organizer/OrganizerChat.jsx";
 import GigDashboard from "./pages/gig/GigDashboard.jsx";
 import GigProfile from "./pages/gig/GigProfile.jsx";
 import GigWallet from "./pages/gig/GigWallet.jsx";
@@ -133,6 +135,22 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['organizer']}>
             <OrganizerPoolApplications />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/chat'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerChat />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/organizer/chat/:conversationId'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerChat />
           </ProtectedRoute>
         }
       />
@@ -295,6 +313,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['host']}>
             <HostInvites />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/host/status'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostOrganizerStatus />
           </ProtectedRoute>
         }
       />

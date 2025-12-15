@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
+import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostEventDetail() {
   const navigate = useNavigate();
@@ -122,6 +123,14 @@ function HostEventDetail() {
         )}
 
         <div className="bg-white rounded-2xl shadow overflow-hidden">
+          <div className="h-44 w-full overflow-hidden">
+            <img
+              src={getEventTypeImage(event.event_type)}
+              alt={event.event_type || "Event"}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
           <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6">
             <h2 className="text-white text-2xl font-bold">{event.title}</h2>
             <p className="text-white/80">{event.event_type?.toUpperCase()}</p>

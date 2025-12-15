@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
-import { FaUsers, FaArrowLeft, FaPaperPlane } from "react-icons/fa";
+import { FaUsers, FaArrowLeft, FaPaperPlane, FaEnvelope } from "react-icons/fa";
+import { getCardImage, getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostOrganizers() {
   const navigate = useNavigate();
@@ -42,6 +43,27 @@ function HostOrganizers() {
     const text = `${o.fullName || o.name || ""} ${o.email || ""}`.toLowerCase();
     return text.includes(search.toLowerCase());
   });
+
+  const organizerAvatar = (o) => {
+    // Prefer profile image URL from nested profile, then common fallbacks
+    return (
+      o?.profile?.profile_image_url ||
+      o?.profile_image_url ||
+      o?.profile?.image ||
+      o?.profile?.avatar ||
+      o?.user?.avatar ||
+      o?.avatar ||
+      o?.photo ||
+      o?.image ||
+      null
+    );
+  };
+
+  const eventById = useMemo(() => {
+    const map = new Map();
+    events.forEach((e) => map.set(e._id, e));
+    return map;
+  }, [events]);
 
   const startInvite = (organizerId) => {
     setInviteState({ organizerId, eventId: "", cover: "" });
@@ -100,119 +122,164 @@ function HostOrganizers() {
           </div>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg">{error}</div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900">All Organizers</h3>
-            <div className="flex items-center space-x-2">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or email"
-                className="border rounded-lg px-3 py-2 text-sm w-64"
-              />
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left: Organizers list (≈70%) */}
+          <section className="basis-[70%] grow bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">All Organizers</h3>
+              <div className="flex items-center space-x-2">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name or email"
+                  className="border rounded-lg px-3 py-2 text-sm w-64"
+                />
+              </div>
             </div>
-          </div>
 
-          {filteredOrganizers.length === 0 ? (
-            <p className="text-gray-600">No organizers found.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredOrganizers.map((o) => (
-                <div key={o._id} className="border rounded-xl p-4 hover:shadow-md transition">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                      <FaUsers className="text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{o.fullName || o.name || "Organizer"}</p>
-                      <p className="text-sm text-gray-600">{o.email}</p>
-                    </div>
-                  </div>
+            {filteredOrganizers.length === 0 ? (
+              <p className="text-gray-600">No organizers found.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredOrganizers.map((o, idx) => {
+                  const avatarUrl = organizerAvatar(o);
+                  const cardKeys = [
+                    "cardOrganizers",
+                    "cardPools",
+                    "cardEvents",
+                    "cardApplications",
+                    "cardGeneric",
+                    "cardChat",
+                  ];
+                  const bannerImg = getCardImage(cardKeys[idx % cardKeys.length]);
+                  return (
+                    <div key={o._id} className="group relative bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-lg transition">
+                      <div className="relative h-24 overflow-hidden">
+                        <img
+                          src={bannerImg}
+                          alt="Organizer"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center gap-3">
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt={o.fullName || o.name || "Organizer"} className="h-12 w-12 rounded-full object-cover border" />
+                          ) : (
+                            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center border">
+                              <FaUsers className="text-purple-600" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-semibold text-gray-900">{o.fullName || o.name || "Organizer"}</p>
+                            <p className="text-xs text-gray-600 flex items-center gap-1"><FaEnvelope className="text-purple-500" /> {o.email}</p>
+                          </div>
+                        </div>
 
-                  {inviteState.organizerId === o._id ? (
-                    <div className="space-y-2 mt-3">
-                      <select
-                        value={inviteState.eventId}
-                        onChange={(e) => setInviteState((s) => ({ ...s, eventId: e.target.value }))}
-                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                      >
-                        <option value="">Select event</option>
-                        {availableEvents.map((evt) => (
-                          <option key={evt._id} value={evt._id}>{evt.title}</option>
-                        ))}
-                      </select>
-                      {availableEvents.length === 0 && (
-                        <p className="text-xs text-amber-600">All your events already have assigned organizers.</p>
-                      )}
-                      <textarea
-                        value={inviteState.cover}
-                        onChange={(e) => setInviteState((s) => ({ ...s, cover: e.target.value }))}
-                        placeholder="Cover letter (optional)"
-                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                      />
-                      <div className="flex items-center space-x-2">
+                        {/* Tags removed as requested */}
+
+                        {inviteState.organizerId === o._id ? (
+                          <div className="space-y-2 mt-4">
+                            <select
+                              value={inviteState.eventId}
+                              onChange={(e) => setInviteState((s) => ({ ...s, eventId: e.target.value }))}
+                              className="w-full border rounded-lg px-3 py-2 text-sm"
+                            >
+                              <option value="">Select event</option>
+                              {availableEvents.map((evt) => (
+                                <option key={evt._id} value={evt._id}>{evt.title}</option>
+                              ))}
+                            </select>
+                            {availableEvents.length === 0 && (
+                              <p className="text-xs text-amber-600">All your events already have assigned organizers.</p>
+                            )}
+                            <textarea
+                              value={inviteState.cover}
+                              onChange={(e) => setInviteState((s) => ({ ...s, cover: e.target.value }))}
+                              placeholder="Cover letter (optional)"
+                              className="w-full border rounded-lg px-3 py-2 text-sm"
+                            />
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={sendInvite}
+                                disabled={inviting}
+                                className="px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm flex items-center space-x-2 hover:shadow"
+                              >
+                                <FaPaperPlane />
+                                <span>{inviting ? "Sending..." : "Send Invite"}</span>
+                              </button>
+                              <button
+                                onClick={() => setInviteState({ organizerId: null, eventId: "", cover: "" })}
+                                className="px-3 py-2 border rounded-lg text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : availableEvents.length > 0 ? (
+                          <button
+                            onClick={() => startInvite(o._id)}
+                            className="mt-4 w-full px-3 py-2 border-2 border-purple-600 text-purple-600 rounded-lg text-sm hover:bg-purple-50"
+                          >
+                            Invite to Event
+                          </button>
+                        ) : (
+                          <div className="mt-4 text-xs text-gray-600">No events available for invites.</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Right: Assigned Organizers sidebar (≈30%) */}
+          <aside className="basis-[30%] shrink-0">
+            <div className="sticky top-24 bg-white rounded-2xl shadow-lg p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Assigned Organizers</h3>
+              {assignedPools.length === 0 ? (
+                <p className="text-gray-600">No assigned organizers yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {assignedPools.map((p) => (
+                    <div key={p._id} className="border rounded-xl overflow-hidden">
+                      <div className="p-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-md overflow-hidden bg-gray-100">
+                            <img
+                              src={p?.event?.event_type ? getEventTypeImage(p.event.event_type) : getCardImage("cardPools")}
+                              alt={p?.event?.title || "Pool"}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{p.pool_name || p?.event?.title}</p>
+                            <p className="text-xs text-gray-600">Event: {p?.event?.title}</p>
+                            <p className="text-xs text-gray-600">Organizer: {p?.organizer?.email}</p>
+                          </div>
+                        </div>
                         <button
-                          onClick={sendInvite}
-                          disabled={inviting}
-                          className="px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm flex items-center space-x-2 hover:shadow"
+                          onClick={() => navigate(`/host/events/${p?.event?._id}`)}
+                          className="px-3 py-2 text-xs border rounded-lg hover:bg-gray-50"
                         >
-                          <FaPaperPlane />
-                          <span>{inviting ? "Sending..." : "Send Invite"}</span>
-                        </button>
-                        <button
-                          onClick={() => setInviteState({ organizerId: null, eventId: "", cover: "" })}
-                          className="px-3 py-2 border rounded-lg text-sm"
-                        >
-                          Cancel
+                          View Event
                         </button>
                       </div>
                     </div>
-                  ) : availableEvents.length > 0 ? (
-                    <button
-                      onClick={() => startInvite(o._id)}
-                      className="mt-3 px-3 py-2 border-2 border-purple-600 text-purple-600 rounded-lg text-sm hover:bg-purple-50"
-                    >
-                      Invite to Event
-                    </button>
-                  ) : (
-                    <div className="mt-3 text-xs text-gray-600">No events available for invites.</div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Assigned Organizers</h3>
-          {assignedPools.length === 0 ? (
-            <p className="text-gray-600">No assigned organizers yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {assignedPools.map((p) => (
-                <div key={p._id} className="border rounded-xl p-4">
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-900">{p?.event?.title || "Event"}</p>
-                      <p className="text-sm text-gray-600">Organizer: {p?.organizer?.email || ""}</p>
-                    </div>
-                    <button
-                      onClick={() => navigate(`/host/events/${p?.event?._id}`)}
-                      className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
-                    >
-                      View Event
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </aside>
         </div>
       </main>
     </div>

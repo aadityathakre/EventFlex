@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import { serverURL } from "../App";
-import { FaBell, FaEnvelope, FaUserCircle, FaSignOutAlt } from "react-icons/fa";
+import { FaBell, FaEnvelope, FaUserCircle, FaSignOutAlt, FaComments } from "react-icons/fa";
 
 function TopNavbar({ title = null }) {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ function TopNavbar({ title = null }) {
 
   const profilePath = role === "host" ? "/host/profile" : role === "organizer" ? "/organizer/profile" : "/login";
   const dashboardPath = role === "host" ? "/host/dashboard" : role === "organizer" ? "/organizer/dashboard" : "/";
+  const chatPath = role === "host" ? "/host/chat" : role === "organizer" ? "/organizer/chat" : "/";
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +60,16 @@ function TopNavbar({ title = null }) {
               </div>
               <span className="text-xs text-gray-500 capitalize">{role}</span>
             </div>
+
+            {/* Conversation icon (left of notifications) */}
+            <button
+              onClick={() => navigate(chatPath)}
+              title="Conversations"
+              className="text-gray-600 hover:text-purple-600 transition-colors"
+              aria-label="Conversations"
+            >
+              <FaComments className="text-xl" />
+            </button>
 
             <div className="relative">
               <button

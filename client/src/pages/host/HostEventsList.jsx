@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
+import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostEventsList() {
   const navigate = useNavigate();
@@ -80,6 +81,14 @@ function HostEventsList() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {events.map((ev) => (
               <div key={ev._id} className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden">
+                <div className="h-36 w-full overflow-hidden">
+                  <img
+                    src={getEventTypeImage(ev.event_type)}
+                    alt={ev.event_type || "Event"}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
                 <div className="p-5">
                   <h3 className="text-lg font-bold text-gray-900">{ev.title}</h3>
                   <p className="text-sm text-gray-600 mt-1">{ev.event_type?.toUpperCase()}</p>
