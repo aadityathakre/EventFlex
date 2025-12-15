@@ -29,6 +29,12 @@ import OrganizerWallet from "./pages/organizer/OrganizerWallet.jsx";
 import OrganizerPools from "./pages/organizer/OrganizerPools.jsx";
 import OrganizerPoolApplications from "./pages/organizer/OrganizerPoolApplications.jsx";
 import OrganizerManageGigs from "./pages/organizer/OrganizerManageGigs.jsx";
+import GigDashboard from "./pages/gig/GigDashboard.jsx";
+import GigProfile from "./pages/gig/GigProfile.jsx";
+import GigWallet from "./pages/gig/GigWallet.jsx";
+import GigPools from "./pages/gig/GigPools.jsx";
+import GigAttendance from "./pages/gig/GigAttendance.jsx";
+import GigChat from "./pages/gig/GigChat.jsx";
 
 // Robust serverURL fallback to avoid env-related 404s during local dev
 const host = import.meta.env.VITE_SERVER_URL ?? "http://localhost";
@@ -151,6 +157,56 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['organizer']}>
             <OrganizerProfileEdit />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Gig Routes */}
+      <Route 
+        path='/gig/dashboard'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/profile'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/wallet'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigWallet />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/pools'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigPools />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/attendance'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigAttendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/chat'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigChat />
           </ProtectedRoute>
         }
       />
