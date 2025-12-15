@@ -250,9 +250,9 @@ function HostPayments() {
         </section>
 
         {/* Withdraw & Escrow Cards Row */}
-        <div className="flex flex-col md:flex-row gap-6 items-stretch">
+        <div className="flex flex-col md:flex-row gap-8  items-stretch">
         {/* Withdraw Card */}
-        <section className="bg-indigo-50 rounded-2xl shadow-lg p-6 border border-indigo-300 w-full md:w-2/5">
+        <section className="bg-indigo-50 rounded-2xl shadow-lg mr-8 p-6 border border-indigo-300 w-full md:w-2/5">
           <h3 className="text-md font-semibold text-gray-900 mb-3">Withdraw Funds</h3>
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -314,7 +314,7 @@ function HostPayments() {
         </section>
 
         {/* Escrow Deposit Card */}
-        <section className="bg-emerald-50 rounded-2xl shadow-lg p-6 border border-emerald-300 w-full md:w-2/5">
+        <section className="bg-emerald-50 rounded-2xl shadow-lg p-6 ml-2 border border-emerald-300 w-full md:w-2/5">
           <h3 className="text-md font-semibold text-gray-900 mb-3">Deposit to Escrow</h3>
           <div className="space-y-3">
             <select
