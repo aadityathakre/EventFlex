@@ -15,7 +15,7 @@ import {
   FaWallet,
 } from "react-icons/fa";
 
-function HostProfileEdit() {
+function GigProfileEdit() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
@@ -47,7 +47,7 @@ function HostProfileEdit() {
 
   const fetchProfile = async () => {
     try {
-      const response = await axios.get(`${serverURL}/host/profile`, {
+      const response = await axios.get(`${serverURL}/gigs/profile`, {
         withCredentials: true,
       });
       const { mergedProfile } = response.data.data;
@@ -104,12 +104,12 @@ function HostProfileEdit() {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.put(`${serverURL}/host/profile`, formData, {
+      await axios.put(`${serverURL}/gigs/profile`, formData, {
         withCredentials: true,
       });
       updateUser({ email: formData.email });
       alert("Profile updated successfully!");
-      navigate("/host/profile");
+      navigate("/gigs/profile");
     } catch (err) {
       console.error("Profile update error:", err);
       alert(err.response?.data?.message || "Failed to update profile");
@@ -135,7 +135,7 @@ function HostProfileEdit() {
         <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={() => navigate("/host/profile")}
+            onClick={() => navigate("/gigs/profile")}
             className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
             Back to Profile
@@ -153,7 +153,7 @@ function HostProfileEdit() {
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate("/host/profile")}
+                onClick={() => navigate("/gigs/profile")}
                 className="text-gray-600 hover:text-purple-600 transition-colors"
               >
                 <FaArrowLeft className="text-xl" />
@@ -165,7 +165,7 @@ function HostProfileEdit() {
               <span className="text-gray-700 font-medium">Edit Profile</span>
             </div>
             <button
-              onClick={() => navigate("/host/profile")}
+              onClick={() => navigate("/gigs/profile")}
               className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold transition-all duration-300"
             >
               Cancel
@@ -395,7 +395,7 @@ function HostProfileEdit() {
 
             <button
               type="button"
-              onClick={() => navigate("/host/profile")}
+              onClick={() => navigate("/gigs/profile")}
               className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2"
             >
               <FaTimes />
@@ -408,4 +408,4 @@ function HostProfileEdit() {
   );
 }
 
-export default HostProfileEdit;
+export default GigProfileEdit;

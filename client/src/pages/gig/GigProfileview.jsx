@@ -24,7 +24,7 @@ import {
 } from "react-icons/fa";
 import TopNavbar from "../../components/TopNavbar.jsx";
 
-function HostProfileView() {
+function GigProfileView() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
@@ -63,7 +63,7 @@ function HostProfileView() {
   const fetchProfile = async () => {
     try {
       
-      const response = await axios.get(`${serverURL}/host/profile`, {
+      const response = await axios.get(`${serverURL}/gigs/profile`, {
         withCredentials: true,
       });
       
@@ -89,7 +89,7 @@ function HostProfileView() {
     formData.append("avatar", file);
     setUploadingImage(true);
     try {
-      await axios.put(`${serverURL}/host/profile/image`, formData, {
+      await axios.put(`${serverURL}/gigs/profile/image`, formData, {
         withCredentials: true,
       });
       await fetchProfile();
@@ -106,7 +106,7 @@ function HostProfileView() {
   const handleDeleteImage = async () => {
     if (!confirm("Are you sure you want to remove your profile image?")) return;
     try {
-      await axios.delete(`${serverURL}/host/profile/image`, {
+      await axios.delete(`${serverURL}/gigs/profile/image`, {
         withCredentials: true,
       });
       await fetchProfile();
@@ -139,8 +139,8 @@ function HostProfileView() {
       
       // Use update endpoint if user already has a document, otherwise use upload
       const endpoint = hasAnyDoc
-        ? `${serverURL}/host/update-docs`
-        : `${serverURL}/host/upload-docs`;
+        ? `${serverURL}/gigs/update-docs`
+        : `${serverURL}/gigs/upload-docs`;
       
       const method = hasAnyDoc ? axios.put : axios.post;
       
@@ -220,7 +220,7 @@ function HostProfileView() {
         <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={() => navigate("/host/dashboard")}
+            onClick={() => navigate("/gigs/dashboard")}
             className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
             Back to Dashboard
@@ -251,7 +251,7 @@ function HostProfileView() {
     setKycSubmitting(true);
     try {
       await axios.post(
-        `${serverURL}/host/aadhaar/verify`,
+        `${serverURL}/gigs/aadhaar/verify`,
         { aadhaar_number: aadhaarNumber, otp },
         { withCredentials: true }
       );
@@ -310,7 +310,7 @@ function HostProfileView() {
             {/* Profile Info */}
             <div className="flex-1 text-center md:text-left">
               <h2 className="text-4xl font-bold text-gray-900 mb-3">
-                {mergedProfile?.name || "Host User"}
+                {mergedProfile?.name || "Gig User"}
               </h2>
 
               <div className="space-y-3 mb-6">
@@ -354,7 +354,7 @@ function HostProfileView() {
 
               {/* Edit Button */}
               <button
-                onClick={() => navigate("/host/profile/edit")}
+                onClick={() => navigate("/gigs/profile/edit")}
                 className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-2 mx-auto md:mx-0"
               >
                 <FaEdit />
@@ -426,7 +426,7 @@ function HostProfileView() {
                         setWalletError(null);
                         setWalletBalance(null);
                         try {
-                          const res = await axios.get(`${serverURL}/host/wallet/balance`, { withCredentials: true });
+                          const res = await axios.get(`${serverURL}/gigs/wallet/balance`, { withCredentials: true });
                           const data = res.data?.data || res.data; 
                           const num = data?.balance_inr?.$numberDecimal ?? data?.balance_inr ?? null;
                           setWalletBalance(num);
@@ -574,7 +574,7 @@ function HostProfileView() {
 
                                 // Redirect to Razorpay checkout page with withdraw details
                                 const prefill = {
-                                  name: mergedProfile?.name || "Host User",
+                                  name: mergedProfile?.name || "gig User",
                                   email: mergedProfile?.email || user?.email || "",
                                   contact: mergedProfile?.phone || "9999999999",
                                 };
@@ -588,7 +588,7 @@ function HostProfileView() {
                                       ? { upi_id: withdrawUPI }
                                       : { account_number: withdrawBankAccount, ifsc: withdrawIFSC }),
                                     prefill,
-                                    returnPath: "/host/profile",
+                                    returnPath: "/gigs/profile",
                                   },
                                 });
                               } catch (err) {
@@ -1049,4 +1049,4 @@ function HostProfileView() {
   );
 }
 
-export default HostProfileView;
+export default GigProfileView;

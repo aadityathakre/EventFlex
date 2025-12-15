@@ -42,10 +42,10 @@ function Register() {
       setLast_name("");
       setPassword("");
       setPhone("");
-      setRole("gig");
+     
 
       console.log("Registration successful:", result.data);
-      navigate("/login");
+      navigate(`/login`);
     } catch (error) {
       setErr(error.response?.data?.message || "Registration failed");
       console.error(

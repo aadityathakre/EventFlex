@@ -22,7 +22,7 @@ import {
   FaUpload,
 } from "react-icons/fa";
 
-function HostProfile() {
+function GigProfile() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
@@ -61,7 +61,7 @@ function HostProfile() {
     if (section !== 'edit') setEditing(false);
 
     // scroll to section
-    const sectionId = `host-section-${section}`;
+    const sectionId = `gig-section-${section}`;
     const el = document.getElementById(sectionId);
     if (el) {
       setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
@@ -71,7 +71,7 @@ function HostProfile() {
 
   const fetchProfile = async () => {
     try {
-      const response = await axios.get(`${serverURL}/host/profile`, { withCredentials: true });
+      const response = await axios.get(`${serverURL}/gigs/profile`, { withCredentials: true });
       const { mergedProfile, documents, kyc } = response.data.data;
       setProfileData({ mergedProfile, documents, kyc });
       const nameParts = mergedProfile.name?.split(" ") || [];
@@ -102,7 +102,7 @@ function HostProfile() {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${serverURL}/host/profile`, formData, { withCredentials: true });
+      await axios.put(`${serverURL}/gigs/profile`, formData, { withCredentials: true });
       updateUser({ email: formData.email });
       await fetchProfile();
       setEditing(false);
@@ -120,7 +120,7 @@ function HostProfile() {
     formData.append("avatar", file);
     setUploadingImage(true);
     try {
-      await axios.put(`${serverURL}/host/profile/image`, formData, { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } });
+      await axios.put(`${serverURL}/gigs/profile-image`, formData, { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } });
       await fetchProfile();
       alert("Profile image updated successfully!");
     } catch (err) {
@@ -134,7 +134,7 @@ function HostProfile() {
   const handleDeleteImage = async () => {
     if (!confirm("Are you sure you want to remove your profile image?")) return;
     try {
-      await axios.delete(`${serverURL}/host/profile/image`, { withCredentials: true });
+      await axios.delete(`${serverURL}/gigs/profile-image`, { withCredentials: true });
       await fetchProfile();
       alert("Profile image removed successfully!");
     } catch (err) {
@@ -149,7 +149,7 @@ function HostProfile() {
     formData.append("type", type);
     setUploadingDoc(type);
     try {
-      await axios.post(`${serverURL}/host/upload-docs`, formData, { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } });
+      await axios.post(`${serverURL}/gigs/upload-documents`, formData, { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } });
       await fetchProfile();
       alert(`${type.charAt(0).toUpperCase() + type.slice(1)} uploaded successfully!`);
     } catch (err) {
@@ -190,7 +190,7 @@ function HostProfile() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
         <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
           <p className="text-red-600 mb-4">{error}</p>
-          <button onClick={() => navigate("/host/dashboard")} className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+          <button onClick={() => navigate("/gig/dashboard")} className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300">
             Back to Dashboard
           </button>
         </div>
@@ -206,7 +206,7 @@ function HostProfile() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4">
-              <button onClick={() => navigate("/host/dashboard")} className="text-gray-600 hover:text-purple-600 transition-colors">
+              <button onClick={() => navigate("/gig/dashboard")} className="text-gray-600 hover:text-purple-600 transition-colors">
                 <FaArrowLeft className="text-xl" />
               </button>
               <h1 className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">EventFlex</h1>
@@ -214,7 +214,7 @@ function HostProfile() {
               <span className="text-gray-700 font-medium">Profile</span>
             </div>
             <div className="flex items-center space-x-4">
-              <button onClick={() => navigate("/host/dashboard")} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold transition-all duration-300">Dashboard</button>
+              <button onClick={() => navigate("/gig/dashboard")} className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold transition-all duration-300">Dashboard</button>
             </div>
           </div>
         </div>
@@ -223,7 +223,7 @@ function HostProfile() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
           <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
-            <div id="host-section-image" className="relative">
+            <div id="gig-section-image" className="relative">
               <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center">
                 {mergedProfile?.profile_image_url ? <img src={mergedProfile.profile_image_url} alt="Profile" className="w-full h-full object-cover" /> : <FaUserCircle className="text-white text-6xl" />}
               </div>
@@ -245,7 +245,7 @@ function HostProfile() {
               )}
             </div>
             <div className="flex-1 text-center md:text-left">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">{mergedProfile?.name || "Host User"}</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">{mergedProfile?.name || "Gig User"}</h2>
               <p className="text-gray-600 mb-4">{mergedProfile?.email}</p>
               {kyc && (
                 <div className="flex items-center justify-center md:justify-start space-x-2 mb-4">
@@ -263,7 +263,7 @@ function HostProfile() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div id="host-section-personal" className="bg-white rounded-2xl shadow-lg p-6">
+            <div id="gig-section-personal" className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Personal Information</h3>
               {editing ? (
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -326,7 +326,7 @@ function HostProfile() {
               )}
             </div>
 
-            <div id="host-section-documents" className="bg-white rounded-2xl shadow-lg p-6">
+            <div id="gig-section-documents" className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">Documents & Verification</h3>
               <div className="space-y-4">
                 {["aadhaar", "pan", "selfie", "signature"].map((docType) => {
@@ -374,7 +374,7 @@ function HostProfile() {
                       formData.append("fileUrl", file);
                       formData.append("type", "signature");
                       try {
-                        await axios.post(`${serverURL}/host/e-signature`, formData, { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } });
+                        await axios.post(`${serverURL}/gigs/upload-documents`, formData, { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } });
                         await fetchProfile();
                         alert("E-Signature uploaded successfully!");
                       } catch (err) {
@@ -389,7 +389,7 @@ function HostProfile() {
 
           <div className="space-y-6">
             {kyc && (
-              <div id="host-section-kyc" className="bg-white rounded-2xl shadow-lg p-6">
+              <div id="gig-section-kyc" className="bg-white rounded-2xl shadow-lg p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">KYC Status</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -404,7 +404,7 @@ function HostProfile() {
                 </div>
               </div>
             )}
-            <div id="host-section-bank" className="bg-white rounded-2xl shadow-lg p-6">
+            <div id="gig-section-bank" className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Bank Details</h3>
               {mergedProfile?.bank_details && Object.keys(mergedProfile.bank_details).length > 0 ? (
                 <div className="space-y-2">
@@ -442,4 +442,4 @@ function HostProfile() {
   );
 }
 
-export default HostProfile;
+export default GigProfile;
