@@ -5,10 +5,12 @@ import { useNavigate } from "react-router-dom";
 import { FaWallet, FaArrowLeft, FaCheckCircle, FaShieldAlt } from "react-icons/fa";
 import { getEventTypeImage } from "../../utils/imageMaps.js";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 
 function HostPayments() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [wallet, setWallet] = useState(null);
   const [showBalance, setShowBalance] = useState(false);
   const [events, setEvents] = useState([]);
@@ -24,20 +26,26 @@ function HostPayments() {
   const [busy, setBusy] = useState({ withdraw: false, deposit: false, release: false });
   const [escrowSearch, setEscrowSearch] = useState("");
 
+  const [payments, setPayments] = useState([]);
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyForm, setAddMoneyForm] = useState({ amount: "", upi_id: "", name: "" });
+  
   useEffect(() => {
     const init = async () => {
       try {
-        const [walletRes, eventsRes, poolsRes, profileRes] = await Promise.all([
+        const [walletRes, eventsRes, poolsRes, profileRes, dashboardRes] = await Promise.all([
           axios.get(`${serverURL}/host/wallet/balance`, { withCredentials: true }),
           axios.get(`${serverURL}/host/events`, { withCredentials: true }),
           axios.get(`${serverURL}/host/organizer`, { withCredentials: true }),
           axios.get(`${serverURL}/host/profile`, { withCredentials: true }),
+          axios.get(`${serverURL}/host/dashboard`, { withCredentials: true }),
         ]);
         setWallet(walletRes.data?.data || null);
         setEvents(eventsRes.data?.data || []);
         setAssignedPools(poolsRes.data?.data || []);
         const mergedProfile = profileRes.data?.data?.mergedProfile || null;
         setProfile(mergedProfile);
+        setPayments(dashboardRes.data?.data?.payments || []);
 
         // Build Razorpay prefill using profile, then auth user, then safe defaults
         const namePref = mergedProfile?.name || user?.fullName || user?.name || "Host User";
@@ -168,6 +176,15 @@ function HostPayments() {
     }
   };
 
+  const refreshPayments = async () => {
+    try {
+      const res = await axios.get(`${serverURL}/host/dashboard`, { withCredentials: true });
+      setPayments(res.data?.data?.payments || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const onRelease = async () => {
     setError(null);
     if (!selectedEventId) return;
@@ -175,6 +192,8 @@ function HostPayments() {
       setBusy((b) => ({ ...b, release: true }));
       await axios.post(`${serverURL}/host/verify-attendance/${selectedEventId}`, {}, { withCredentials: true });
       await refreshEscrow(selectedEventId);
+      await refreshPayments();
+      showToast("Escrow released and payouts processed", "success");
     } catch (err) {
       setError(err.response?.data?.message || "Escrow release failed");
     } finally {
@@ -243,10 +262,67 @@ function HostPayments() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button onClick={() => navigate('/razorpay')} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">Deposit via Razorpay</button>
+              <button onClick={() => setShowAddMoney(!showAddMoney)} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">
+                {showAddMoney ? "Cancel" : "Add Money"}
+              </button>
               <button onClick={refreshWallet} className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">Refresh</button>
             </div>
           </div>
+
+          {/* Add Money Form */}
+          {showAddMoney && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Add Money to Wallet</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  value={addMoneyForm.amount}
+                  onChange={(e) => setAddMoneyForm(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="Amount (₹)"
+                  className="border rounded-lg px-3 py-2 text-sm"
+                />
+                <input
+                  value={addMoneyForm.upi_id}
+                  onChange={(e) => setAddMoneyForm(prev => ({ ...prev, upi_id: e.target.value }))}
+                  placeholder="UPI ID"
+                  className="border rounded-lg px-3 py-2 text-sm"
+                />
+                <input
+                  value={addMoneyForm.name}
+                  onChange={(e) => setAddMoneyForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Your Name"
+                  className="border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const amt = parseFloat(addMoneyForm.amount);
+                  if (!amt || amt <= 0) {
+                    setError("Enter a valid amount");
+                    return;
+                  }
+                  navigate("/razorpay", {
+                    state: {
+                      checkoutPurpose: "add_money",
+                      amount: amt,
+                      upi_id: addMoneyForm.upi_id,
+                      name: addMoneyForm.name,
+                      prefill: {
+                        name: addMoneyForm.name || user?.name || "",
+                        contact: user?.phone || "9999999999",
+                        email: user?.email || ""
+                      },
+                      returnPath: "/host/payments"
+                    }
+                  });
+                }}
+                className="mt-3 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
+              >
+                Proceed to Pay
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Withdraw & Escrow Cards Row */}
@@ -316,7 +392,14 @@ function HostPayments() {
         {/* Escrow Deposit Card */}
         <section className="bg-emerald-50 rounded-2xl shadow-lg p-6 ml-2 border border-emerald-300 w-full md:w-2/5">
           <h3 className="text-md font-semibold text-gray-900 mb-3">Deposit to Escrow</h3>
-          <div className="space-y-3">
+          
+          {escrow && (
+            <div className="mb-4 p-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm">
+              Escrow already exists for this event. Status: <strong>{escrow.status}</strong>
+            </div>
+          )}
+
+          <div className={`space-y-3 ${escrow ? 'opacity-50 pointer-events-none' : ''}`}>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
@@ -518,6 +601,39 @@ function HostPayments() {
               </div>
             </div>
           )}
+        </section>
+
+        {/* Payment History */}
+        <section className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+          <h3 className="text-md font-semibold text-gray-900 mb-4">Payment History</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {payments.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">No payments found</td>
+                  </tr>
+                ) : (
+                  payments.map((payment) => (
+                    <tr key={payment._id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(payment.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹{payment.amount?.$numberDecimal || payment.amount}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{payment.type}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{payment.status}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       </main>
     </div>

@@ -538,7 +538,7 @@ export const createPool = asyncHandler(async (req, res) => {
 export const getMyPools = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const pools = await Pool.find({ organizer: organizerId })
-    .populate("event", "title start_date end_date location")
+    .populate("event", "title start_date end_date location status event_type")
     .populate("gigs", "first_name last_name avatar fullName")
     .select("-__v");
   return res.status(200).json(new ApiResponse(200, pools, "Organizer pools fetched"));
@@ -1005,6 +1005,21 @@ export const createOrganizerRating = asyncHandler(async (req, res) => {
   });
 
   return res.status(201).json(new ApiResponse(201, review, "Rating review submitted"));
+});
+
+// Get Organizer Feedbacks
+export const getMyFeedbacks = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+
+  const reviews = await Rating.find({
+    $or: [{ reviewer: organizerId }, { reviewee: organizerId }]
+  })
+  .populate("event", "title event_type")
+  .populate("reviewer", "first_name last_name avatar fullName role")
+  .populate("reviewee", "first_name last_name avatar fullName role")
+  .sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, reviews, "Organizer reviews fetched"));
 });
 
 

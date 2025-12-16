@@ -47,6 +47,7 @@ import {
   getOrganizerBadges,
   getGigPublicProfile,
   createOrganizerRating,
+  getMyFeedbacks,
   
 
   // 🔔 Notifications
@@ -133,6 +134,7 @@ router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer
 router.get("/leaderboard", verifyToken, authorizeRoles("organizer"), getLeaderboard);
 router.get("/badges", verifyToken, authorizeRoles("organizer"), getOrganizerBadges);
 router.post("/reviews/rating", verifyToken, authorizeRoles("organizer"), createOrganizerRating);
+router.get("/reviews/my-feedbacks", verifyToken, authorizeRoles("organizer"), getMyFeedbacks);
 
 //
 // 🔔 Notifications

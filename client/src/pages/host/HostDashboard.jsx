@@ -258,12 +258,12 @@ function HostDashboard() {
                 icon: <FaUsers className="text-2xl" />,
               },
               {
-                title: "Payments",
-                description: "Manage wallet, escrow and payouts",
-                path: "/host/payments",
-                image: getCardImage("payments"),
-                color: "from-pink-600/40 via-indigo-600/40 to-purple-600/30",
-                icon: <FaWallet className="text-2xl" />,
+                title: "My Events",
+                description: "Track active, upcoming & completed events",
+                path: "/host/my-events",
+                image: getCardImage("gigMyEvents"),
+                color: "from-green-600/50 via-teal-600/40 to-emerald-600/30",
+                icon: <FaCalendarAlt className="text-2xl" />,
               },
               {
                 title: "Organizer Status",
@@ -281,6 +281,14 @@ function HostDashboard() {
                 color: "from-indigo-600/50 via-purple-600/40 to-pink-600/30",
                 icon: <FaUsers className="text-2xl" />,
               },
+              {
+                title: "Payments",
+                description: "Manage wallet, escrow and payouts",
+                path: "/host/payments",
+                image: getCardImage("payments"),
+                color: "from-pink-600/40 via-indigo-600/40 to-purple-600/30",
+                icon: <FaWallet className="text-2xl" />,
+              }
             ];
 
             return (

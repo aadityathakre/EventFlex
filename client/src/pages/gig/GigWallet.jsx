@@ -17,12 +17,39 @@ function GigWallet() {
   const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [payments, setPayments] = useState([]);
   const [escrowPayments, setEscrowPayments] = useState([]);
+  const [withdrawHistory, setWithdrawHistory] = useState([]);
 
   const [withdrawMode, setWithdrawMode] = useState("upi");
   const [withdrawName, setWithdrawName] = useState("");
   const [withdrawUPI, setWithdrawUPI] = useState("");
   const [withdrawBankAccount, setWithdrawBankAccount] = useState("");
   const [withdrawIFSC, setWithdrawIFSC] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("gig_withdraw_info");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.withdrawName) setWithdrawName(parsed.withdrawName);
+        if (parsed.withdrawUPI) setWithdrawUPI(parsed.withdrawUPI);
+        if (parsed.withdrawBankAccount) setWithdrawBankAccount(parsed.withdrawBankAccount);
+        if (parsed.withdrawIFSC) setWithdrawIFSC(parsed.withdrawIFSC);
+        if (parsed.withdrawMode) setWithdrawMode(parsed.withdrawMode);
+      } catch (e) {}
+    }
+
+    const savedHistory = localStorage.getItem("gig_withdraw_history");
+    if (savedHistory) {
+      try {
+        setWithdrawHistory(JSON.parse(savedHistory));
+      } catch (e) {}
+    }
+  }, []);
+
+  useEffect(() => {
+    const info = { withdrawName, withdrawUPI, withdrawBankAccount, withdrawIFSC, withdrawMode };
+    localStorage.setItem("gig_withdraw_info", JSON.stringify(info));
+  }, [withdrawName, withdrawUPI, withdrawBankAccount, withdrawIFSC, withdrawMode]);
 
   useEffect(() => {
     if (wallet?.upi_id && !withdrawUPI) setWithdrawUPI(wallet.upi_id);
@@ -111,6 +138,18 @@ function GigWallet() {
     if (st.toast) showToast(st.toast.message, st.toast.type || "info");
     if (st.wallet?.visible && st.wallet?.balance !== undefined) {
       setWallet((w) => ({ ...w, balance: st.wallet.balance ?? w.balance }));
+    }
+    if (st.debitedAmount) {
+      const newEntry = {
+        amount: parseFloat(st.debitedAmount),
+        date: new Date().toISOString(),
+      };
+      setWithdrawHistory((prev) => {
+        const updated = [newEntry, ...prev];
+        localStorage.setItem("gig_withdraw_history", JSON.stringify(updated));
+        return updated;
+      });
+      navigate(location.pathname, { replace: true, state: { ...st, debitedAmount: undefined } });
     }
   }, [location.state]);
 
@@ -210,6 +249,28 @@ function GigWallet() {
                         <p className="text-sm text-gray-600">Status: {p?.status || 'pending'}</p>
                       </div>
                       <span className={`px-3 py-1 rounded-lg text-xs ${p?.status === 'released' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p?.status || 'pending'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h4 className="text-lg font-bold mb-3">Withdraw History</h4>
+              {withdrawHistory.length === 0 ? (
+                <p className="text-gray-600">No withdrawals yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-[200px] overflow-auto">
+                  {withdrawHistory.map((w, i) => (
+                    <div key={i} className="border rounded-xl p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">Withdrawal</p>
+                        <p className="text-sm text-gray-600">{new Date(w.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-red-600">- ₹ {w.amount.toFixed(2)}</p>
+                        <span className="text-xs text-green-600 font-semibold">Success</span>
+                      </div>
                     </div>
                   ))}
                 </div>

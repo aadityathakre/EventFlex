@@ -418,6 +418,52 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
   );
 });
 
+// 8.2 Add Money to Wallet (Simulated)
+export const addMoneyToWallet = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { amount, transaction_id, payment_method } = req.body;
+
+  const depositAmount = parseFloat(amount);
+  if (isNaN(depositAmount) || depositAmount <= 0) {
+    throw new ApiError(400, "Invalid deposit amount");
+  }
+
+  let wallet = await UserWallet.findOne({ user: hostId });
+  if (!wallet) {
+    wallet = await UserWallet.create({
+      user: hostId,
+      balance_inr: mongoose.Types.Decimal128.fromString("0.00"),
+    });
+  }
+
+  const currentBalance = parseFloat(wallet.balance_inr.toString?.() || "0.00");
+  const newBalance = (currentBalance + depositAmount).toFixed(2);
+  wallet.balance_inr = mongoose.Types.Decimal128.fromString(newBalance);
+  await wallet.save();
+
+  // Record payment
+  await Payment.create({
+    payer: hostId, // Self-deposit
+    payee: hostId,
+    amount: mongoose.Types.Decimal128.fromString(depositAmount.toString()),
+    currency: "INR",
+    status: "completed",
+    type: "deposit", // New type for wallet loads
+    transaction_id: transaction_id || `TXN-${Date.now()}`,
+    payment_method: payment_method || "upi",
+  });
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        new_balance: parseFloat(newBalance),
+      },
+      "Money added to wallet successfully"
+    )
+  );
+});
+
 // 9. Create Event
 export const createEvent = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
@@ -557,7 +603,9 @@ export const getEventDetails = asyncHandler(async (req, res) => {
 // 12. View All Host Events
 export const getHostEvents = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
-  const events = await Event.find({ host: hostId }).sort({ createdAt: -1 });
+  const events = await Event.find({ host: hostId })
+    .populate("organizer", "first_name last_name avatar email")
+    .sort({ createdAt: -1 });
 
   return res
     .status(200)
@@ -574,6 +622,12 @@ export const completeEvent = asyncHandler(async (req, res) => {
 
   event.status = "completed";
   await event.save();
+
+  // Also update related OrganizerPool status to completed
+  await OrganizerPool.updateMany({ event: eventId }, { status: "completed" });
+
+  // And archive any Gig Pools for this event
+  await Pool.updateMany({ event: eventId }, { status: "archived" });
 
   return res
     .status(200)
@@ -785,18 +839,25 @@ export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
 // 18. View Assigned Organizers
 export const getAssignedOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
+  const { eventId } = req.query;
 
-  const pools = await OrganizerPool.find()
-    .populate("organizer event")
-    .sort({ createdAt: -1 });
+  let eventIds = [];
+  if (eventId) {
+     // Check if this event belongs to host
+     const event = await Event.findOne({ _id: eventId, host: hostId });
+     if (event) eventIds = [event._id];
+  } else {
+     const events = await Event.find({ host: hostId }).select('_id');
+     eventIds = events.map(e => e._id);
+  }
 
-  const filtered = pools.filter(
-    (pool) => pool.event?.host?.toString() === hostId.toString()
-  );
+  const pools = await OrganizerPool.find({ event: { $in: eventIds } })
+    .populate("organizer", "first_name last_name avatar email")
+    .populate("event", "title");
 
   return res
     .status(200)
-    .json(new ApiResponse(200, filtered, "Assigned organizers fetched"));
+    .json(new ApiResponse(200, pools, "Assigned organizers fetched"));
 });
 
 // 19. Start In-App Chat with Organizer
@@ -1122,20 +1183,32 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
   const organizerAmount = (total * orgPct) / 100;
   const gigsAmount = (total * gigsPct) / 100;
 
-  const pool = await OrganizerPool.findOne({ organizer: escrow.organizer, event: escrow.event });
-  const capacity = pool?.max_capacity || 1;
-  const perGigAmount = capacity > 0 ? gigsAmount / capacity : 0;
+  // Use Pool model to find gigs (OrganizerPool doesn't store gigs array)
+  const pool = await Pool.findOne({ organizer: escrow.organizer, event: escrow.event });
+  const gigsCount = pool?.gigs?.length || 0;
+  const perGigAmount = gigsCount > 0 ? gigsAmount / gigsCount : 0;
 
   const organizerWallet = await UserWallet.findOne({ user: escrow.organizer });
   if (organizerWallet) {
     const obal = parseFloat(organizerWallet.balance_inr?.toString?.() || "0");
     organizerWallet.balance_inr = mongoose.Types.Decimal128.fromString((obal + organizerAmount).toFixed(2));
     await organizerWallet.save();
+  } else {
+    await UserWallet.create({
+      user: escrow.organizer,
+      balance_inr: mongoose.Types.Decimal128.fromString(organizerAmount.toFixed(2)),
+    });
   }
 
+  // Iterate over gigs in the Pool
   for (const gid of pool?.gigs || []) {
-    const gw = await UserWallet.findOne({ user: gid });
-    if (!gw) continue;
+    let gw = await UserWallet.findOne({ user: gid });
+    if (!gw) {
+       gw = await UserWallet.create({
+        user: gid,
+        balance_inr: mongoose.Types.Decimal128.fromString("0.00"),
+       });
+    }
     const gbal = parseFloat(gw.balance_inr?.toString?.() || "0");
     gw.balance_inr = mongoose.Types.Decimal128.fromString((gbal + perGigAmount).toFixed(2));
     await gw.save();
@@ -1147,6 +1220,12 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
       payment_method: "upi",
       status: "completed",
     });
+    const evtTitle = (await Event.findById(escrow.event).select("title"))?.title || "event";
+    await Notification.create({
+      user: gid,
+      type: "payment",
+      message: `Escrow released for ${evtTitle}. Your payout is completed.`,
+    });
   }
 
   await Payment.create({
@@ -1156,6 +1235,18 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
     amount: mongoose.Types.Decimal128.fromString(organizerAmount.toFixed(2)),
     payment_method: "upi",
     status: "completed",
+  });
+
+  const eventDoc = await Event.findById(escrow.event).select("title");
+  await Notification.create({
+    user: escrow.organizer,
+    type: "payment",
+    message: `Escrow released for ${eventDoc?.title || "event"}. Organizer payout completed.`,
+  });
+  await Notification.create({
+    user: hostId,
+    type: "payment",
+    message: `Escrow released for ${eventDoc?.title || "event"}. All payouts completed.`,
   });
 
   return res

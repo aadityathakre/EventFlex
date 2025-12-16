@@ -595,7 +595,7 @@ const getMyEvents = asyncHandler(async (req, res) => {
   console.log("Gig ObjectId:", gigObjectId);
   const events = await Pool.find({ gigs: gigObjectId })
     .select("-__v")
-    .populate("event", "title start_date end_date event_type organizer");
+    .populate("event", "title start_date end_date event_type organizer status");
 
   if (!events || events.length === 0) {
    return res
@@ -843,9 +843,14 @@ const simulatePayout = asyncHandler(async (req, res) => {
 const getBadges = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const badges = await UserBadge.find({ user: gigId })
+  const docs = await UserBadge.find({ user: gigId })
     .populate("badge", "badge_name min_events")
-    .select("createdAt");
+    .select("createdAt")
+    .lean();
+  const badges = (docs || []).map((b) => ({
+    ...b,
+    awarded_at: b.createdAt,
+  }));
 
   return res.status(200).json(new ApiResponse(200, badges, "Badges fetched"));
 });

@@ -129,6 +129,30 @@ function Razorpay() {
                 },
               });
               return;
+            } else if (flow?.checkoutPurpose === "add_money") {
+              // Add Money to Wallet Flow
+              const res = await axios.post(`${serverURL}/host/wallet/add`, {
+                amount: flow.amount,
+                transaction_id: `pay_${Date.now()}`, // Simulated Razorpay ID
+                payment_method: "upi"
+              }, { withCredentials: true });
+              
+              const newBalance = res.data?.data?.new_balance;
+              
+              navigate(flow.returnPath || defaultReturnPath, {
+                state: {
+                  toast: {
+                    type: "success",
+                    title: "Money Added",
+                    message: `₹ ${parseFloat(flow.amount).toFixed(2)} added to wallet successfully`,
+                  },
+                  wallet: {
+                    visible: true,
+                    balance: newBalance,
+                  },
+                },
+              });
+              return;
             } else {
               if (flow?.checkoutPurpose === "deposit_escrow") {
                 try {
@@ -237,17 +261,18 @@ function Razorpay() {
               debitedAmount: flow.amount,
             },
           });
-        } catch (e) {
-          navigate(flow.returnPath || defaultReturnPath, {
-            state: {
-              toast: { type: "error", title: "Payment failed", message: "Could not complete withdrawal in demo mode." },
-            },
-        });
-      } else {
-        if (flow?.checkoutPurpose === "deposit_escrow") {
-          try {
-            await axios.post(`${serverURL}/host/payment/deposit`, {
-              eventId: flow.eventId,
+          } catch (e) {
+            navigate(flow.returnPath || defaultReturnPath, {
+              state: {
+                toast: { type: "error", title: "Payment failed", message: "Could not complete withdrawal in demo mode." },
+              },
+            });
+          }
+        } else {
+          if (flow?.checkoutPurpose === "deposit_escrow") {
+            try {
+              await axios.post(`${serverURL}/host/payment/deposit`, {
+                eventId: flow.eventId,
               organizerId: flow.organizerId,
               total_amount: flow.amount,
               organizer_percentage: flow.organizer_percentage ?? 70,

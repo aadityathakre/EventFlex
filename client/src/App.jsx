@@ -14,6 +14,7 @@ import HostEventCreate from "./pages/host/HostEventCreate.jsx";
 import HostEventsList from "./pages/host/HostEventsList.jsx";
 import HostEventDetail from "./pages/host/HostEventDetail.jsx";
 import HostEventEdit from "./pages/host/HostEventEdit.jsx";
+import HostMyEvents from "./pages/host/HostMyEvents.jsx";
 import HostOrganizers from "./pages/host/HostOrganizers.jsx";
 import HostPayments from "./pages/host/HostPayments.jsx";
 import HostChat from "./pages/host/HostChat.jsx";
@@ -30,6 +31,7 @@ import OrganizerWallet from "./pages/organizer/OrganizerWallet.jsx";
 import OrganizerPools from "./pages/organizer/OrganizerPools.jsx";
 import OrganizerPoolApplications from "./pages/organizer/OrganizerPoolApplications.jsx";
 import OrganizerManageGigs from "./pages/organizer/OrganizerManageGigs.jsx";
+import OrganizerFeedbacks from "./pages/organizer/OrganizerFeedbacks.jsx";
 import OrganizerChat from "./pages/organizer/OrganizerChat.jsx";
 import OrganizerGigChat from "./pages/organizer/OrganizerGigChat.jsx";
 import GigDashboard from "./pages/gig/GigDashboard.jsx";
@@ -186,6 +188,14 @@ function App() {
         }
       />
       <Route 
+        path='/organizer/feedbacks'
+        element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerFeedbacks />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
         path='/organizer/profile'
         element={
           <ProtectedRoute allowedRoles={['organizer']}>
@@ -338,6 +348,14 @@ function App() {
 
       {/* Host Event Routes */}
       <Route
+        path='/host/my-events'
+        element={
+          <ProtectedRoute allowedRoles={['host']}>
+            <HostMyEvents />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path='/host/events/create'
         element={
           <ProtectedRoute allowedRoles={['host']}>
@@ -419,6 +437,7 @@ function App() {
           </ProtectedRoute>
         }
       />
+     
     </Routes>
   );
 }

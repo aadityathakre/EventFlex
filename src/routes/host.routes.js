@@ -40,6 +40,7 @@ import {
   verifyAttendance,
   getWalletBalance,
   withdrawFunds,
+  addMoneyToWallet,
 
   // 📊 Dashboard & Reputation
   getHostDashboard,
@@ -102,6 +103,7 @@ router.get("/payment/status/:eventId", verifyToken, authorizeRoles("host"), getE
 router.post("/verify-attendance/:eventId", verifyToken, authorizeRoles("host"), verifyAttendance);
 router.get("/wallet/balance", verifyToken, authorizeRoles("host"), getWalletBalance);
 router.post("/wallet/withdraw", verifyToken, authorizeRoles("host"), withdrawFunds);
+router.post("/wallet/add", verifyToken, authorizeRoles("host"), addMoneyToWallet);
 
 //
 // 📊 Dashboard & Reputation

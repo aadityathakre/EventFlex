@@ -8,11 +8,12 @@ import { useToast } from "../../context/ToastContext.jsx";
 import { getEventTypeImage, getCardImage } from "../../utils/imageMaps.js";
 import {
   FaCalendarCheck,
-  FaUsers,
-  FaWallet,
   FaInbox,
-  FaComments,
+  FaWallet,
   FaTools,
+  FaUsers,
+  FaComments,
+  FaStar, // Added
 } from "react-icons/fa";
 
 function OrganizerDashboard() {

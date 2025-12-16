@@ -4,6 +4,7 @@ import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import { getEventTypeImage } from "../../utils/imageMaps.js";
+import { FaCheckCircle, FaStar } from "react-icons/fa";
 
 function OrganizerManageGigs() {
   const { showToast } = useToast();
@@ -15,6 +16,13 @@ function OrganizerManageGigs() {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [gigProfileModal, setGigProfileModal] = useState({ open: false, data: null });
+  
+  // Tabs state
+  const [activeTab, setActiveTab] = useState("active"); // active, upcoming, completed
+
+  // Rating Modal State
+  const [ratingModal, setRatingModal] = useState({ open: false, gigId: null, eventId: null, gigName: "" });
+  const [ratingData, setRatingData] = useState({ rating: 5, review_text: "" });
 
   // Local-only clear chat support (per conversation)
   const clearKey = (convId) => `org_chat_cleared_ts_${convId}`;
@@ -79,8 +87,13 @@ function OrganizerManageGigs() {
       const conv = res.data?.data?.conversation || res.data?.conversation || res.data?.data;
       const conversationId = conv?._id;
       if (!conversationId) throw new Error("Conversation not created");
-      showToast("Chat ready", "success");
-      window.location.href = `/organizer/chat/${conversationId}`;
+      
+      // Load messages
+      const msgRes = await axios.get(`${serverURL}/organizer/messages/${conversationId}`, { withCredentials: true });
+      const msgs = msgRes.data?.data || [];
+      setChatMessages(filterByClearTs(conversationId, msgs));
+      
+      setChatModal({ open: true, convId: conversationId, gig, pool: poolId, eventId });
     } catch (e) {
       showToast(e?.response?.data?.message || e.message || "Failed to open chat", "error");
     } finally {
@@ -104,173 +117,278 @@ function OrganizerManageGigs() {
     }
   };
 
+  const openRatingModal = (gig, eventId) => {
+    setRatingModal({ open: true, gigId: gig._id, eventId, gigName: gig.fullName || `${gig.first_name} ${gig.last_name}` });
+    setRatingData({ rating: 5, review_text: "" });
+  };
+
+  const submitRating = async () => {
+    if (!ratingModal.gigId || !ratingModal.eventId) return;
+    try {
+      await axios.post(`${serverURL}/organizer/reviews/rating`, {
+        eventId: ratingModal.eventId,
+        gigId: ratingModal.gigId,
+        rating: ratingData.rating,
+        review_text: ratingData.review_text
+      }, { withCredentials: true });
+      showToast("Rating submitted successfully", "success");
+      setRatingModal({ open: false, gigId: null, eventId: null, gigName: "" });
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to submit rating", "error");
+    }
+  };
+
+  // Filter pools based on activeTab
+  const filteredPools = pools.filter((p) => {
+    const event = p.event;
+    if (!event) return false;
+    
+    const now = new Date();
+    const startDate = new Date(event.start_date);
+    const status = event.status || "upcoming";
+
+    if (activeTab === "completed") {
+      return status === "completed";
+    } else if (activeTab === "active") {
+      // Active if status is NOT completed AND (status is active OR startDate <= now)
+      return status !== "completed" && (status === "active" || startDate <= now);
+    } else if (activeTab === "upcoming") {
+      // Upcoming if status is NOT completed AND startDate > now AND status is NOT active
+      return status !== "completed" && status !== "active" && startDate > now;
+    }
+    return false;
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
       <TopNavbar title="Manage Gigs" />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 flex items-center justify-between">
+        
+        {/* Header & Refresh */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <h2 className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">Pools & Teams</h2>
-          <button onClick={fetchPools} className="px-3 py-2 text-sm border rounded-lg">Refresh</button>
+          
+          {/* Tabs */}
+          <div className="flex bg-gray-100 p-1 rounded-xl">
+            {["active", "upcoming", "completed"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === tab
+                    ? "bg-white text-purple-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={fetchPools} className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50">Refresh</button>
         </div>
 
+        {/* Pools Grid */}
         {loading ? (
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
-        ) : pools.length === 0 ? (
-          <p className="text-gray-600">No pools to manage.</p>
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+          </div>
+        ) : filteredPools.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl shadow-sm">
+            <p className="text-gray-500">No {activeTab} pools found.</p>
+          </div>
         ) : (
-          <div className="flex flex-wrap gap-4">
-            {pools.map((p) => (
-            <div key={p._id} className="w-[30%] bg-white rounded-2xl shadow-lg p-5">
-              <div className="relative h-28 overflow-hidden rounded-xl mb-3">
-                <img
-                  src={getEventTypeImage(p?.event?.event_type)}
-                  alt={p?.event?.title || "Event"}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30 pointer-events-none" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPools.map((p) => (
+              <div key={p._id} className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow">
+                
+                {/* Card Image Header */}
+                <div className="relative h-40">
+                  <img
+                    src={getEventTypeImage(p?.event?.event_type)}
+                    alt={p?.event?.title || "Event"}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <div className="absolute bottom-3 left-4 right-4">
+                    <h3 className="text-white font-bold text-lg truncate">{p.name}</h3>
+                    <p className="text-white/90 text-sm truncate">{p?.event?.title}</p>
+                  </div>
+                  
+                  {/* Status Badge for Completed */}
+                  {activeTab === "completed" && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                      <FaCheckCircle /> Event has been completed
+                    </div>
+                  )}
+                </div>
+
+                {/* Card Body */}
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xs text-gray-500 font-medium px-2 py-1 bg-gray-100 rounded-md">
+                      {p.gigs?.length || 0} Members
+                    </span>
+                    <button
+                      onClick={() => setExpandedPoolId(expandedPoolId === p._id ? "" : p._id)}
+                      className="text-sm text-purple-600 font-semibold hover:text-purple-700"
+                    >
+                      {expandedPoolId === p._id ? "Hide Gigs" : "Manage Gigs"}
+                    </button>
+                  </div>
+
+                  {/* Expanded Gigs List */}
+                  {expandedPoolId === p._id && (
+                    <div className="mt-2 space-y-3 border-t pt-3">
+                      {(p.gigs || []).length === 0 ? (
+                        <p className="text-gray-500 text-sm italic">No gigs joined yet.</p>
+                      ) : (
+                        p.gigs.map((g) => (
+                          <div key={g._id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <img src={g.avatar} alt={g.fullName} className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-gray-800">{g.fullName || `${g.first_name} ${g.last_name}`}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => viewGigProfile(g._id)} className="px-2 py-1 text-xs border bg-white rounded hover:bg-gray-100">Profile</button>
+                              <button onClick={() => openChat(g, p?.event?._id, p._id)} className="px-2 py-1 text-xs border bg-white rounded hover:bg-gray-100">Chat</button>
+                              {activeTab === "completed" && (
+                                <button 
+                                  onClick={() => openRatingModal(g, p?.event?._id)} 
+                                  className="px-2 py-1 text-xs bg-yellow-400 text-white font-bold rounded hover:bg-yellow-500 flex items-center gap-1"
+                                >
+                                  <FaStar className="w-3 h-3" /> Rate
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-900">{p.name}</p>
-                  <p className="text-sm text-gray-600">{p?.event?.title}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setExpandedPoolId(expandedPoolId === p._id ? "" : p._id)}
-                    className="px-3 py-2 text-sm border rounded-lg"
-                  >
-                    {expandedPoolId === p._id ? "Hide" : "Gigs"}
-                  </button>
-                </div>
-              </div>
-              {expandedPoolId === p._id && (
-                <div className="mt-3 space-y-2">
-                  {(p.gigs || []).length === 0 ? (
-                    <p className="text-gray-600">No gigs joined.</p>
-                  ) : (
-                    p.gigs.map((g) => (
-                      <div key={g._id} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <img src={g.avatar} alt={g.fullName} className="w-8 h-8 rounded-full object-cover" />
-                  <span className="text-sm font-medium">{g.fullName || `${g.first_name} ${g.last_name}`}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => viewGigProfile(g._id)} className="px-3 py-1 text-xs border rounded-lg">View</button>
-                  <button onClick={() => openChat(g, p?.event?._id, p._id)} className="px-3 py-1 text-xs border rounded-lg">Chat</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-            </div>
             ))}
           </div>
         )}
 
+        {/* Chat Modal */}
         {chatModal.open && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-bold">Chat with {chatModal.gig?.fullName || "Gig"}</h4>
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col h-[600px]">
+              <div className="p-4 border-b flex items-center justify-between bg-gray-50 rounded-t-2xl">
                 <div className="flex items-center gap-2">
-                  <button onClick={clearChatLocally} className="px-3 py-1 text-sm border rounded-lg">Clear Chat</button>
-                  <button onClick={() => setChatModal({ open: false, convId: null, gig: null, pool: null, eventId: null })} className="px-3 py-1 border rounded-lg">Close</button>
+                  <div className="relative">
+                    <img src={chatModal.gig?.avatar} className="w-10 h-10 rounded-full object-cover" alt="" />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-800">{chatModal.gig?.fullName || "Gig"}</h4>
+                    <p className="text-xs text-gray-500">Event Chat</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={clearChatLocally} className="text-xs text-red-500 hover:underline">Clear</button>
+                  <button onClick={() => setChatModal({ open: false, convId: null, gig: null, pool: null, eventId: null })} className="text-gray-400 hover:text-gray-600">✕</button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto space-y-2">
+              
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
                 {chatLoading ? (
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
+                  <div className="flex justify-center pt-10"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" /></div>
                 ) : chatMessages.length === 0 ? (
-                  <p className="text-gray-600">No messages yet.</p>
+                  <p className="text-center text-gray-400 text-sm mt-10">Start the conversation!</p>
                 ) : (
                   chatMessages.map((m) => {
-                    const isOrganizer = m.sender?.role === 'organizer';
-                    const time = new Date(m.createdAt || m.timestamp || Date.now()).toLocaleTimeString();
-                    const roleLabel = (m.sender?.role || 'user').toUpperCase();
+                    const isOrganizer = m.sender?.role === 'organizer' || m.sender === 'organizer'; // simplified check
+                    const time = new Date(m.createdAt || m.timestamp || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     return (
                       <div key={m._id} className={`flex ${isOrganizer ? 'justify-end' : 'justify-start'}`}>
-                        <div className="flex flex-col max-w-[70%]">
-                          <span className={`text-[11px] mb-1 ${isOrganizer ? 'text-purple-600 text-right' : 'text-gray-600'}`}>{roleLabel}</span>
-                          <div className={`${isOrganizer ? 'bg-purple-600 text-white self-end' : 'bg-gray-100 text-gray-900 self-start'} px-3 py-2 rounded-2xl shadow-sm`}>{m.message_text}</div>
-                          <span className={`text-[10px] text-gray-400 mt-1 ${isOrganizer ? 'self-end' : 'self-start'}`}>{time}</span>
+                        <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${
+                          isOrganizer 
+                            ? 'bg-purple-600 text-white rounded-tr-none' 
+                            : 'bg-white text-gray-800 shadow-sm rounded-tl-none'
+                        }`}>
+                          <p>{m.message_text}</p>
+                          <p className={`text-[10px] mt-1 text-right ${isOrganizer ? 'text-purple-200' : 'text-gray-400'}`}>{time}</p>
                         </div>
                       </div>
                     );
                   })
                 )}
               </div>
-              <div className="mt-4 flex items-center gap-2">
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  className="flex-1 border rounded-lg px-3 py-2"
-                  placeholder="Type a message"
-                />
-                <button onClick={sendMessage} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">Send</button>
+
+              <div className="p-4 border-t bg-white rounded-b-2xl">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                    placeholder="Type a message..."
+                    className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-gray-50"
+                  />
+                  <button onClick={sendMessage} className="bg-purple-600 text-white px-5 py-2 rounded-full hover:bg-purple-700 font-medium">Send</button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {gigProfileModal.open && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-lg font-bold">Gig Profile</h4>
-                <button onClick={() => setGigProfileModal({ open: false, data: null })} className="px-3 py-1 border rounded-lg">Close</button>
-              </div>
-              {!gigProfileModal.data ? (
-                <div className="py-6 text-center text-gray-600">No data</div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    {gigProfileModal.data?.mergedProfile?.profile_image_url && (
-                      <img
-                        src={gigProfileModal.data.mergedProfile.profile_image_url}
-                        alt="avatar"
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    )}
-                    <div>
-                      <p className="font-semibold text-gray-900">{gigProfileModal.data?.mergedProfile?.name}</p>
-                      <p className="text-sm text-gray-600">{gigProfileModal.data?.mergedProfile?.email}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Bio</p>
-                    <p className="text-gray-900">{gigProfileModal.data?.mergedProfile?.bio || "-"}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Phone</p>
-                      <p className="text-gray-900">{gigProfileModal.data?.mergedProfile?.phone || "-"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Location</p>
-                      <p className="text-gray-900">
-                        {gigProfileModal.data?.mergedProfile?.location?.city || "-"},{" "}
-                        {gigProfileModal.data?.mergedProfile?.location?.state || "-"}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Documents</p>
-                    <div className="text-gray-900">
-                      {(gigProfileModal.data?.documents || []).length} documents
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">KYC</p>
-                    <p className="text-gray-900">
-                      {gigProfileModal.data?.kyc?.status || "pending"}
-                    </p>
-                  </div>
+        {/* Rating Modal */}
+        {ratingModal.open && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">Rate {ratingModal.gigName}</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRatingData({ ...ratingData, rating: star })}
+                      className={`text-2xl transition-colors ${
+                        star <= ratingData.rating ? "text-yellow-400" : "text-gray-300"
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Feedback</label>
+                <textarea
+                  rows="4"
+                  value={ratingData.review_text}
+                  onChange={(e) => setRatingData({ ...ratingData, review_text: e.target.value })}
+                  placeholder="Share your experience working with this gig..."
+                  className="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setRatingModal({ open: false, gigId: null, eventId: null, gigName: "" })}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitRating}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                >
+                  Submit Rating
+                </button>
+              </div>
             </div>
           </div>
         )}
+
       </main>
     </div>
   );
