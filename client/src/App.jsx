@@ -33,7 +33,8 @@ import OrganizerManageGigs from "./pages/organizer/OrganizerManageGigs.jsx";
 import OrganizerChat from "./pages/organizer/OrganizerChat.jsx";
 import OrganizerGigChat from "./pages/organizer/OrganizerGigChat.jsx";
 import GigDashboard from "./pages/gig/GigDashboard.jsx";
-import GigProfile from "./pages/gig/GigProfile.jsx";
+import GigProfileView from "./pages/gig/GigProfileview.jsx";
+import GigProfileEdit from "./pages/gig/GigProfileEdit.jsx";
 import GigWallet from "./pages/gig/GigWallet.jsx";
 import GigPools from "./pages/gig/GigPools.jsx";
 import GigAttendance from "./pages/gig/GigAttendance.jsx";
@@ -209,7 +210,15 @@ function App() {
         path='/gig/profile'
         element={
           <ProtectedRoute allowedRoles={['gig']}>
-            <GigProfile />
+            <GigProfileView />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/profile/edit'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigProfileEdit />
           </ProtectedRoute>
         }
       />

@@ -493,6 +493,12 @@ export const createEvent = asyncHandler(async (req, res) => {
     budget: mongoose.Types.Decimal128.fromString(budgetAmount.toString()),
   });
 
+  await Notification.create({
+    user: hostId,
+    type: "event",
+    message: `Event ${title} created`,
+  });
+
   return res
     .status(201)
     .json(new ApiResponse(201, event, "Event created successfully"));
@@ -816,16 +822,9 @@ export const startChatWithOrganizer = asyncHandler(async (req, res) => {
     });
   }
 
-  let msg = `Welcome to the event coordination chat`
-  const welcome = await Message.create({
-    conversation: conversation._id,
-    sender: hostId,
-    message_text: msg,
-  });
-
   return res
     .status(201)
-    .json(new ApiResponse(201, { conversation, welcome }, "Chat started"));
+    .json(new ApiResponse(201, { conversation }, "Chat ready"));
 });
 
 // 19.1 List Host Conversations
@@ -916,8 +915,8 @@ export const getInvitedOrganizerStatus = asyncHandler(async (req, res) => {
   const eventIds = events.map((e) => e._id);
 
   const applications = await EventApplication.find({ event: { $in: eventIds } })
-    .populate("applicant", "email role first_name last_name")
-    .populate("event", "title organizer")
+    .populate("applicant", "email role first_name last_name avatar")
+    .populate("event", "title organizer event_type")
     .sort({ createdAt: -1 });
 
   const requested = applications.filter(a => a.application_status === "pending" && a.sender?.toString() !== hostId.toString());
@@ -967,6 +966,31 @@ export const markHostNotificationRead = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
 });
 
+export const getOrganizerPublicProfile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(id).select("first_name last_name email phone role avatar isVerified");
+  if (!user || user.role !== "organizer") {
+    throw new ApiError(404, "Organizer not found");
+  }
+  const kyc = await KYCVerification.findOne({ user: user._id }).select("aadhaar_verified aadhaar_number status verified_at");
+  const aadhaar_last4 = kyc?.aadhaar_number ? kyc.aadhaar_number.slice(-4) : null;
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        user,
+        kyc: {
+          aadhaar_verified: !!kyc?.aadhaar_verified,
+          aadhaar_last4,
+          status: kyc?.status || "pending",
+          verified_at: kyc?.verified_at || null,
+        },
+      },
+      "Organizer profile"
+    )
+  );
+});
+
 // 21. Deposit to Escrow
 export const depositToEscrow = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
@@ -1009,6 +1033,18 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     payment_method,
     upi_transaction_id,
     status: "completed",
+  });
+
+  const eventDoc = await Event.findById(eventId).select("title");
+  await Notification.create({
+    user: organizerId,
+    type: "payment",
+    message: `Escrow funded for ${eventDoc?.title || "event"}`,
+  });
+  await Notification.create({
+    user: hostId,
+    type: "payment",
+    message: `Escrow funded for ${eventDoc?.title || "event"}`,
   });
 
   return res

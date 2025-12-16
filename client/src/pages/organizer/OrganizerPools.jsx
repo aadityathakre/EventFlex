@@ -57,12 +57,17 @@ function OrganizerPools() {
 
   const chatWithGig = async (gigId, eventId, poolId) => {
     try {
-      await axios.post(
+      const res = await axios.post(
         `${serverURL}/organizer/pools/chat/${gigId}`,
-        { eventId, poolId, message_text: "Hello, welcome to the pool!" },
+        { eventId, poolId },
         { withCredentials: true }
       );
-      showToast("Message sent to gig", "success");
+      const convId = res.data?.data?.conversation?._id;
+      if (convId) {
+        showToast("Chat ready", "success");
+      } else {
+        showToast("Chat ready", "success");
+      }
     } catch (e) {
       showToast(e?.response?.data?.message || "Failed to send message", "error");
     }

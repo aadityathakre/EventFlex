@@ -19,7 +19,7 @@ function Razorpay() {
   const withdrawPathMap = {
     host: "/host/wallet/withdraw",
     organizer: "/organizer/withdraw",
-    gig: "/gig/withdraw",
+    gig: "/gigs/withdraw",
   };
   const defaultReturnPathMap = {
     host: "/host/profile",

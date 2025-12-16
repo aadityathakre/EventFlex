@@ -14,6 +14,7 @@ function OrganizerChat() {
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [conversationSearch, setConversationSearch] = useState("");
+  const [viewMode, setViewMode] = useState("host"); // 'host' | 'gig'
 
   const avatarFor = (email) => {
     const ch = (email || "?").trim().charAt(0).toUpperCase();
@@ -40,6 +41,19 @@ function OrganizerChat() {
       setError(e.response?.data?.message || "Failed to fetch conversations");
     }
   };
+
+  useEffect(() => {
+    // Auto-select view mode based on selected conversation type
+    if (!conversationId) return;
+    const conv = conversations.find((c) => c._id === conversationId);
+    if (conv) {
+      if (conv?.gig) {
+        setViewMode("gig");
+      } else {
+        setViewMode("host");
+      }
+    }
+  }, [conversationId, conversations]);
 
   const loadMessages = async (id) => {
     try {
@@ -75,13 +89,22 @@ function OrganizerChat() {
 
   const filteredConversations = useMemo(() => {
     const q = conversationSearch.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter((c) => {
+    const base = conversations.filter((c) =>
+      viewMode === "gig" ? !!c?.gig : !!c?.host
+    );
+    if (!q) return base;
+    return base.filter((c) => {
       const title = c?.event?.title || c?.pool?.pool_name || "";
-      const host = c?.host?.name || c?.host?.email || "";
-      return title.toLowerCase().includes(q) || host.toLowerCase().includes(q);
+      const counterpart =
+        viewMode === "gig"
+          ? c?.gig?.fullName || c?.gig?.name || c?.gig?.email || ""
+          : c?.host?.name || c?.host?.email || "";
+      return (
+        title.toLowerCase().includes(q) ||
+        counterpart.toLowerCase().includes(q)
+      );
     });
-  }, [conversationSearch, conversations]);
+  }, [conversationSearch, conversations, viewMode]);
 
   if (loading) {
     return (
@@ -124,12 +147,38 @@ function OrganizerChat() {
                 <FaComments />
                 Conversations
               </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewMode("host")}
+                  className={`px-3 py-1 text-xs rounded-lg border ${
+                    viewMode === "host"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-gray-700"
+                  }`}
+                >
+                  Host
+                </button>
+                <button
+                  onClick={() => setViewMode("gig")}
+                  className={`px-3 py-1 text-xs rounded-lg border ${
+                    viewMode === "gig"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-gray-700"
+                  }`}
+                >
+                  Gig
+                </button>
+              </div>
             </div>
             <div className="mb-4">
               <input
                 value={conversationSearch}
                 onChange={(e) => setConversationSearch(e.target.value)}
-                placeholder="Search by event or host"
+                placeholder={
+                  viewMode === "gig"
+                    ? "Search by event or gig"
+                    : "Search by event or host"
+                }
                 className="w-full border rounded-lg px-3 py-2 text-sm"
               />
             </div>
@@ -145,21 +194,47 @@ function OrganizerChat() {
                     className={`w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition ${c._id === conversationId ? "border-indigo-600" : ""}`}
                   >
                     <div className="flex items-center gap-3">
-                      {c?.host?.profile_image_url || c?.host?.avatar || c?.host?.photo ? (
-                        <img
-                          src={c?.host?.profile_image_url || c?.host?.avatar || c?.host?.photo}
-                          alt="Host"
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
+                      {viewMode === "gig" ? (
+                        <>
+                          {c?.gig?.profile_image_url || c?.gig?.avatar || c?.gig?.photo ? (
+                            <img
+                              src={c?.gig?.profile_image_url || c?.gig?.avatar || c?.gig?.photo}
+                              alt="Gig"
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 text-sm font-bold">
+                              {avatarFor(c?.gig?.email)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.pool?.pool_name || "Conversation"}</p>
+                            <p className="text-xs text-gray-600 truncate">
+                              {(c?.gig?.fullName || c?.gig?.name || c?.gig?.email || "Gig")} • Pool: {c?.pool?.pool_name || "N/A"}
+                            </p>
+                          </div>
+                        </>
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 text-sm font-bold">
-                          {avatarFor(c?.host?.email)}
-                        </div>
+                        <>
+                          {c?.host?.profile_image_url || c?.host?.avatar || c?.host?.photo ? (
+                            <img
+                              src={c?.host?.profile_image_url || c?.host?.avatar || c?.host?.photo}
+                              alt="Host"
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 text-sm font-bold">
+                              {avatarFor(c?.host?.email)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.pool?.pool_name || "Conversation"}</p>
+                            <p className="text-xs text-gray-600 truncate">
+                              {(c?.host?.name || c?.host?.email || "Host")} • Pool: {c?.pool?.pool_name || "N/A"}
+                            </p>
+                          </div>
+                        </>
                       )}
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.pool?.pool_name || "Conversation"}</p>
-                        <p className="text-xs text-gray-600 truncate">{c?.host?.name || c?.host?.email || "Host"} • Pool: {c?.pool?.pool_name || "N/A"}</p>
-                      </div>
                     </div>
                   </button>
                 ))}
@@ -173,21 +248,51 @@ function OrganizerChat() {
               <div className="flex flex-col md:h-full">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    {selectedConversation?.host?.profile_image_url || selectedConversation?.host?.avatar || selectedConversation?.host?.photo ? (
-                      <img
-                        src={selectedConversation?.host?.profile_image_url || selectedConversation?.host?.avatar || selectedConversation?.host?.photo}
-                        alt="Host"
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
+                    {viewMode === "gig" ? (
+                      <>
+                        {selectedConversation?.gig?.profile_image_url || selectedConversation?.gig?.avatar || selectedConversation?.gig?.photo ? (
+                          <img
+                            src={selectedConversation?.gig?.profile_image_url || selectedConversation?.gig?.avatar || selectedConversation?.gig?.photo}
+                            alt="Gig"
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 font-bold">
+                            {avatarFor(selectedConversation?.gig?.email)}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">
+                            {selectedConversation?.gig?.fullName || selectedConversation?.gig?.name || selectedConversation?.gig?.email || "Gig"}
+                          </h3>
+                          <p className="text-xs text-gray-600">
+                            {selectedConversation?.event?.title || "Event"} • Pool: {selectedConversation?.pool?.pool_name || "N/A"}
+                          </p>
+                        </div>
+                      </>
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 font-bold">
-                        {avatarFor(selectedConversation?.host?.email)}
-                      </div>
+                      <>
+                        {selectedConversation?.host?.profile_image_url || selectedConversation?.host?.avatar || selectedConversation?.host?.photo ? (
+                          <img
+                            src={selectedConversation?.host?.profile_image_url || selectedConversation?.host?.avatar || selectedConversation?.host?.photo}
+                            alt="Host"
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 font-bold">
+                            {avatarFor(selectedConversation?.host?.email)}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">
+                            {selectedConversation?.host?.name || selectedConversation?.host?.email || "Host"}
+                          </h3>
+                          <p className="text-xs text-gray-600">
+                            {selectedConversation?.event?.title || "Event"} • Pool: {selectedConversation?.pool?.pool_name || "N/A"}
+                          </p>
+                        </div>
+                      </>
                     )}
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">{selectedConversation?.host?.name || selectedConversation?.host?.email || "Host"}</h3>
-                      <p className="text-xs text-gray-600">{selectedConversation?.event?.title || "Event"} • Pool: {selectedConversation?.pool?.pool_name || "N/A"}</p>
-                    </div>
                   </div>
                   <button onClick={() => setMessages([])} className="px-3 py-2 text-xs bg-red-600 text-white rounded-lg flex items-center gap-2">
                     <FaTrash />

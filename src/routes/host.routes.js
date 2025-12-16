@@ -50,6 +50,7 @@ import {
   deleteHostApplication,
   getHostNotifications,
   markHostNotificationRead,
+  getOrganizerPublicProfile,
   
 } from "../controllers/host.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -87,6 +88,7 @@ router.get("/organizers/invites", verifyToken, authorizeRoles("host"), getInvite
 router.delete("/organizers/applications/:id", verifyToken, authorizeRoles("host"), deleteHostApplication);
 router.post("/pools/create", verifyToken, authorizeRoles("host"), createOrganizerPoolForEvent);
 router.get("/organizer", verifyToken, authorizeRoles("host"), getAssignedOrganizer);
+router.get("/organizers/:id/profile", verifyToken, authorizeRoles("host"), getOrganizerPublicProfile);
 router.post("/chat", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
 router.get("/conversations", verifyToken, authorizeRoles("host"), getHostConversations);
 router.get("/messages/:conversationId", verifyToken, authorizeRoles("host"), getConversationMessages);

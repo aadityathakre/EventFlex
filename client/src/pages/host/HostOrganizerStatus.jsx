@@ -12,6 +12,7 @@ function HostOrganizerStatus() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("invited"); // invited | requested | accepted | rejected
   const [poolForm, setPoolForm] = useState({ open: false, organizerId: "", eventId: "", pool_name: "", max_capacity: 10, required_skills: "", pay_min: "", pay_max: "", lat: "", lng: "" });
+  const [orgDetails, setOrgDetails] = useState({ open: false, data: null, loading: false, error: null });
 
   const fetchAll = async () => {
     try {
@@ -68,6 +69,16 @@ function HostOrganizerStatus() {
     setPoolForm((f) => ({ ...f, open: true, organizerId, eventId }));
   };
 
+  const openOrganizerDetails = async (organizerId) => {
+    setOrgDetails({ open: true, data: null, loading: true, error: null });
+    try {
+      const res = await axios.get(`${serverURL}/host/organizers/${organizerId}/profile`, { withCredentials: true });
+      setOrgDetails({ open: true, data: res.data?.data, loading: false, error: null });
+    } catch (e) {
+      setOrgDetails({ open: true, data: null, loading: false, error: e.response?.data?.message || "Failed to load organizer" });
+    }
+  };
+
   const createPool = async () => {
     const payMin = parseFloat(poolForm.pay_min);
     const payMax = parseFloat(poolForm.pay_max);
@@ -120,7 +131,7 @@ function HostOrganizerStatus() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <button onClick={() => navigate(-1)} className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold">Back</button>
-            <h1 className="text-xl font-extrabold bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">Organizer Status</h1>
+            <h1 className="text-xl font-extrabold  bg-clip-text text-transparent">Organizer Status</h1>
             <div></div>
           </div>
           <div className="m-4 p-4 mb-5 flex items-center gap-2">
@@ -156,14 +167,10 @@ function HostOrganizerStatus() {
                       </div>
                     )}
                     <div className="p-4 flex items-start justify-between">
-                      <div>
-                        <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
-                        <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
-                      </div>
                       <span className={`px-2 py-1 rounded-full text-xs capitalize ${statusClass}`}>{app.application_status}</span>
-                    </div>
+                  </div>
                     {app.application_status === 'pending' && (
-                      <p className="px-4 pb-4 text-sm text-slate-500">Invitation sent • Awaiting organizer response</p>
+                      <p className="text-sm text-slate-500">Invitation sent • Awaiting organizer response</p>
                     )}
                     {app.application_status === 'accepted' && (
                       <div className="px-4 pb-4">
@@ -208,15 +215,20 @@ function HostOrganizerStatus() {
                 return (
                   <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                     {app?.event?.event_type && (
-                      <div className="h-28 w-full overflow-hidden">
+                      <div className="h-40 w-full overflow-hidden">
                         <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                       </div>
                     )}
                     <div className="p-4 flex items-start justify-between">
-                      <div>
-                        <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
-                        <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
+                      <div className="flex items-center gap-3">
+                        {app?.applicant?.avatar && (
+                          <img src={app.applicant.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                        )}
+                        <div>
+                          <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
+                          <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
+                        </div>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs capitalize ${statusClass}`}>{app.application_status}</span>
                     </div>
@@ -233,6 +245,7 @@ function HostOrganizerStatus() {
                         ) : (
                           <button onClick={() => openPoolForm(app.applicant?._id, app.event?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Create Organizer Pool</button>
                         )}
+                        <button onClick={() => openOrganizerDetails(app.applicant?._id)} className="mt-2 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">View Organizer</button>
                         <button
                           onClick={async () => {
                             try {
@@ -265,15 +278,20 @@ function HostOrganizerStatus() {
                 return (
                   <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                     {app?.event?.event_type && (
-                      <div className="h-28 w-full overflow-hidden">
+                      <div className="h-40 w-full overflow-hidden">
                         <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                       </div>
                     )}
                     <div className="p-4 flex items-start justify-between">
-                      <div>
-                        <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
-                        <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
+                      <div className="flex items-center gap-3">
+                        {app?.applicant?.avatar && (
+                          <img src={app.applicant.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                        )}
+                        <div>
+                          <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
+                          <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
+                        </div>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs capitalize ${statusClass}`}>{app.application_status}</span>
                     </div>
@@ -283,6 +301,7 @@ function HostOrganizerStatus() {
                       ) : (
                         <button onClick={() => openPoolForm(app.applicant?._id, app.event?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Create Organizer Pool</button>
                       )}
+                      <button onClick={() => openOrganizerDetails(app.applicant?._id)} className="mt-2 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">View Organizer</button>
                       <button
                         onClick={async () => {
                           try {
@@ -312,19 +331,25 @@ function HostOrganizerStatus() {
               rejectedApps.map((app) => (
                 <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                   {app?.event?.event_type && (
-                    <div className="h-28 w-full overflow-hidden">
+                    <div className="h-40 w-full overflow-hidden">
                       <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                     </div>
                   )}
                   <div className="p-4 flex items-start justify-between">
-                    <div>
-                      <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
-                      <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
+                    <div className="flex items-center gap-3">
+                      {app?.applicant?.avatar && (
+                        <img src={app.applicant.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                      )}
+                      <div>
+                        <p className="text-lg font-semibold text-slate-900">{app?.event?.title || "Event"}</p>
+                        <p className="text-sm text-slate-600">Organizer: {app?.applicant?.email}</p>
+                      </div>
                     </div>
                     <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 capitalize">{app.application_status}</span>
                   </div>
                   <div className="px-4 pb-4">
+                    <button onClick={() => openOrganizerDetails(app.applicant?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">View Organizer</button>
                     <button
                       onClick={async () => {
                         try {
@@ -367,6 +392,43 @@ function HostOrganizerStatus() {
             <div className="flex items-center justify-end gap-2">
               <button onClick={() => setPoolForm((f) => ({ ...f, open: false }))} className="px-3 py-2 text-sm border rounded-lg">Cancel</button>
               <button onClick={createPool} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {orgDetails.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setOrgDetails({ open: false, data: null, loading: false, error: null })}></div>
+          <div className="relative z-10 bg-white rounded-xl p-6 w-full max-w-lg shadow-xl">
+            <h4 className="text-lg font-semibold mb-4">Organizer Details</h4>
+            {orgDetails.loading && <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>}
+            {orgDetails.error && <div className="p-2 bg-red-50 text-red-600 rounded-lg mb-3">{orgDetails.error}</div>}
+            {orgDetails.data && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  {orgDetails.data.user?.avatar && (
+                    <img src={orgDetails.data.user.avatar} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
+                  )}
+                  <div>
+                    <div className="font-semibold text-slate-900">{orgDetails.data.user?.first_name} {orgDetails.data.user?.last_name}</div>
+                    <div className="text-sm text-slate-600">{orgDetails.data.user?.email}</div>
+                    <div className="text-sm text-slate-600">{orgDetails.data.user?.phone}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 border rounded-lg">
+                    <div className="text-xs text-slate-500">Aadhaar Verified</div>
+                    <div className="font-semibold">{orgDetails.data.kyc?.aadhaar_verified ? "Yes" : "No"}</div>
+                  </div>
+                  <div className="p-3 border rounded-lg">
+                    <div className="text-xs text-slate-500">Aadhaar Number</div>
+                    <div className="font-semibold">**** **** **** {orgDetails.data.kyc?.aadhaar_last4 || "--"}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setOrgDetails({ open: false, data: null, loading: false, error: null })} className="px-4 py-2 border rounded-lg">Close</button>
             </div>
           </div>
         </div>

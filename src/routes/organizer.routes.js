@@ -44,6 +44,7 @@ import {
   // 🏆 Reputation & Gamification
   getLeaderboard,
   getOrganizerBadges,
+  getGigPublicProfile,
   
 
   // 🔔 Notifications
@@ -90,6 +91,7 @@ router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chat
 router.get("/pools/:poolId/applications", verifyToken, authorizeRoles("organizer"), getPoolApplications);
 router.post("/applications/:applicationId/review", verifyToken, authorizeRoles("organizer"), reviewApplication);
 router.get("/org-pools/by-event/:eventId", verifyToken, authorizeRoles("organizer"), getOrganizerPoolByEvent);
+router.get("/gigs/:id/profile", verifyToken, authorizeRoles("organizer"), getGigPublicProfile);
 
 // 💬 Chat
 router.get("/conversations", verifyToken, authorizeRoles("organizer"), getOrganizerConversations);

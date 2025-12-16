@@ -10,6 +10,8 @@ function TopNavbar({ title = null }) {
   const { user, logout } = useAuth();
   const role = user?.role || "guest";
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const profilePath =
     role === "host"
@@ -41,10 +43,14 @@ function TopNavbar({ title = null }) {
     const fetchNotifications = async () => {
       if (!["host", "organizer", "gig"].includes(role)) return;
       try {
-        const res = await axios.get(`${serverURL}/${role}/notifications`, { withCredentials: true });
+        const rolePath = role;
+        const res = await axios.get(`${serverURL}/${rolePath}/notifications`, { withCredentials: true });
         const items = res.data?.data || [];
         const unread = items.filter((n) => !n.read).length;
-        if (!cancelled) setUnreadCount(unread);
+        if (!cancelled) {
+          setNotifications(items);
+          setUnreadCount(unread);
+        }
       } catch (e) {
         // silently ignore
       }
@@ -56,6 +62,32 @@ function TopNavbar({ title = null }) {
       clearInterval(interval);
     };
   }, [role]);
+
+  const markNotificationRead = async (id) => {
+    try {
+      await axios.put(`${serverURL}/${role}/notifications/${id}/read`, {}, { withCredentials: true });
+      setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch {}
+  };
+
+  const markAllRead = async () => {
+    if (role === "gig") {
+      setNotifOpen(false);
+      return;
+    }
+    const unread = notifications.filter((n) => !n.read);
+    try {
+      await Promise.all(
+        unread.map((n) =>
+          axios.put(`${serverURL}/${role}/notifications/${n._id}/read`, {}, { withCredentials: true })
+        )
+      );
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch {}
+    setNotifOpen(false);
+  };
 
   return (
     <header className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50">
@@ -97,11 +129,54 @@ function TopNavbar({ title = null }) {
                 title="Notifications"
                 className="text-gray-600 hover:text-purple-600 transition-colors"
                 aria-label="Notifications"
+                onClick={() => setNotifOpen((o) => !o)}
               >
                 <FaBell className="text-xl" />
               </button>
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 block w-2 h-2 bg-red-500 rounded-full"></span>
+              )}
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-50">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-sm font-semibold text-slate-900">Notifications</span>
+                    <button
+                      onClick={markAllRead}
+                      className="text-xs text-purple-600 hover:text-purple-700"
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+                  <div className="max-h-80 overflow-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-3 py-4 text-sm text-slate-500">No notifications</div>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n._id}
+                          onClick={async () => {
+                            await markNotificationRead(n._id);
+                            setNotifOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-purple-50 transition flex items-start gap-2"
+                        >
+                          <span
+                            className={`mt-1 inline-block w-2 h-2 rounded-full ${
+                              n.read ? "bg-slate-300" : "bg-red-500"
+                            }`}
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm text-slate-900">{n.message}</div>
+                            <div className="text-xs text-slate-500">
+                              {new Date(n.createdAt).toLocaleString()}
+                            </div>
+                          </div>
+                          <span className="text-[10px] uppercase text-slate-500">{n.type}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
               )}
             </div>
 

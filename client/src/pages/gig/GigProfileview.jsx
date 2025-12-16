@@ -67,9 +67,24 @@ function GigProfileView() {
         withCredentials: true,
       });
       
-      const { mergedProfile, documents, kyc } = response.data.data;
-      
-      setProfileData({ mergedProfile, documents, kyc });
+      const payload = response?.data?.data;
+      const mergedProfile = payload?.mergedProfile || payload || {};
+      const kycFromPayload = payload?.kyc || null;
+      setProfileData((prev) => {
+        const documents = Array.isArray(payload?.documents) ? payload.documents : (prev?.documents || []);
+        return {
+          ...(prev || {}),
+          mergedProfile,
+          documents,
+          ...(kycFromPayload ? { kyc: kycFromPayload } : {}),
+        };
+      });
+      // Fetch KYC status separately for reliability
+      try {
+        const kycRes = await axios.get(`${serverURL}/gigs/kyc-status`, { withCredentials: true });
+        const kycData = kycRes.data?.data || null;
+        setProfileData((prev) => ({ ...(prev || {}), kyc: kycData }));
+      } catch {}
       setError(null);
     } catch (err) {
       console.error("❌ Profile fetch error:", err);
@@ -82,6 +97,7 @@ function GigProfileView() {
     }
   };
 
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -89,7 +105,7 @@ function GigProfileView() {
     formData.append("avatar", file);
     setUploadingImage(true);
     try {
-      await axios.put(`${serverURL}/gigs/profile/image`, formData, {
+      await axios.put(`${serverURL}/gigs/profile-image`, formData, {
         withCredentials: true,
       });
       await fetchProfile();
@@ -106,7 +122,7 @@ function GigProfileView() {
   const handleDeleteImage = async () => {
     if (!confirm("Are you sure you want to remove your profile image?")) return;
     try {
-      await axios.delete(`${serverURL}/gigs/profile/image`, {
+      await axios.delete(`${serverURL}/gigs/profile-image`, {
         withCredentials: true,
       });
       await fetchProfile();
@@ -134,25 +150,32 @@ function GigProfileView() {
     
     setUploadingDoc(docType);
     try {
-      // Check if user has ANY document (since policy is one-document-per-user)
-      const hasAnyDoc = documents.length > 0;
-      
-      // Use update endpoint if user already has a document, otherwise use upload
-      const endpoint = hasAnyDoc
-        ? `${serverURL}/gigs/update-docs`
-        : `${serverURL}/gigs/upload-docs`;
-      
-      const method = hasAnyDoc ? axios.put : axios.post;
-      
-      await method(endpoint, formData, {
+      await axios.post(`${serverURL}/gigs/upload-documents`, formData, {
         withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
       });
       await fetchProfile();
-      alert(`${docType.charAt(0).toUpperCase() + docType.slice(1)} ${hasAnyDoc ? 'updated' : 'uploaded'} successfully!`);
+      alert(`${docType.charAt(0).toUpperCase() + docType.slice(1)} uploaded successfully!`);
     } catch (err) {
-      console.error("Document upload error:", err);
-      console.error("Response data:", err.response?.data);
-      alert(err.response?.data?.message || "Failed to upload document");
+      // If a single-document-per-user conflict occurs, fallback to update
+      const isConflict = err?.response?.status === 409;
+      if (isConflict) {
+        try {
+          await axios.put(`${serverURL}/gigs/update-docs`, formData, {
+            withCredentials: true,
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          await fetchProfile();
+          alert(`${docType.charAt(0).toUpperCase() + docType.slice(1)} updated successfully!`);
+        } catch (e) {
+          console.error("Document update error:", e);
+          alert(e.response?.data?.message || "Failed to update document");
+        }
+      } else {
+        console.error("Document upload error:", err);
+        console.error("Response data:", err.response?.data);
+        alert(err.response?.data?.message || "Failed to upload document");
+      }
     } finally {
       setUploadingDoc(null);
     }
@@ -220,7 +243,7 @@ function GigProfileView() {
         <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={() => navigate("/gigs/dashboard")}
+            onClick={() => navigate("/gig/dashboard")}
             className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
             Back to Dashboard
@@ -230,7 +253,9 @@ function GigProfileView() {
     );
   }
 
-  const { mergedProfile, documents = [], kyc } = profileData || {};
+  const mergedProfile = (profileData?.mergedProfile) || profileData || {};
+  const documents = profileData?.documents || [];
+  const kyc = profileData?.kyc || null;
   const hasBankDetails = !!(mergedProfile?.bank_details && Object.keys(mergedProfile.bank_details).length > 0);
   const kycStatus = kyc?.status || "pending";
   const aadhaarLast4 = kyc?.aadhaar_number ? kyc.aadhaar_number.slice(-4) : "";
@@ -354,7 +379,7 @@ function GigProfileView() {
 
               {/* Edit Button */}
               <button
-                onClick={() => navigate("/gigs/profile/edit")}
+                onClick={() => navigate("/gig/profile/edit")}
                 className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-2 mx-auto md:mx-0"
               >
                 <FaEdit />
@@ -372,262 +397,274 @@ function GigProfileView() {
           </div>
         )}
 
-        {/* Location & Bank Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {mergedProfile?.location &&
-            Object.keys(mergedProfile.location).length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
-                  <FaMapMarkerAlt className="text-purple-600" />
-                  <span>Location</span>
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(mergedProfile.location).map(([key, value]) => (
-                    <div key={key}>
-                      <p className="text-sm text-gray-600 capitalize">
-                        {key.replace(/_/g, " ")}
-                      </p>
-                      <p className="font-semibold text-gray-900">
-                        {typeof value === 'object' ? JSON.stringify(value) : value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
+              <FaMapMarkerAlt className="text-purple-600" />
+              <span>Location</span>
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-gray-600">City</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.location?.city || "-"}</p>
               </div>
-            )}
+              <div>
+                <p className="text-sm text-gray-600">State</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.location?.state || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Country</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.location?.country || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Address</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.location?.address || mergedProfile?.location?.street || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Coordinates</p>
+                <p className="font-semibold text-gray-900">
+                  {Array.isArray(mergedProfile?.location?.coordinates) && mergedProfile.location.coordinates.length >= 2
+                    ? `${mergedProfile.location.coordinates[1]}, ${mergedProfile.location.coordinates[0]}`
+                    : (mergedProfile?.location?.lat !== undefined && mergedProfile?.location?.lng !== undefined
+                      ? `${mergedProfile.location.lat}, ${mergedProfile.location.lng}`
+                      : "-")}
+                </p>
+              </div>
+            </div>
+          </div>
 
-          {mergedProfile?.bank_details &&
-            Object.keys(mergedProfile.bank_details).length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
-                  <FaIdCard className="text-indigo-600" />
-                  <span>Bank Details</span>
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(mergedProfile.bank_details).map(
-                    ([key, value]) => (
-                      <div key={key}>
-                        <p className="text-sm text-gray-600 capitalize">
-                          {key.replace(/_/g, " ")}
-                        </p>
-                        <p className="font-semibold text-gray-900">
-                          {typeof value === 'object' ? JSON.stringify(value) : value}
-                        </p>
-                      </div>
-                    )
-                  )}
-                </div>
-                {hasBankDetails && (
-                  <div className="mt-6 flex items-center gap-3 flex-wrap">
-                    <button
-                      onClick={async () => {
-                        setWalletVisible(true);
-                        setWalletLoading(true);
-                        setWalletError(null);
-                        setWalletBalance(null);
-                        try {
-                          const res = await axios.get(`${serverURL}/gigs/wallet/balance`, { withCredentials: true });
-                          const data = res.data?.data || res.data; 
-                          const num = data?.balance_inr?.$numberDecimal ?? data?.balance_inr ?? null;
-                          setWalletBalance(num);
-                        } catch (err) {
-                          setWalletError(err.response?.data?.message || "Failed to fetch wallet balance");
-                        } finally {
-                          setWalletLoading(false);
-                        }
-                      }}
-                      className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center space-x-2 shadow-md hover:shadow-lg"
-                    >
-                      <FaWallet className="text-lg" />
-                      <span>Show Balance</span>
-                    </button>
-                    {walletVisible && (
-                      <button
-                        onClick={() => {
-                          setWithdrawVisible((v) => !v);
-                          setWithdrawSuccess(null);
-                          setWithdrawError(null);
-                        }}
-                        className="px-6 py-3 bg-rose-600 text-white rounded-lg font-semibold hover:bg-rose-700 transition-colors flex items-center space-x-2 shadow-md hover:shadow-lg"
-                      >
-                        <FaSignOutAlt className="text-lg" />
-                        <span>Withdraw</span>
-                      </button>
-                    )}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
+              <FaIdCard className="text-indigo-600" />
+              <span>Bank Details</span>
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-gray-600">Address</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.location?.address || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Account Holder</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.bank_details?.account_holder || mergedProfile?.name || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Bank Name</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.bank_details?.bank_name || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Account Number</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.bank_details?.account_number || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Ifsc Code</p>
+                <p className="font-semibold text-gray-900">{mergedProfile?.bank_details?.ifsc_code || "-"}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center gap-3 flex-wrap">
+              <button
+                onClick={async () => {
+                  setWalletVisible(true);
+                  setWalletLoading(true);
+                  setWalletError(null);
+                  setWalletBalance(null);
+                  try {
+                    const res = await axios.get(`${serverURL}/gigs/wallet`, { withCredentials: true });
+                    const data = res.data?.data || res.data;
+                    const raw = data?.balance_inr ?? data?.balance;
+                    const num = typeof raw === "object" && raw?.$numberDecimal ? parseFloat(raw.$numberDecimal) : parseFloat(raw ?? 0);
+                    setWalletBalance(Number.isFinite(num) ? num : null);
+                  } catch (err) {
+                    setWalletError(err.response?.data?.message || "Failed to fetch wallet balance");
+                  } finally {
+                    setWalletLoading(false);
+                  }
+                }}
+                className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center space-x-2 shadow-md hover:shadow-lg"
+              >
+                <FaWallet className="text-lg" />
+                <span>Show Balance</span>
+              </button>
+              {walletVisible && (
+                <button
+                  onClick={() => {
+                    setWithdrawVisible((v) => !v);
+                    setWithdrawSuccess(null);
+                    setWithdrawError(null);
+                  }}
+                  className="px-6 py-3 bg-rose-600 text-white rounded-lg font-semibold hover:bg-rose-700 transition-colors flex items-center space-x-2 shadow-md hover:shadow-lg"
+                >
+                  <FaSignOutAlt className="text-lg" />
+                  <span>Withdraw</span>
+                </button>
+              )}
+            </div>
+            {walletVisible && (
+              <div className="mt-4 p-4 border-2 border-indigo-200 rounded-xl bg-indigo-50 space-y-3">
+                {walletLoading && (
+                  <div className="flex items-center space-x-2 text-indigo-700">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+                    <span className="text-sm font-semibold">Fetching balance...</span>
                   </div>
                 )}
-                {walletVisible && (
-                  <div className="mt-4 p-4 border-2 border-indigo-200 rounded-xl bg-indigo-50 space-y-3">
-                    {walletLoading && (
-                      <div className="flex items-center space-x-2 text-indigo-700">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
-                        <span className="text-sm font-semibold">Fetching balance...</span>
+                {!walletLoading && walletError && (
+                  <div className="text-red-700 text-sm font-semibold">{walletError}</div>
+                )}
+                {!walletLoading && !walletError && walletBalance !== null && (
+                  <div className="flex items-center justify-between bg-white rounded-md px-3 py-2 border">
+                    <div className="flex items-center space-x-2">
+                      <FaRupeeSign className="text-indigo-700" />
+                      <p className="text-sm text-gray-700">Current Wallet Balance</p>
+                    </div>
+                    <p className="text-xl font-extrabold text-gray-900">₹ {parseFloat(walletBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  </div>
+                )}
+                {withdrawVisible && !walletLoading && !walletError && (
+                  <div className="mt-4 bg-white border rounded-xl p-4 shadow-sm">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Withdraw Funds <span className="text-xs text-gray-500 font-normal">(Simulated Razorpay • Test Mode)</span></h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Amount (INR)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          value={withdrawAmount}
+                          onChange={(e) => setWithdrawAmount(e.target.value)}
+                          className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="e.g., 1000"
+                        />
                       </div>
-                    )}
-                    {!walletLoading && walletError && (
-                      <div className="text-red-700 text-sm font-semibold">{walletError}</div>
-                    )}
-                    {!walletLoading && !walletError && walletBalance !== null && (
-                      <div className="flex items-center justify-between bg-white rounded-md px-3 py-2 border">
-                        <div className="flex items-center space-x-2">
-                          <FaRupeeSign className="text-indigo-700" />
-                          <p className="text-sm text-gray-700">Current Wallet Balance</p>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Destination</label>
+                        <select
+                          value={withdrawMode}
+                          onChange={(e) => setWithdrawMode(e.target.value)}
+                          className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="upi">UPI</option>
+                          <option value="bank">Bank</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Beneficiary Name</label>
+                        <input
+                          type="text"
+                          value={withdrawName}
+                          onChange={(e) => setWithdrawName(e.target.value)}
+                          className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="Recipient name"
+                        />
+                      </div>
+                      {withdrawMode === "upi" ? (
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">UPI ID</label>
+                          <input
+                            type="text"
+                            value={withdrawUPI}
+                            onChange={(e) => setWithdrawUPI(e.target.value)}
+                            className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="example@bank"
+                          />
                         </div>
-                        <p className="text-xl font-extrabold text-gray-900">₹ {parseFloat(walletBalance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                      </div>
-                    )}
-                    {withdrawVisible && !walletLoading && !walletError && (
-                      <div className="mt-4 bg-white border rounded-xl p-4 shadow-sm">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-3">Withdraw Funds <span className="text-xs text-gray-500 font-normal">(Simulated Razorpay • Test Mode)</span></h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      ) : (
+                        <>
                           <div>
-                            <label className="block text-sm text-gray-600 mb-1">Amount (INR)</label>
-                            <input
-                              type="number"
-                              min="1"
-                              step="0.01"
-                              value={withdrawAmount}
-                              onChange={(e) => setWithdrawAmount(e.target.value)}
-                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              placeholder="e.g., 1000"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1">Destination</label>
-                            <select
-                              value={withdrawMode}
-                              onChange={(e) => setWithdrawMode(e.target.value)}
-                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            >
-                              <option value="upi">UPI</option>
-                              <option value="bank">Bank</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1">Beneficiary Name</label>
+                            <label className="block text-sm text-gray-600 mb-1">Account Number</label>
                             <input
                               type="text"
-                              value={withdrawName}
-                              onChange={(e) => setWithdrawName(e.target.value)}
+                              value={withdrawBankAccount}
+                              onChange={(e) => setWithdrawBankAccount(e.target.value)}
                               className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              placeholder="Recipient name"
+                              placeholder="0000 0000 0000"
                             />
                           </div>
-                          {withdrawMode === "upi" ? (
-                            <div>
-                              <label className="block text-sm text-gray-600 mb-1">UPI ID</label>
-                              <input
-                                type="text"
-                                value={withdrawUPI}
-                                onChange={(e) => setWithdrawUPI(e.target.value)}
-                                className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                placeholder="example@bank"
-                              />
-                            </div>
-                          ) : (
-                            <>
-                              <div>
-                                <label className="block text-sm text-gray-600 mb-1">Account Number</label>
-                                <input
-                                  type="text"
-                                  value={withdrawBankAccount}
-                                  onChange={(e) => setWithdrawBankAccount(e.target.value)}
-                                  className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                  placeholder="0000 0000 0000"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm text-gray-600 mb-1">IFSC</label>
-                                <input
-                                  type="text"
-                                  value={withdrawIFSC}
-                                  onChange={(e) => setWithdrawIFSC(e.target.value)}
-                                  className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                  placeholder="ABCD0123456"
-                                />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        {withdrawError && (
-                          <p className="mt-3 text-sm text-red-600 font-semibold">{withdrawError}</p>
-                        )}
-                        {withdrawSuccess && (
-                          <div className="mt-3 p-3 border rounded-md bg-green-50 text-green-700">
-                            <p className="text-sm font-semibold">Withdrawal successful.</p>
-                            <p className="text-xs">UTR: {withdrawSuccess?.payout?.utr}</p>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">IFSC</label>
+                            <input
+                              type="text"
+                              value={withdrawIFSC}
+                              onChange={(e) => setWithdrawIFSC(e.target.value)}
+                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              placeholder="ABCD0123456"
+                            />
                           </div>
-                        )}
-                        <div className="mt-4 flex items-center gap-3">
-                          <button
-                            onClick={async () => {
-                              setWithdrawError(null);
-                              setWithdrawSuccess(null);
-                              try {
-                                const amountNum = parseFloat(withdrawAmount);
-                                if (isNaN(amountNum) || amountNum <= 0) {
-                                  throw new Error("Enter a valid amount greater than 0");
-                                }
-                                if (walletBalance !== null && amountNum > parseFloat(walletBalance)) {
-                                  throw new Error("Amount exceeds available wallet balance");
-                                }
-
-                                // Redirect to Razorpay checkout page with withdraw details
-                                const prefill = {
-                                  name: mergedProfile?.name || "gig User",
-                                  email: mergedProfile?.email || user?.email || "",
-                                  contact: mergedProfile?.phone || "9999999999",
-                                };
-                                navigate("/razorpay", {
-                                  state: {
-                                    checkoutPurpose: "withdraw",
-                                    amount: amountNum,
-                                    mode: withdrawMode,
-                                    beneficiary_name: withdrawName,
-                                    ...(withdrawMode === "upi"
-                                      ? { upi_id: withdrawUPI }
-                                      : { account_number: withdrawBankAccount, ifsc: withdrawIFSC }),
-                                    prefill,
-                                    returnPath: "/gigs/profile",
-                                  },
-                                });
-                              } catch (err) {
-                                const msg = err.response?.data?.message || err.message || "Failed to withdraw";
-                                setWithdrawError(msg);
-                              } finally {
-                                // no local loading here; navigation will take users to Razorpay page
-                              }
-                            }}
-                            disabled={withdrawLoading}
-                            className="px-6 py-2 bg-emerald-600 text-white rounded-md font-semibold hover:bg-emerald-700 disabled:opacity-60"
-                          >
-                            {withdrawLoading ? "Processing..." : "Confirm Withdraw"}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setWithdrawVisible(false);
-                              setWithdrawAmount("");
-                              setWithdrawUPI("");
-                              setWithdrawName("");
-                              setWithdrawBankAccount("");
-                              setWithdrawIFSC("");
-                              setWithdrawError(null);
-                              setWithdrawSuccess(null);
-                            }}
-                            className="px-6 py-2 bg-gray-100 text-gray-800 rounded-md font-semibold hover:bg-gray-200"
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                        </>
+                      )}
+                    </div>
+                    {withdrawError && (
+                      <p className="mt-3 text-sm text-red-600 font-semibold">{withdrawError}</p>
+                    )}
+                    {withdrawSuccess && (
+                      <div className="mt-3 p-3 border rounded-md bg-green-50 text-green-700">
+                        <p className="text-sm font-semibold">Withdrawal successful.</p>
+                        <p className="text-xs">UTR: {withdrawSuccess?.payout?.utr}</p>
                       </div>
                     )}
+                    <div className="mt-4 flex items-center gap-3">
+                      <button
+                        onClick={async () => {
+                          setWithdrawError(null);
+                          setWithdrawSuccess(null);
+                          try {
+                            const amountNum = parseFloat(withdrawAmount);
+                            if (isNaN(amountNum) || amountNum <= 0) {
+                              throw new Error("Enter a valid amount greater than 0");
+                            }
+                            if (walletBalance !== null && amountNum > parseFloat(walletBalance)) {
+                              throw new Error("Amount exceeds available wallet balance");
+                            }
+                            const prefill = {
+                              name: mergedProfile?.name || "Gig User",
+                              email: mergedProfile?.email || user?.email || "",
+                              contact: mergedProfile?.phone || "9999999999",
+                            };
+                            navigate("/razorpay", {
+                              state: {
+                                checkoutPurpose: "withdraw",
+                                amount: amountNum,
+                                mode: withdrawMode,
+                                beneficiary_name: withdrawName,
+                                ...(withdrawMode === "upi"
+                                  ? { upi_id: withdrawUPI }
+                                  : { account_number: withdrawBankAccount, ifsc: withdrawIFSC }),
+                                prefill,
+                                returnPath: "/gig/profile",
+                              },
+                            });
+                          } catch (err) {
+                            const msg = err.response?.data?.message || err.message || "Failed to withdraw";
+                            setWithdrawError(msg);
+                          } finally {
+                          }
+                        }}
+                        disabled={withdrawLoading}
+                        className="px-6 py-2 bg-emerald-600 text-white rounded-md font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {withdrawLoading ? "Processing..." : "Confirm Withdraw"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setWithdrawVisible(false);
+                          setWithdrawAmount("");
+                          setWithdrawUPI("");
+                          setWithdrawName("");
+                          setWithdrawBankAccount("");
+                          setWithdrawIFSC("");
+                          setWithdrawError(null);
+                          setWithdrawSuccess(null);
+                        }}
+                        className="px-6 py-2 bg-gray-100 text-gray-800 rounded-md font-semibold hover:bg-gray-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             )}
-
-            {/* Razorpay checkout handled on /razorpay route */}
+          </div>
         </div>
+
 
         {/* KYC Verification Section */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
@@ -892,7 +929,8 @@ function GigProfileView() {
                 </button>
                 <button
                   onClick={() => {
-                    setUploadingDoc("update");
+                    const defaultType = documents[0]?.type || "aadhaar";
+                    setUploadingDoc(defaultType);
                   }}
                   className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors flex items-center space-x-2 shadow-md hover:shadow-lg"
                 >

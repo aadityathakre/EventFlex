@@ -374,27 +374,42 @@ function OrganizerProfileView() {
 
         {/* Location & Bank Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {mergedProfile?.location &&
-            Object.keys(mergedProfile.location).length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
-                  <FaMapMarkerAlt className="text-purple-600" />
-                  <span>Location</span>
-                </h3>
-                <div className="space-y-3">
-                  {Object.entries(mergedProfile.location).map(([key, value]) => (
-                    <div key={key}>
-                      <p className="text-sm text-gray-600 capitalize">
-                        {key.replace(/_/g, " ")}
-                      </p>
-                      <p className="font-semibold text-gray-900">
-                        {typeof value === 'object' ? JSON.stringify(value) : value}
-                      </p>
-                    </div>
-                  ))}
+          {mergedProfile?.location && (
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
+                <FaMapMarkerAlt className="text-purple-600" />
+                <span>Location</span>
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-600">City</p>
+                  <p className="font-semibold text-gray-900">{mergedProfile?.location?.city || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">State</p>
+                  <p className="font-semibold text-gray-900">{mergedProfile?.location?.state || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Country</p>
+                  <p className="font-semibold text-gray-900">{mergedProfile?.location?.country || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Address</p>
+                  <p className="font-semibold text-gray-900">{mergedProfile?.location?.address || mergedProfile?.location?.street || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Coordinates</p>
+                  <p className="font-semibold text-gray-900">
+                    {Array.isArray(mergedProfile?.location?.coordinates) && mergedProfile.location.coordinates.length >= 2
+                      ? `${mergedProfile.location.coordinates[1]}, ${mergedProfile.location.coordinates[0]}`
+                      : (mergedProfile?.location?.lat !== undefined && mergedProfile?.location?.lng !== undefined
+                        ? `${mergedProfile.location.lat}, ${mergedProfile.location.lng}`
+                        : "-")}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
           {mergedProfile?.bank_details &&
             Object.keys(mergedProfile.bank_details).length > 0 && (

@@ -14,6 +14,7 @@ function OrganizerManageGigs() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [gigProfileModal, setGigProfileModal] = useState({ open: false, data: null });
 
   // Local-only clear chat support (per conversation)
   const clearKey = (convId) => `org_chat_cleared_ts_${convId}`;
@@ -58,22 +59,28 @@ function OrganizerManageGigs() {
     fetchPools();
   }, []);
 
+  const viewGigProfile = async (gigId) => {
+    try {
+      const res = await axios.get(`${serverURL}/organizer/gigs/${gigId}/profile`, { withCredentials: true });
+      setGigProfileModal({ open: true, data: res.data?.data || null });
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to load gig profile", "error");
+    }
+  };
+
   const openChat = async (gig, eventId, poolId) => {
     setChatLoading(true);
     try {
       const res = await axios.post(
         `${serverURL}/organizer/pools/chat/${gig._id}`,
-        { eventId, poolId, message_text: "Hello!" },
+        { eventId, poolId },
         { withCredentials: true }
       );
       const conv = res.data?.data?.conversation || res.data?.conversation || res.data?.data;
       const conversationId = conv?._id;
       if (!conversationId) throw new Error("Conversation not created");
-      const msgRes = await axios.get(`${serverURL}/organizer/messages/${conversationId}`, { withCredentials: true });
-      const msgs = msgRes.data?.data || [];
-      setChatMessages(filterByClearTs(conversationId, msgs));
-      setChatModal({ open: true, convId: conversationId, gig, pool: poolId, eventId });
-      showToast("Chat opened", "success");
+      showToast("Chat ready", "success");
+      window.location.href = `/organizer/chat/${conversationId}`;
     } catch (e) {
       showToast(e?.response?.data?.message || e.message || "Failed to open chat", "error");
     } finally {
@@ -145,14 +152,17 @@ function OrganizerManageGigs() {
                       <div key={g._id} className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <img src={g.avatar} alt={g.fullName} className="w-8 h-8 rounded-full object-cover" />
-                          <span className="text-sm font-medium">{g.fullName || `${g.first_name} ${g.last_name}`}</span>
-                        </div>
-                        <button onClick={() => openChat(g, p?.event?._id, p._id)} className="px-3 py-1 text-xs border rounded-lg">Chat</button>
-                      </div>
-                    ))
-                  )}
+                  <span className="text-sm font-medium">{g.fullName || `${g.first_name} ${g.last_name}`}</span>
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <button onClick={() => viewGigProfile(g._id)} className="px-3 py-1 text-xs border rounded-lg">View</button>
+                  <button onClick={() => openChat(g, p?.event?._id, p._id)} className="px-3 py-1 text-xs border rounded-lg">Chat</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
             </div>
             ))}
           </div>
@@ -199,6 +209,65 @@ function OrganizerManageGigs() {
                 />
                 <button onClick={sendMessage} className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">Send</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {gigProfileModal.open && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-lg font-bold">Gig Profile</h4>
+                <button onClick={() => setGigProfileModal({ open: false, data: null })} className="px-3 py-1 border rounded-lg">Close</button>
+              </div>
+              {!gigProfileModal.data ? (
+                <div className="py-6 text-center text-gray-600">No data</div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    {gigProfileModal.data?.mergedProfile?.profile_image_url && (
+                      <img
+                        src={gigProfileModal.data.mergedProfile.profile_image_url}
+                        alt="avatar"
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    )}
+                    <div>
+                      <p className="font-semibold text-gray-900">{gigProfileModal.data?.mergedProfile?.name}</p>
+                      <p className="text-sm text-gray-600">{gigProfileModal.data?.mergedProfile?.email}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Bio</p>
+                    <p className="text-gray-900">{gigProfileModal.data?.mergedProfile?.bio || "-"}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-sm text-gray-600">Phone</p>
+                      <p className="text-gray-900">{gigProfileModal.data?.mergedProfile?.phone || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Location</p>
+                      <p className="text-gray-900">
+                        {gigProfileModal.data?.mergedProfile?.location?.city || "-"},{" "}
+                        {gigProfileModal.data?.mergedProfile?.location?.state || "-"}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Documents</p>
+                    <div className="text-gray-900">
+                      {(gigProfileModal.data?.documents || []).length} documents
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">KYC</p>
+                    <p className="text-gray-900">
+                      {gigProfileModal.data?.kyc?.status || "pending"}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

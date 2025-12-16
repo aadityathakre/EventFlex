@@ -161,17 +161,7 @@ function GigDashboard() {
                 <p className="text-gray-600 mb-4">Check-in/out and view history</p>
               </div>
             </div>
-            <div onClick={() => navigate("/gig/chat")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
-              <div className="relative h-40 overflow-hidden">
-                <img src="/cards_images/host.png" alt="Chat" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/40 via-purple-600/30 to-pink-600/20 opacity-60"></div>
-              </div>
-              <div className="p-6">
-                <h4 className="text-xl font-bold text-gray-900 mb-2">Chat</h4>
-                <p className="text-gray-600 mb-4">Conversations with organizers</p>
-              </div>
-            </div>
-            <div onClick={() => navigate("/gig/events")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+            <div onClick={() => navigate("/gig/attendance")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
               <div className="relative h-40 overflow-hidden">
                 <img src="/cards_images/poolApplication.png" alt="My Events" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-purple-600/40 via-indigo-600/30 to-pink-600/20 opacity-60"></div>
@@ -189,7 +179,7 @@ function GigDashboard() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold text-gray-900">Recent Events</h3>
             <button
-              onClick={() => navigate("/gig/events")}
+              onClick={() => navigate("/gig/pools")}
               className="text-purple-600 hover:text-indigo-600 font-semibold"
             >
               View All
@@ -214,7 +204,7 @@ function GigDashboard() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => navigate(`/gig/events`)} className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300">
+                    <button onClick={() => navigate(`/gig/attendance`)} className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300">
                       View
                     </button>
                   </div>

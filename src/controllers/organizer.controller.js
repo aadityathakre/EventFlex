@@ -569,6 +569,47 @@ export const updatePoolDetails = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, populated, "Pool updated"));
 });
 
+// 13.3 View a Gig's public profile (for organizer)
+export const getGigPublicProfile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const gig = await User.findById(id).lean();
+  if (!gig || gig.role !== "gig") {
+    throw new ApiError(404, "Gig not found");
+  }
+  let profile = await UserProfile.findOne({ user: id });
+  if (!profile) {
+    profile = {
+      user: id,
+      bio: "",
+      location: {},
+      availability: {},
+      bank_details: {},
+      profile_image_url: gig.avatar,
+      createdAt: gig.createdAt,
+      updatedAt: gig.updatedAt,
+    };
+  }
+  const mergedProfile = {
+    user: id,
+    name: gig.fullName || `${gig.first_name} ${gig.last_name}`,
+    email: gig.email,
+    phone: gig.phone,
+    role: gig.role,
+    bio: profile.bio || "",
+    location: profile.location || {},
+    availability: profile.availability || {},
+    bank_details: profile.bank_details || {},
+    profile_image_url: profile.profile_image_url || gig.avatar,
+    createdAt: profile.createdAt || gig.createdAt,
+    updatedAt: profile.updatedAt || gig.updatedAt,
+  };
+  const documents = await UserDocument.find({ user: id }).select("-__v").lean();
+  const kyc = await KYCVerification.findOne({ user: id }).select("status aadhaar_verified verified_at").lean();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { mergedProfile, documents, kyc }, "Gig profile"));
+});
+
 // 14. check pool applications
 export const getPoolApplications = asyncHandler(async (req, res) => {
   const { poolId } = req.params;
@@ -661,7 +702,7 @@ export const chatWithGig = asyncHandler(async (req, res) => {
   const { gigId } = req.params;
   const { eventId, poolId, message_text } = req.body;
 
-  if (!eventId || !poolId || !message_text) {
+  if (!eventId || !poolId) {
     throw new ApiError(400, "Missing required chat fields");
   }
 
@@ -679,14 +720,17 @@ export const chatWithGig = asyncHandler(async (req, res) => {
     });
   }
 
-  const message = await Message.create({
-    conversation: conversation._id,
-    sender: organizerId,
-    message_text,
-  });
+  let message = null;
+  if (message_text && message_text.trim()) {
+    message = await Message.create({
+      conversation: conversation._id,
+      sender: organizerId,
+      message_text,
+    });
+  }
 
   return res.status(201).json(
-    new ApiResponse(201, { conversation, message }, "Message sent to gig")
+    new ApiResponse(201, { conversation, message }, "Conversation ready")
   );
 });
 
@@ -718,9 +762,9 @@ export const getOrganizerApplications = asyncHandler(async (req, res) => {
 export const getOrganizerApplicationSummary = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const apps = await EventApplication.find({ organizer: organizerId })
-    .populate("event", "title host organizer status")
-    .populate("host", "first_name last_name")
-    .populate("organizer", "first_name last_name")
+    .populate("event", "title host organizer status event_type")
+    .populate("host", "first_name last_name email avatar")
+    .populate("organizer", "first_name last_name email avatar")
     .sort({ createdAt: -1 });
 
   const requested = apps.filter(a => a.application_status === "pending" && a.sender?.toString() === organizerId.toString());
@@ -954,12 +998,38 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
 export const getOrganizerConversations = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
 
-  const conversations = await Conversation.find({
+  const conversationsRaw = await Conversation.find({
     participants: organizerId,
   })
     .populate("event", "title start_date end_date location")
     .populate("pool", "pool_name status")
+    .populate("participants", "email role avatar first_name last_name")
     .sort({ createdAt: -1 });
+
+  const conversations = conversationsRaw.map((c) => {
+    const obj = c.toObject();
+    const hostUser = (obj.participants || []).find((p) => p.role === "host");
+    const gigUser = (obj.participants || []).find((p) => p.role === "gig");
+    const host =
+      hostUser &&
+      {
+        _id: hostUser._id,
+        email: hostUser.email,
+        avatar: hostUser.avatar,
+        fullName: `${hostUser.first_name} ${hostUser.last_name}`.trim(),
+        name: `${hostUser.first_name} ${hostUser.last_name}`.trim(),
+      };
+    const gig =
+      gigUser &&
+      {
+        _id: gigUser._id,
+        email: gigUser.email,
+        avatar: gigUser.avatar,
+        fullName: `${gigUser.first_name} ${gigUser.last_name}`.trim(),
+        name: `${gigUser.first_name} ${gigUser.last_name}`.trim(),
+      };
+    return { ...obj, host, gig };
+  });
 
   return res
     .status(200)

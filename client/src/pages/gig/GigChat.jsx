@@ -3,7 +3,7 @@ import axios from "axios";
 import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
-import { FaComments, FaPaperPlane } from "react-icons/fa";
+import { FaComments, FaPaperPlane, FaTrash } from "react-icons/fa";
 
 function GigChat() {
   const { showToast } = useToast();
@@ -14,6 +14,10 @@ function GigChat() {
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
 
+  const avatarFor = (email) => {
+    const ch = (email || "?").trim().charAt(0).toUpperCase();
+    return ch || "?";
+  };
   const loadConversations = async () => {
     try {
       const res = await axios.get(`${serverURL}/gigs/conversations`, { withCredentials: true });
@@ -57,11 +61,15 @@ function GigChat() {
     const q = search.trim().toLowerCase();
     if (!q) return conversations;
     return conversations.filter((c) => {
-      const title = c?.event?.title || c?.event?.name || c?.pool?.name || "";
+      const title = c?.event?.title || c?.event?.name || c?.pool?.pool_name || c?.pool?.name || "";
       return title.toLowerCase().includes(q);
     });
   }, [search, conversations]);
 
+  const selectedConversation = useMemo(
+    () => conversations.find((c) => c._id === active) || null,
+    [conversations, active]
+  );
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
       <TopNavbar title="Chat with Organizer" />
@@ -87,12 +95,27 @@ function GigChat() {
                 filteredConversations.map((c) => (
                   <button
                     key={c._id}
-                    className={`w-full text-left border rounded-md px-3 py-2 ${active === c._id ? "bg-indigo-50 border-indigo-600" : ""}`}
+                    className={`w-full text-left border rounded-md px-3 py-2 hover:bg-gray-50 transition ${active === c._id ? "bg-indigo-50 border-indigo-600" : ""}`}
                     onClick={() => { setActive(c._id); loadMessages(c._id); }}
                   >
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">{c?.event?.title || c?.event?.name || c?.pool?.name || "Conversation"}</p>
-                      <p className="text-xs text-gray-600 truncate">Pool: {c?.pool?.name || "N/A"}</p>
+                    <div className="flex items-center gap-3">
+                      {c?.organizer?.profile_image_url || c?.organizer?.avatar || c?.organizer?.photo ? (
+                        <img
+                          src={c?.organizer?.profile_image_url || c?.organizer?.avatar || c?.organizer?.photo}
+                          alt="Organizer"
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 text-sm font-bold">
+                          {avatarFor(c?.organizer?.email)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.event?.name || c?.pool?.pool_name || c?.pool?.name || "Conversation"}</p>
+                        <p className="text-xs text-gray-600 truncate">
+                          {(c?.organizer?.name || c?.organizer?.email || "Organizer")} • Pool: {c?.pool?.pool_name || c?.pool?.name || "N/A"}
+                        </p>
+                      </div>
                     </div>
                   </button>
                 ))
@@ -102,37 +125,77 @@ function GigChat() {
 
           {/* Chat thread */}
           <div className="basis-[60%] grow bg-white rounded-2xl shadow p-4 h-[75vh] flex flex-col">
-            <h3 className="font-semibold mb-2">Messages</h3>
-            <div className="flex-1 overflow-y-auto border rounded-md p-3 space-y-2 bg-slate-50">
-              {messages.length === 0 ? (
-                <p className="text-gray-600">Select a conversation</p>
-              ) : (
-                messages.map((m) => (
-                  <div key={m._id} className="flex flex-col max-w-[80%]">
-                    <span className="text-xs text-gray-700">{m?.sender?.role || m?.sender_role || "User"}</span>
-                    <span className="text-base break-words">{m?.message_text || m?.content || ""}</span>
+            {active && selectedConversation ? (
+              <div className="flex flex-col md:h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    {selectedConversation?.organizer?.profile_image_url || selectedConversation?.organizer?.avatar || selectedConversation?.organizer?.photo ? (
+                      <img
+                        src={selectedConversation?.organizer?.profile_image_url || selectedConversation?.organizer?.avatar || selectedConversation?.organizer?.photo}
+                        alt="Organizer"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 font-bold">
+                        {avatarFor(selectedConversation?.organizer?.email)}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {selectedConversation?.organizer?.name || selectedConversation?.organizer?.email || "Organizer"}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        {selectedConversation?.event?.title || selectedConversation?.event?.name || "Event"} • Pool: {selectedConversation?.pool?.pool_name || selectedConversation?.pool?.name || "N/A"}
+                      </p>
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
-            <div className="mt-3 flex gap-2">
-              <input
-                className="flex-1 border rounded-md px-3 py-2"
-                placeholder="Type a message"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-              />
-              <button className="px-4 py-2 bg-indigo-600 text-white rounded-md flex items-center gap-2" onClick={sendMessage} disabled={sending}>
-                <FaPaperPlane />
-                <span>{sending ? "Sending..." : "Send"}</span>
-              </button>
-            </div>
+                  <button onClick={() => setMessages([])} className="px-3 py-2 text-xs bg-red-600 text-white rounded-lg flex items-center gap-2">
+                    <FaTrash />
+                    Clear Chat
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto border rounded-md p-3 space-y-2 bg-slate-50">
+                  {messages.length === 0 ? (
+                    <p className="text-gray-600">No messages yet. Say hello!</p>
+                  ) : (
+                    messages.map((m) => (
+                      <div
+                        key={m._id}
+                        className={`max-w-[80%] flex items-end gap-2 ${m?.sender?.role === "gig" ? "ml-auto flex-row-reverse" : ""}`}
+                      >
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-700">
+                          {avatarFor(m?.sender?.email)}
+                        </div>
+                        <div className={`p-2 rounded-2xl shadow-sm ${m?.sender?.role === "gig" ? "bg-indigo-100" : "bg-gray-100"}`}>
+                          <p className="text-xs text-gray-500">{m?.sender?.email || m?.sender_email}</p>
+                          <p className="text-sm text-gray-900 break-words">{m?.message_text || m?.content || ""}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    className="flex-1 border rounded-md px-3 py-2"
+                    placeholder="Type a message"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                  />
+                  <button className="px-4 py-2 bg-indigo-600 text-white rounded-md flex items-center gap-2" onClick={sendMessage} disabled={sending}>
+                    <FaPaperPlane />
+                    <span>{sending ? "Sending..." : "Send"}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-600">Select a conversation to start chatting.</div>
+            )}
           </div>
         </div>
       </main>

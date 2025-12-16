@@ -61,7 +61,12 @@ const getProfile = asyncHandler(async (req, res) => {
     updatedAt: profile.updatedAt || user.updatedAt,
   };
 
-  return res.status(200).json(new ApiResponse(200, mergedProfile, "Profile fetched"));
+  const documents = await UserDocument.find({ user: gigId }).select("-__v").lean();
+  const kyc = await KYCVerification.findOne({ user: gigId }).select("-__v").lean();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { mergedProfile, documents, kyc }, "Profile fetched"));
 });
 
 // 2. Update profile //
@@ -313,13 +318,26 @@ const uploadDocuments = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Cloudinary upload failed");
   }
 
-  const doc = await UserDocument.create({
-    user: userId,
-    type,
-    fileUrl: cloudinaryRes.secure_url,
-  });
-
-  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+  try {
+    const doc = await UserDocument.create({
+      user: userId,
+      type,
+      fileUrl: cloudinaryRes.secure_url,
+    });
+    return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+  } catch (err) {
+    if (err && (err.code === 11000 || err.name === "MongoError")) {
+      const existingDoc = await UserDocument.findOne({ user: userId });
+      if (!existingDoc) {
+        throw new ApiError(409, "Document already exists and could not be located for update");
+      }
+      existingDoc.fileUrl = cloudinaryRes.secure_url;
+      existingDoc.type = type;
+      await existingDoc.save();
+      return res.status(200).json(new ApiResponse(200, existingDoc, "Existing document updated"));
+    }
+    throw err;
+  }
 });
 
 // 9.1 update existing document //
@@ -332,9 +350,10 @@ const updateGigDocs = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Document type and file is required");
   }
 
-  const existingDoc = await UserDocument.findOne({ user: userId, type });
+  // Find any existing document for this user (unique per user)
+  const existingDoc = await UserDocument.findOne({ user: userId });
   if (!existingDoc) {
-    throw new ApiError(404, "No existing document of this type found");
+    throw new ApiError(404, "No existing document found for user");
   }
 
   const cloudinaryRes = await uploadOnCloudinary(localFilePath);
@@ -343,6 +362,7 @@ const updateGigDocs = asyncHandler(async (req, res) => {
   }
 
   existingDoc.fileUrl = cloudinaryRes.secure_url;
+  existingDoc.type = type;
   await existingDoc.save();
 
   return res

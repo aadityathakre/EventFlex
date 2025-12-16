@@ -30,6 +30,10 @@ function OrganizerHostStatus() {
     fetchApplications();
   }, []);
 
+  useEffect(() => {
+    setPoolModal({ open: false, app: null, name: "", description: "" });
+  }, [activeTab]);
+
   const invitedApps = summary.invited || [];
   const requestedApps = summary.requested || [];
   const acceptedApps = summary.accepted || [];
@@ -135,7 +139,7 @@ function OrganizerHostStatus() {
               <div className="flex flex-wrap gap-4">
                 {invitedApps.map((a) => (
                   <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
-                    <div className="relative h-28 overflow-hidden">
+                    <div className="relative h-40 overflow-hidden">
                       <img
                         src={getEventTypeImage(a?.event?.event_type)}
                         alt={a?.event?.title || "Event"}
@@ -144,9 +148,14 @@ function OrganizerHostStatus() {
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
                     </div>
                     <div className="p-5 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
-                        <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                      <div className="flex items-center gap-3">
+                        {a?.host?.avatar && (
+                          <img src={a.host.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                        )}
+                        <div>
+                          <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
+                          <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                        </div>
                       </div>
                       <div className="flex items-center justify-end space-x-2">
                         <button onClick={() => rejectInvite(a._id)} className="px-3 py-2 text-sm border rounded-lg">Reject</button>
@@ -168,7 +177,7 @@ function OrganizerHostStatus() {
               <div className="flex flex-wrap gap-4">
                 {requestedApps.map((a) => (
                   <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
-                    <div className="relative h-28 overflow-hidden">
+                    <div className="relative h-40 overflow-hidden">
                       <img
                         src={getEventTypeImage(a?.event?.event_type)}
                         alt={a?.event?.title || "Event"}
@@ -177,9 +186,14 @@ function OrganizerHostStatus() {
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
                     </div>
                     <div className="p-5 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
-                        <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                      <div className="flex items-center gap-3">
+                        {a?.organizer?.avatar && (
+                          <img src={a.organizer.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                        )}
+                        <div>
+                          <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
+                          <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                        </div>
                       </div>
                       <p className="text-sm text-gray-500">Awaiting host response</p>
                     </div>
@@ -198,7 +212,7 @@ function OrganizerHostStatus() {
               <div className="flex flex-wrap gap-4">
                 {acceptedApps.map((a) => (
                   <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
-                    <div className="relative h-28 overflow-hidden">
+                    <div className="relative h-40 overflow-hidden">
                       <img
                         src={getEventTypeImage(a?.event?.event_type)}
                         alt={a?.event?.title || "Event"}
@@ -207,9 +221,14 @@ function OrganizerHostStatus() {
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
                     </div>
                     <div className="p-5 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
-                        <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                      <div className="flex items-center gap-3">
+                        {a?.host?.avatar && (
+                          <img src={a.host.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                        )}
+                        <div>
+                          <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
+                          <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {a?.pool_exists ? (
@@ -248,7 +267,7 @@ function OrganizerHostStatus() {
               <div className="flex flex-wrap gap-4">
                 {rejectedApps.map((a) => (
                   <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
-                    <div className="relative h-28 overflow-hidden">
+                    <div className="relative h-40 overflow-hidden">
                       <img
                         src={getEventTypeImage(a?.event?.event_type)}
                         alt={a?.event?.title || "Event"}
@@ -257,9 +276,14 @@ function OrganizerHostStatus() {
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
                     </div>
                     <div className="p-5 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
-                        <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                      <div className="flex items-center gap-3">
+                        {a?.host?.avatar && (
+                          <img src={a.host.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                        )}
+                        <div>
+                          <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
+                          <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="px-3 py-1 rounded-lg text-xs bg-pink-100 text-pink-700">Rejected</span>

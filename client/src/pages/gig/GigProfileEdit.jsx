@@ -22,6 +22,19 @@ function GigProfileEdit() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [walletInfo, setWalletInfo] = useState({ upi_id: "", balance_inr: 0 });
+  const [walletVisible, setWalletVisible] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [withdrawVisible, setWithdrawVisible] = useState(false);
+  const [withdrawMode, setWithdrawMode] = useState("upi");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawUPI, setWithdrawUPI] = useState("");
+  const [withdrawName, setWithdrawName] = useState("");
+  const [withdrawBankAccount, setWithdrawBankAccount] = useState("");
+  const [withdrawIFSC, setWithdrawIFSC] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawError, setWithdrawError] = useState(null);
+  const [withdrawSuccess, setWithdrawSuccess] = useState(null);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -50,7 +63,8 @@ function GigProfileEdit() {
       const response = await axios.get(`${serverURL}/gigs/profile`, {
         withCredentials: true,
       });
-      const { mergedProfile } = response.data.data;
+      const payload = response?.data?.data;
+      const mergedProfile = payload?.mergedProfile || payload || {};
       setProfileData(mergedProfile);
 
       const nameParts = mergedProfile.name?.split(" ") || [];
@@ -81,6 +95,19 @@ function GigProfileEdit() {
     }
   };
 
+  useEffect(() => {
+    const loadWallet = async () => {
+      try {
+        const res = await axios.get(`${serverURL}/gigs/wallet`, { withCredentials: true });
+        const upi = res.data?.data?.upi_id || "";
+        const balRaw = res.data?.data?.balance_inr ?? res.data?.data?.balance;
+        const bal = typeof balRaw === "object" && balRaw?.$numberDecimal ? parseFloat(balRaw.$numberDecimal) : parseFloat(balRaw ?? 0);
+        setWalletInfo({ upi_id: upi, balance_inr: Number.isFinite(bal) ? bal : 0 });
+      } catch (e) {}
+    };
+    loadWallet();
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -109,7 +136,7 @@ function GigProfileEdit() {
       });
       updateUser({ email: formData.email });
       alert("Profile updated successfully!");
-      navigate("/gigs/profile");
+      navigate("/gig/profile");
     } catch (err) {
       console.error("Profile update error:", err);
       alert(err.response?.data?.message || "Failed to update profile");
@@ -135,7 +162,7 @@ function GigProfileEdit() {
         <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={() => navigate("/gigs/profile")}
+            onClick={() => navigate("/gig/profile")}
             className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
             Back to Profile
@@ -153,7 +180,7 @@ function GigProfileEdit() {
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate("/gigs/profile")}
+                onClick={() => navigate("/gig/profile")}
                 className="text-gray-600 hover:text-purple-600 transition-colors"
               >
                 <FaArrowLeft className="text-xl" />
@@ -164,12 +191,12 @@ function GigProfileEdit() {
               <span className="text-gray-400">|</span>
               <span className="text-gray-700 font-medium">Edit Profile</span>
             </div>
-            <button
-              onClick={() => navigate("/gigs/profile")}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold transition-all duration-300"
-            >
-              Cancel
-            </button>
+              <button
+                onClick={() => navigate("/gig/profile")}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold transition-all duration-300"
+              >
+                Cancel
+              </button>
           </div>
         </div>
       </header>
@@ -311,6 +338,44 @@ function GigProfileEdit() {
                   placeholder="United States"
                 />
               </div>
+              <div className="md:col-span-3">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={formData.location.address || ""}
+                  onChange={(e) => handleLocationChange("address", e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none transition-all"
+                  placeholder="Street, Area, Landmark"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Latitude
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.location.lat ?? ""}
+                  onChange={(e) => handleLocationChange("lat", e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none transition-all"
+                  placeholder="28.6139"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Longitude
+                </label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={formData.location.lng ?? ""}
+                  onChange={(e) => handleLocationChange("lng", e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none transition-all"
+                  placeholder="77.2090"
+                />
+              </div>
             </div>
           </div>
 
@@ -382,6 +447,227 @@ function GigProfileEdit() {
             </div>
           </div>
 
+          {/* Payment Settings */}
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                <FaWallet className="text-indigo-600 text-xl" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Payment Settings</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  UPI ID
+                </label>
+                <input
+                  type="text"
+                  value={walletInfo.upi_id}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                />
+                <p className="text-xs text-gray-500 mt-1">Manage payout destination in Wallet page.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Wallet Balance (INR)
+                </label>
+                <input
+                  type="text"
+                  value={`₹ ${(walletInfo.balance_inr || 0).toFixed(2)}`}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  setWalletVisible(true);
+                  setWalletLoading(true);
+                  try {
+                    const res = await axios.get(`${serverURL}/gigs/wallet`, { withCredentials: true });
+                    const balRaw = res.data?.data?.balance_inr ?? res.data?.data?.balance;
+                    const bal = typeof balRaw === "object" && balRaw?.$numberDecimal ? parseFloat(balRaw.$numberDecimal) : parseFloat(balRaw ?? 0);
+                    setWalletInfo((w) => ({ ...w, balance_inr: Number.isFinite(bal) ? bal : 0 }));
+                  } catch (e) {}
+                  setWalletLoading(false);
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
+              >
+                Show Balance
+              </button>
+              {walletVisible && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWithdrawVisible((v) => !v);
+                    setWithdrawError(null);
+                    setWithdrawSuccess(null);
+                  }}
+                  className="px-4 py-2 bg-rose-600 text-white rounded-lg"
+                >
+                  Withdraw
+                </button>
+              )}
+            </div>
+            {walletVisible && (
+              <div className="mt-4 p-4 border-2 border-indigo-200 rounded-xl bg-indigo-50 space-y-3">
+                {walletLoading ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600" />
+                ) : (
+                  <div className="flex items-center justify-between bg-white rounded-md px-3 py-2 border">
+                    <span className="text-sm text-gray-700">Current Wallet Balance</span>
+                    <span className="text-xl font-extrabold text-gray-900">₹ {(walletInfo.balance_inr || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {withdrawVisible && !walletLoading && (
+                  <div className="mt-3 bg-white border rounded-xl p-4 shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Amount (INR)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          value={withdrawAmount}
+                          onChange={(e) => setWithdrawAmount(e.target.value)}
+                          className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="e.g., 1000"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Destination</label>
+                        <select
+                          value={withdrawMode}
+                          onChange={(e) => setWithdrawMode(e.target.value)}
+                          className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="upi">UPI</option>
+                          <option value="bank">Bank</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">Beneficiary Name</label>
+                        <input
+                          type="text"
+                          value={withdrawName}
+                          onChange={(e) => setWithdrawName(e.target.value)}
+                          className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder="Recipient name"
+                        />
+                      </div>
+                      {withdrawMode === "upi" ? (
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">UPI ID</label>
+                          <input
+                            type="text"
+                            value={withdrawUPI}
+                            onChange={(e) => setWithdrawUPI(e.target.value)}
+                            className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="example@bank"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Account Number</label>
+                            <input
+                              type="text"
+                              value={withdrawBankAccount}
+                              onChange={(e) => setWithdrawBankAccount(e.target.value)}
+                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              placeholder="0000 0000 0000"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">IFSC</label>
+                            <input
+                              type="text"
+                              value={withdrawIFSC}
+                              onChange={(e) => setWithdrawIFSC(e.target.value)}
+                              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              placeholder="ABCD0123456"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {withdrawError && (
+                      <p className="mt-3 text-sm text-red-600 font-semibold">{withdrawError}</p>
+                    )}
+                    {withdrawSuccess && (
+                      <div className="mt-3 p-3 border rounded-md bg-green-50 text-green-700">
+                        <p className="text-sm font-semibold">Withdrawal successful.</p>
+                        <p className="text-xs">UTR: {withdrawSuccess?.payout?.utr}</p>
+                      </div>
+                    )}
+                    <div className="mt-4 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setWithdrawError(null);
+                          setWithdrawSuccess(null);
+                          try {
+                            const amountNum = parseFloat(withdrawAmount);
+                            if (isNaN(amountNum) || amountNum <= 0) {
+                              throw new Error("Enter a valid amount greater than 0");
+                            }
+                            if (walletInfo.balance_inr !== null && amountNum > parseFloat(walletInfo.balance_inr)) {
+                              throw new Error("Amount exceeds available wallet balance");
+                            }
+                            const prefill = {
+                              name: profileData?.name || "Gig User",
+                              email: profileData?.email || user?.email || "",
+                              contact: profileData?.phone || "9999999999",
+                            };
+                            navigate("/razorpay", {
+                              state: {
+                                checkoutPurpose: "withdraw",
+                                amount: amountNum,
+                                mode: withdrawMode,
+                                beneficiary_name: withdrawName,
+                                ...(withdrawMode === "upi"
+                                  ? { upi_id: withdrawUPI || walletInfo.upi_id }
+                                  : { account_number: withdrawBankAccount, ifsc: withdrawIFSC }),
+                                prefill,
+                                returnPath: "/gig/profile",
+                              },
+                            });
+                          } catch (err) {
+                            const msg = err.response?.data?.message || err.message || "Failed to withdraw";
+                            setWithdrawError(msg);
+                          }
+                        }}
+                        disabled={withdrawLoading}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-md"
+                      >
+                        {withdrawLoading ? "Processing..." : "Confirm Withdraw"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWithdrawVisible(false);
+                          setWithdrawAmount("");
+                          setWithdrawUPI("");
+                          setWithdrawName("");
+                          setWithdrawBankAccount("");
+                          setWithdrawIFSC("");
+                          setWithdrawError(null);
+                          setWithdrawSuccess(null);
+                        }}
+                        className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Action Buttons */}
           <div className="flex items-center justify-center space-x-4">
             <button
@@ -395,7 +681,7 @@ function GigProfileEdit() {
 
             <button
               type="button"
-              onClick={() => navigate("/gigs/profile")}
+              onClick={() => navigate("/gig/profile")}
               className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300 flex items-center space-x-2"
             >
               <FaTimes />
