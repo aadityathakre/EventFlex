@@ -22,6 +22,7 @@ export const getEventTypeImage = (type) => {
 
 export const getCardImage = (key) => {
   const base = "/cards_images";
+  const gigBase = "/gig-card-images";
   const map = {
     // Existing keys
     events: `${base}/host.png`,
@@ -37,6 +38,15 @@ export const getCardImage = (key) => {
     payments: `${base}/wallet.png`,
     organizerStatus: `${base}/poolApplication.png`,
     organizerPools: `${base}/pool.png`,
+    // Gig dashboard modules (images stored in public/gig-card-images)
+    gigNearbyEvents: `${gigBase}/nearby-events.png`,
+    gigApplications: `${gigBase}/applications.png`,
+    gigMyEvents: `${gigBase}/my-events.png`,
+    gigWallet: `${gigBase}/wallet.png`,
+    gigAttendance: `${gigBase}/attendance.png`,
+    gigDisputes: `${gigBase}/disputes.png`,
+    gigBadges: `${gigBase}/badges.png`,
+    gigFeedbacks: `${gigBase}/feedbacks.png`,
   };
   return map[key] || `${base}/escrow.png`;
 };

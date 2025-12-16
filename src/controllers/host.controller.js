@@ -966,6 +966,16 @@ export const markHostNotificationRead = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
 });
 
+export const deleteHostNotification = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+  const notif = await Notification.findById(id);
+  if (!notif || notif.user.toString() !== hostId.toString()) {
+    return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
+  }
+  await Notification.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Notification deleted"));
+});
 export const getOrganizerPublicProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const user = await User.findById(id).select("first_name last_name email phone role avatar isVerified");
@@ -1015,6 +1025,22 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required deposit fields");
   }
 
+  const totalNum = parseFloat(
+    typeof total_amount === "object" && typeof total_amount.toString === "function"
+      ? total_amount.toString()
+      : total_amount
+  );
+  const hostWallet = await UserWallet.findOne({ user: hostId });
+  if (!hostWallet) {
+    throw new ApiError(400, "Host wallet not found");
+  }
+  const currentBal = parseFloat(hostWallet.balance_inr?.toString?.() || "0");
+  if (currentBal < totalNum) {
+    throw new ApiError(400, "Insufficient balance in host wallet");
+  }
+  hostWallet.balance_inr = mongoose.Types.Decimal128.fromString((currentBal - totalNum).toFixed(2));
+  await hostWallet.save();
+
   const escrow = await EscrowContract.create({
     event: eventId,
     host: hostId,
@@ -1032,7 +1058,7 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     amount: total_amount,
     payment_method,
     upi_transaction_id,
-    status: "completed",
+    status: "pending",
   });
 
   const eventDoc = await Event.findById(eventId).select("title");
@@ -1089,6 +1115,48 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
 
   escrow.status = "released";
   await escrow.save();
+
+  const total = parseFloat(escrow.total_amount?.toString?.() || "0");
+  const orgPct = parseFloat(escrow.organizer_percentage?.toString?.() || "0");
+  const gigsPct = parseFloat(escrow.gigs_percentage?.toString?.() || "0");
+  const organizerAmount = (total * orgPct) / 100;
+  const gigsAmount = (total * gigsPct) / 100;
+
+  const pool = await OrganizerPool.findOne({ organizer: escrow.organizer, event: escrow.event });
+  const capacity = pool?.max_capacity || 1;
+  const perGigAmount = capacity > 0 ? gigsAmount / capacity : 0;
+
+  const organizerWallet = await UserWallet.findOne({ user: escrow.organizer });
+  if (organizerWallet) {
+    const obal = parseFloat(organizerWallet.balance_inr?.toString?.() || "0");
+    organizerWallet.balance_inr = mongoose.Types.Decimal128.fromString((obal + organizerAmount).toFixed(2));
+    await organizerWallet.save();
+  }
+
+  for (const gid of pool?.gigs || []) {
+    const gw = await UserWallet.findOne({ user: gid });
+    if (!gw) continue;
+    const gbal = parseFloat(gw.balance_inr?.toString?.() || "0");
+    gw.balance_inr = mongoose.Types.Decimal128.fromString((gbal + perGigAmount).toFixed(2));
+    await gw.save();
+    await Payment.create({
+      escrow: escrow._id,
+      payer: hostId,
+      payee: gid,
+      amount: mongoose.Types.Decimal128.fromString(perGigAmount.toFixed(2)),
+      payment_method: "upi",
+      status: "completed",
+    });
+  }
+
+  await Payment.create({
+    escrow: escrow._id,
+    payer: hostId,
+    payee: escrow.organizer,
+    amount: mongoose.Types.Decimal128.fromString(organizerAmount.toFixed(2)),
+    payment_method: "upi",
+    status: "completed",
+  });
 
   return res
     .status(200)

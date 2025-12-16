@@ -50,6 +50,7 @@ import {
   deleteHostApplication,
   getHostNotifications,
   markHostNotificationRead,
+  deleteHostNotification,
   getOrganizerPublicProfile,
   
 } from "../controllers/host.controller.js";
@@ -111,6 +112,7 @@ router.post("/reviews/rating", verifyToken, authorizeRoles("host"), createRating
 router.post("/reviews/feedback", verifyToken, authorizeRoles("host"), createFeedback);   // Gig
 router.get("/notifications", verifyToken, authorizeRoles("host"), getHostNotifications);
 router.put("/notifications/:id/read", verifyToken, authorizeRoles("host"), markHostNotificationRead);
+router.delete("/notifications/:id", verifyToken, authorizeRoles("host"), deleteHostNotification);
 
 
 export default router;

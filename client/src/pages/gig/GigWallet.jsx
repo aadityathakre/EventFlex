@@ -16,6 +16,7 @@ function GigWallet() {
   const [loading, setLoading] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [payments, setPayments] = useState([]);
+  const [escrowPayments, setEscrowPayments] = useState([]);
 
   const [withdrawMode, setWithdrawMode] = useState("upi");
   const [withdrawName, setWithdrawName] = useState("");
@@ -61,7 +62,15 @@ function GigWallet() {
   const fetchPayments = async () => {
     try {
       const res = await axios.get(`${serverURL}/gigs/payment-history`, { withCredentials: true });
-      setPayments(res.data?.data || []);
+      const items = res.data?.data || [];
+      setPayments(items);
+      const esc = items.filter((p) => p?.escrow).map((p) => ({
+        _id: p._id,
+        event: p?.escrow?.event || p?.event,
+        total_amount: p?.escrow?.total_amount ?? p?.amount,
+        status: p?.escrow?.status || p?.status,
+      }));
+      setEscrowPayments(esc);
     } catch (e) {}
   };
 
@@ -168,6 +177,25 @@ function GigWallet() {
             </div>
           </div>
           <div className="w-full md:w-3/5 space-y-6 mt-6 md:mt-0">
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h4 className="text-lg font-bold mb-3">Escrow Payments</h4>
+              {escrowPayments.length === 0 ? (
+                <p className="text-gray-600">No escrow payments yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-[200px] overflow-auto">
+                  {escrowPayments.map((p) => (
+                    <div key={p._id} className="border rounded-xl p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">Event: {typeof p.event === "object" ? p.event?.title || "-" : p.event || "-"}</p>
+                        <p className="text-sm text-gray-600">Total: ₹ {((typeof p.total_amount === "object" && p.total_amount?.$numberDecimal) ? parseFloat(p.total_amount.$numberDecimal) : typeof p.total_amount === "number" ? p.total_amount : parseFloat(p.total_amount || 0)).toFixed(2)}</p>
+                        <p className="text-sm text-gray-600">Status: {p.status || 'pending'}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-lg text-xs ${p.status === 'released' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.status || 'pending'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h4 className="text-lg font-bold mb-3">Payment History</h4>
               {payments.length === 0 ? (

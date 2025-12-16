@@ -130,17 +130,43 @@ function Razorpay() {
               });
               return;
             } else {
-              // Regular payment flow (non-withdraw) — try verify, but do not alert on failure
-              try {
-                await axios.post(`${serverURL}/payments/verify`, {
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                });
-              } catch (e) {
-                console.warn("Verification failed in demo mode, proceeding without alert.");
+              if (flow?.checkoutPurpose === "deposit_escrow") {
+                try {
+                  await axios.post(`${serverURL}/host/payment/deposit`, {
+                    eventId: flow.eventId,
+                    organizerId: flow.organizerId,
+                    total_amount: flow.amount,
+                    organizer_percentage: flow.organizer_percentage ?? 70,
+                    gigs_percentage: flow.gigs_percentage ?? 30,
+                    payment_method: flow.payment_method || "upi",
+                    upi_transaction_id: response.razorpay_payment_id,
+                  }, { withCredentials: true });
+                  navigate(flow.returnPath || "/host/payments", {
+                    state: {
+                      toast: {
+                        type: "success",
+                        title: "Escrow funded",
+                        message: "Deposit completed",
+                      },
+                    },
+                  });
+                } catch {
+                  navigate(flow.returnPath || "/host/payments", {
+                    state: {
+                      toast: { type: "error", title: "Deposit failed", message: "Could not fund escrow" },
+                    },
+                  });
+                }
+              } else {
+                try {
+                  await axios.post(`${serverURL}/payments/verify`, {
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                  });
+                } catch {}
+                navigate("/");
               }
-              navigate("/");
             }
           } catch (verifyError) {
             console.error("Payment or withdraw error:", verifyError);
@@ -216,14 +242,38 @@ function Razorpay() {
             state: {
               toast: { type: "error", title: "Payment failed", message: "Could not complete withdrawal in demo mode." },
             },
+        });
+      } else {
+        if (flow?.checkoutPurpose === "deposit_escrow") {
+          try {
+            await axios.post(`${serverURL}/host/payment/deposit`, {
+              eventId: flow.eventId,
+              organizerId: flow.organizerId,
+              total_amount: flow.amount,
+              organizer_percentage: flow.organizer_percentage ?? 70,
+              gigs_percentage: flow.gigs_percentage ?? 30,
+              payment_method: flow.payment_method || "upi",
+              upi_transaction_id: "demo",
+            }, { withCredentials: true });
+            navigate(flow.returnPath || "/host/payments", {
+              state: {
+                toast: { type: "success", title: "Escrow funded", message: "Deposit completed" },
+              },
+            });
+          } catch {
+            navigate(flow.returnPath || "/host/payments", {
+              state: {
+                toast: { type: "error", title: "Deposit failed", message: "Could not fund escrow" },
+              },
+            });
+          }
+        } else {
+          navigate("/", {
+            state: {
+              toast: { type: "error", title: "Payment failed", message: "Demo payment could not be completed." },
+            },
           });
         }
-      } else {
-        navigate("/", {
-          state: {
-            toast: { type: "error", title: "Payment failed", message: "Demo payment could not be completed." },
-          },
-        });
       }
     }
   };

@@ -569,6 +569,20 @@ export const updatePoolDetails = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, populated, "Pool updated"));
 });
 
+export const deletePool = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+
+  const pool = await Pool.findById(id);
+  if (!pool) throw new ApiError(404, "Pool not found");
+  if (pool.organizer.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to delete this pool");
+  }
+
+  await Pool.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Pool deleted"));
+});
+
 // 13.3 View a Gig's public profile (for organizer)
 export const getGigPublicProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -973,6 +987,26 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
 });
 
 
+export const createOrganizerRating = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { eventId, gigId, rating, review_text } = req.body;
+
+  if (!eventId || !gigId || rating === undefined) {
+    throw new ApiError(400, "Missing required rating fields");
+  }
+
+  const review = await Rating.create({
+    event: eventId,
+    reviewer: organizerId,
+    reviewee: gigId,
+    rating,
+    review_text,
+    review_type: "organizer_to_gig",
+  });
+
+  return res.status(201).json(new ApiResponse(201, review, "Rating review submitted"));
+});
+
 
 //  Get Notifications
 export const getNotifications = asyncHandler(async (req, res) => {
@@ -993,6 +1027,16 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
 });
 
+export const deleteNotification = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const notif = await Notification.findById(id);
+  if (!notif || notif.user.toString() !== organizerId.toString()) {
+    return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
+  }
+  await Notification.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Notification deleted"));
+});
 
 // 28. Organizer: List Conversations
 export const getOrganizerConversations = asyncHandler(async (req, res) => {

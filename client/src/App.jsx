@@ -39,6 +39,11 @@ import GigWallet from "./pages/gig/GigWallet.jsx";
 import GigPools from "./pages/gig/GigPools.jsx";
 import GigAttendance from "./pages/gig/GigAttendance.jsx";
 import GigChat from "./pages/gig/GigChat.jsx";
+import GigApplications from "./pages/gig/GigApplications.jsx";
+import GigDisputes from "./pages/gig/GigDisputes.jsx";
+import GigBadges from "./pages/gig/GigBadges.jsx";
+import GigFeedbacks from "./pages/gig/GigFeedbacks.jsx";
+import GigMyEvents from "./pages/gig/GigMyEvents.jsx";
 
 // Robust serverURL fallback to avoid env-related 404s during local dev
 const host = import.meta.env.VITE_SERVER_URL ?? "http://localhost";
@@ -239,10 +244,50 @@ function App() {
         }
       />
       <Route 
+        path='/gig/applications'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigApplications />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/my-events'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigMyEvents />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
         path='/gig/attendance'
         element={
           <ProtectedRoute allowedRoles={['gig']}>
             <GigAttendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/badges'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigBadges />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/feedbacks'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigFeedbacks />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/disputes'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigDisputes />
           </ProtectedRoute>
         }
       />

@@ -5,6 +5,7 @@ import axios from "axios";
 import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
 import { FaCalendarAlt, FaWallet, FaSignOutAlt, FaUserCircle, FaBell, FaComments } from "react-icons/fa";
+import { getEventTypeImage, getCardImage } from "../../utils/imageMaps.js";
 
 function GigDashboard() {
   const { user, logout } = useAuth();
@@ -131,9 +132,42 @@ function GigDashboard() {
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
           <h3 className="text-xl font-bold text-gray-900 mb-6">Features</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* 1. Nearby Events */}
+            <div onClick={() => navigate("/gig/pools")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+              <div className="relative h-40 overflow-hidden">
+                <img src={getCardImage("gigNearbyEvents")} alt="Nearby Events" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-600/40 via-indigo-600/30 to-pink-600/20 opacity-60"></div>
+              </div>
+              <div className="p-6">
+                <h4 className="text-xl font-bold text-gray-900 mb-2">Nearby Events</h4>
+                <p className="text-gray-600 mb-4">Browse organizer pools near you</p>
+              </div>
+            </div>
+            {/* 2. Application Status */}
+            <div onClick={() => navigate("/gig/applications")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+              <div className="relative h-40 overflow-hidden">
+                <img src={getCardImage("gigApplications")} alt="Application Status" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/40 via-purple-600/30 to-pink-600/20 opacity-60"></div>
+              </div>
+              <div className="p-6">
+                <h4 className="text-xl font-bold text-gray-900 mb-2">Application Status</h4>
+                <p className="text-gray-600 mb-4">Requested, accepted and rejected</p>
+              </div>
+            </div>
+            {/* 3. My Events */}
+            <div onClick={() => navigate("/gig/my-events")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+              <div className="relative h-40 overflow-hidden">
+                <img src={getCardImage("gigMyEvents")} alt="My Events" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-600/40 via-indigo-600/30 to-pink-600/20 opacity-60"></div>
+              </div>
+              <div className="p-6">
+                <h4 className="text-xl font-bold text-gray-900 mb-2">My Events</h4>
+                <p className="text-gray-600 mb-4">Accepted events and chat</p>
+              </div>
+            </div>
             <div onClick={() => navigate("/gig/wallet")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
               <div className="relative h-40 overflow-hidden">
-                <img src="/cards_images/wallet.png" alt="Wallet" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img src={getCardImage("gigWallet")} alt="Wallet" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/40 via-purple-600/30 to-pink-600/20 opacity-60"></div>
               </div>
               <div className="p-6">
@@ -141,19 +175,10 @@ function GigDashboard() {
                 <p className="text-gray-600 mb-4">Check balance and withdraw</p>
               </div>
             </div>
-            <div onClick={() => navigate("/gig/pools")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
-              <div className="relative h-40 overflow-hidden">
-                <img src="/cards_images/pool.png" alt="Join Pool" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-purple-600/40 via-indigo-600/30 to-pink-600/20 opacity-60"></div>
-              </div>
-              <div className="p-6">
-                <h4 className="text-xl font-bold text-gray-900 mb-2">Join Pool</h4>
-                <p className="text-gray-600 mb-4">Find and apply to organizer pools</p>
-              </div>
-            </div>
+            {/* 4. Attendance */}
             <div onClick={() => navigate("/gig/attendance")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
               <div className="relative h-40 overflow-hidden">
-                <img src="/cards_images/escrow.png" alt="Attendance" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img src={getCardImage("gigAttendance")} alt="Attendance" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-pink-600/40 via-indigo-600/30 to-purple-600/20 opacity-60"></div>
               </div>
               <div className="p-6">
@@ -161,14 +186,39 @@ function GigDashboard() {
                 <p className="text-gray-600 mb-4">Check-in/out and view history</p>
               </div>
             </div>
-            <div onClick={() => navigate("/gig/attendance")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+            {/* 3. My Events */}
+            {/* 5. My Disputes */}
+            {/* 4. My Disputes */}
+            <div onClick={() => navigate("/gig/disputes")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
               <div className="relative h-40 overflow-hidden">
-                <img src="/cards_images/poolApplication.png" alt="My Events" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img src={getCardImage("gigDisputes")} alt="My Disputes" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-purple-600/40 via-indigo-600/30 to-pink-600/20 opacity-60"></div>
               </div>
               <div className="p-6">
-                <h4 className="text-xl font-bold text-gray-900 mb-2">My Events</h4>
-                <p className="text-gray-600 mb-4">Accepted events and assignments</p>
+                <h4 className="text-xl font-bold text-gray-900 mb-2">My Disputes</h4>
+                <p className="text-gray-600 mb-4">View disputes and their status</p>
+              </div>
+            </div>
+            {/* 6. Badges */}
+            <div onClick={() => navigate("/gig/badges")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+              <div className="relative h-40 overflow-hidden">
+                <img src={getCardImage("gigBadges")} alt="Badges" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-600/40 via-indigo-600/30 to-pink-600/20 opacity-60"></div>
+              </div>
+              <div className="p-6">
+                <h4 className="text-xl font-bold text-gray-900 mb-2">Badges</h4>
+                <p className="text-gray-600 mb-4">Earned achievements</p>
+              </div>
+            </div>
+            {/* 7. Feedback & Ratings */}
+            <div onClick={() => navigate("/gig/feedbacks")} className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer">
+              <div className="relative h-40 overflow-hidden">
+                <img src={getCardImage("gigFeedbacks")} alt="Feedback & Ratings" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-600/40 via-indigo-600/30 to-pink-600/20 opacity-60"></div>
+              </div>
+              <div className="p-6">
+                <h4 className="text-xl font-bold text-gray-900 mb-2">Feedback & Ratings</h4>
+                <p className="text-gray-600 mb-4">View and submit feedback</p>
               </div>
             </div>
           </div>
@@ -191,25 +241,55 @@ function GigDashboard() {
               <p className="text-gray-600 mb-4">No accepted events yet</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {recentEvents.map((pool) => (
-                <div key={pool._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-300">
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{pool.pool_name || "Assigned Pool"}</h4>
-                    {pool.status && (
-                      <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                        pool.status === "active" ? "bg-green-100 text-green-800" :
-                        pool.status === "completed" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
-                      }`}>{pool.status}</span>
-                    )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recentEvents.map((pool) => {
+                const event = pool?.event || null;
+                const start = event?.start_date ? new Date(event.start_date).toLocaleString() : "-";
+                const end = event?.end_date ? new Date(event.end_date).toLocaleString() : "-";
+                const statusBadge =
+                  pool.status === "active"
+                    ? "bg-green-100 text-green-800"
+                    : pool.status === "completed"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-gray-100 text-gray-800";
+                return (
+                  <div key={pool._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300">
+                    <div className="relative h-28 overflow-hidden">
+                      <img
+                        src={getEventTypeImage(event?.event_type)}
+                        alt={event?.title || "Event"}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25 pointer-events-none" />
+                    </div>
+                    <div className="p-4 flex items-center justify-between">
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-gray-900 truncate">{event?.title || pool.pool_name || "Assigned Event"}</h4>
+                        <p className="text-xs text-gray-600">Start: {start}</p>
+                        <p className="text-xs text-gray-600">End: {end}</p>
+                        {pool.status && (
+                          <span className={`mt-2 inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadge}`}>{pool.status}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => navigate(`/gig/chat`)}
+                          className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                          title="Open chat"
+                        >
+                          <FaComments className="text-purple-600" />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/gig/attendance`)}
+                          className="px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300 text-sm"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => navigate(`/gig/attendance`)} className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300">
-                      View
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

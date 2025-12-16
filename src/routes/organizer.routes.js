@@ -25,6 +25,7 @@ import {
   chatWithGig,
   getPoolApplications,
   reviewApplication,
+  deletePool,
   getOrganizerConversations,
   getOrganizerConversationMessages,
   sendOrganizerMessage,
@@ -45,11 +46,13 @@ import {
   getLeaderboard,
   getOrganizerBadges,
   getGigPublicProfile,
+  createOrganizerRating,
   
 
   // 🔔 Notifications
   getNotifications,
   markNotificationRead,
+  deleteNotification,
 
   // 🚨 Dispute Management
   raiseDispute,
@@ -87,6 +90,7 @@ router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPoo
 router.get("/pools", verifyToken, authorizeRoles("organizer"), getMyPools);
 router.put("/pools/:id", verifyToken, authorizeRoles("organizer"), updatePoolDetails);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
+router.delete("/pools/:id", verifyToken, authorizeRoles("organizer"), deletePool);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 router.get("/pools/:poolId/applications", verifyToken, authorizeRoles("organizer"), getPoolApplications);
 router.post("/applications/:applicationId/review", verifyToken, authorizeRoles("organizer"), reviewApplication);
@@ -128,12 +132,14 @@ router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer
 //
 router.get("/leaderboard", verifyToken, authorizeRoles("organizer"), getLeaderboard);
 router.get("/badges", verifyToken, authorizeRoles("organizer"), getOrganizerBadges);
+router.post("/reviews/rating", verifyToken, authorizeRoles("organizer"), createOrganizerRating);
 
 //
 // 🔔 Notifications
 //
 router.get("/notifications", verifyToken, authorizeRoles("organizer"), getNotifications);
 router.put("/notifications/:id/read", verifyToken, authorizeRoles("organizer"), markNotificationRead);
+router.delete("/notifications/:id", verifyToken, authorizeRoles("organizer"), deleteNotification);
 
 //
 // 🚨 Dispute Management
