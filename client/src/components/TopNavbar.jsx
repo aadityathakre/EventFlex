@@ -38,23 +38,22 @@ function TopNavbar({ title = null }) {
       ? "/gig/chat"
       : "/";
 
+  const fetchNotifications = async () => {
+    if (!["host", "organizer", "gig"].includes(role)) return;
+    try {
+      const rolePath = role;
+      const res = await axios.get(`${serverURL}/${rolePath}/notifications`, { withCredentials: true });
+      const items = res.data?.data || [];
+      const unread = items.filter((n) => !n.read).length;
+      setNotifications(items);
+      setUnreadCount(unread);
+    } catch (e) {
+      // silently ignore
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
-    const fetchNotifications = async () => {
-      if (!["host", "organizer", "gig"].includes(role)) return;
-      try {
-        const rolePath = role;
-        const res = await axios.get(`${serverURL}/${rolePath}/notifications`, { withCredentials: true });
-        const items = res.data?.data || [];
-        const unread = items.filter((n) => !n.read).length;
-        if (!cancelled) {
-          setNotifications(items);
-          setUnreadCount(unread);
-        }
-      } catch (e) {
-        // silently ignore
-      }
-    };
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => {
@@ -129,7 +128,13 @@ function TopNavbar({ title = null }) {
                 title="Notifications"
                 className="text-gray-600 hover:text-purple-600 transition-colors"
                 aria-label="Notifications"
-                onClick={() => setNotifOpen((o) => !o)}
+                onClick={async () => {
+                  const next = !notifOpen;
+                  setNotifOpen(next);
+                  if (next) {
+                    await fetchNotifications();
+                  }
+                }}
               >
                 <FaBell className="text-xl" />
               </button>

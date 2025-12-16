@@ -139,14 +139,14 @@ function OrganizerHostStatus() {
               <div className="flex flex-wrap gap-4">
                 {invitedApps.map((a) => (
                   <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
-                    <div className="relative h-40 overflow-hidden">
-                      <img
-                        src={getEventTypeImage(a?.event?.event_type)}
-                        alt={a?.event?.title || "Event"}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
-                    </div>
+                  <div className="relative h-40 overflow-hidden">
+                    <img
+                      src={getEventTypeImage(a?.event?.event_type)}
+                      alt={a?.event?.title || "Event"}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30 pointer-events-none" />
+                  </div>
                     <div className="p-5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {a?.host?.avatar && (
@@ -177,14 +177,14 @@ function OrganizerHostStatus() {
               <div className="flex flex-wrap gap-4">
                 {requestedApps.map((a) => (
                   <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
-                    <div className="relative h-40 overflow-hidden">
-                      <img
-                        src={getEventTypeImage(a?.event?.event_type)}
-                        alt={a?.event?.title || "Event"}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
-                    </div>
+                  <div className="relative h-40 overflow-hidden">
+                    <img
+                      src={getEventTypeImage(a?.event?.event_type)}
+                      alt={a?.event?.title || "Event"}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30 pointer-events-none" />
+                  </div>
                     <div className="p-5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {a?.organizer?.avatar && (
@@ -212,14 +212,14 @@ function OrganizerHostStatus() {
               <div className="flex flex-wrap gap-4">
                 {acceptedApps.map((a) => (
                   <div key={a._id} className="w-[30%] bg-white rounded-2xl shadow overflow-hidden mb-4">
-                    <div className="relative h-40 overflow-hidden">
-                      <img
-                        src={getEventTypeImage(a?.event?.event_type)}
-                        alt={a?.event?.title || "Event"}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
-                    </div>
+                  <div className="relative h-40 overflow-hidden">
+                    <img
+                      src={getEventTypeImage(a?.event?.event_type)}
+                      alt={a?.event?.title || "Event"}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30 pointer-events-none" />
+                  </div>
                     <div className="p-5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {a?.host?.avatar && (
@@ -273,7 +273,7 @@ function OrganizerHostStatus() {
                         alt={a?.event?.title || "Event"}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30 pointer-events-none" />
                     </div>
                     <div className="p-5 flex items-center justify-between">
                       <div className="flex items-center gap-3">

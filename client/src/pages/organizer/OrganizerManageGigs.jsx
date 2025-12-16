@@ -127,7 +127,7 @@ function OrganizerManageGigs() {
                   alt={p?.event?.title || "Event"}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30" />
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30 pointer-events-none" />
               </div>
               <div className="flex items-center justify-between">
                 <div>

@@ -19,6 +19,14 @@ function HostChat() {
     const ch = (email || "?").trim().charAt(0).toUpperCase();
     return ch || "?";
   };
+  const formatDate = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  };
+  const formatTime = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -81,6 +89,20 @@ function HostChat() {
       return title.toLowerCase().includes(q) || org.toLowerCase().includes(q);
     });
   }, [conversationSearch, conversations]);
+
+  const messagesWithSeparators = useMemo(() => {
+    const arr = [];
+    let lastDate = "";
+    (messages || []).forEach((m) => {
+      const ds = formatDate(m.createdAt || m.timestamp);
+      if (ds !== lastDate) {
+        arr.push({ type: "separator", id: `sep-${ds}`, label: ds });
+        lastDate = ds;
+      }
+      arr.push({ type: "message", data: m });
+    });
+    return arr;
+  }, [messages]);
 
   if (loading) {
     return (
@@ -198,17 +220,34 @@ function HostChat() {
                   {messages.length === 0 ? (
                     <p className="text-gray-600">No messages yet. Say hello!</p>
                   ) : (
-                    messages.map((m) => (
-                      <div key={m._id} className={`max-w-[80%] flex items-end gap-2 ${m?.sender?.role === "host" ? "ml-auto flex-row-reverse" : ""}`}>
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-700">
-                          {avatarFor(m?.sender?.email)}
+                    messagesWithSeparators.map((item) =>
+                      item.type === "separator" ? (
+                        <div key={item.id} className="flex justify-center my-2">
+                          <span className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-full">{item.label}</span>
                         </div>
-                        <div className={`p-2 rounded-2xl shadow-sm ${m?.sender?.role === "host" ? "bg-green-100" : "bg-gray-100"}`}>
-                          <p className="text-xs text-gray-500">{m?.sender?.email}</p>
-                          <p className="text-sm text-gray-900">{m?.message_text}</p>
+                      ) : (
+                        <div key={item.data._id} className={`max-w-[80%] flex items-end gap-2 ${item.data?.sender?.role === "host" ? "ml-auto flex-row-reverse" : ""}`}>
+                        {item.data?.sender?.role === "organizer" && (selectedConversation?.organizer?.profile_image_url || selectedConversation?.organizer?.avatar || selectedConversation?.organizer?.photo) ? (
+                          <img
+                            src={selectedConversation?.organizer?.profile_image_url || selectedConversation?.organizer?.avatar || selectedConversation?.organizer?.photo}
+                            alt="Organizer"
+                            className="w-6 h-6 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-700">
+                            {avatarFor(item.data?.sender?.email)}
+                          </div>
+                        )}
+                          <div className={`p-2 rounded-2xl shadow-sm ${item.data?.sender?.role === "host" ? "bg-green-100" : "bg-gray-100"}`}>
+                            <p className="text-xs text-gray-500">{item.data?.sender?.email}</p>
+                            <p className="text-sm text-gray-900">{item.data?.message_text}</p>
+                            <div className="text-[10px] text-gray-500 mt-1 text-right">
+                              {formatTime(item.data?.createdAt || item.data?.timestamp)}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      )
+                    )
                   )}
                 </div>
 

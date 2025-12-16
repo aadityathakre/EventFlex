@@ -16,6 +16,7 @@ import {
   FaArrowRight,
   FaComments,
 } from "react-icons/fa";
+import TopNavbar from "../../components/TopNavbar.jsx";
 
 function HostDashboard() {
   const { user, logout } = useAuth();
@@ -182,58 +183,7 @@ function HostDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                EventFlex
-              </h1>
-              <span className="text-gray-400">|</span>
-              <span className="text-gray-700 font-medium">My Dashboard</span>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate("/host/chat")}
-                className="relative p-2 text-gray-600 hover:text-purple-600 transition-colors"
-                title="Conversations"
-                aria-label="Conversations"
-              >
-                <FaComments className="text-xl" />
-              </button>
-              <button className="relative p-2 text-gray-600 hover:text-purple-600 transition-colors">
-                <FaBell className="text-xl" />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              
-              <button 
-                onClick={() => navigate("/host/profile")}
-                className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {user?.email || "Host"}
-                  </p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center">
-                  <FaUserCircle className="text-white text-xl" />
-                </div>
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-semibold transition-all duration-300 flex items-center space-x-2"
-              >
-                <FaSignOutAlt />
-                <span>Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <TopNavbar title="My Dashboard" />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

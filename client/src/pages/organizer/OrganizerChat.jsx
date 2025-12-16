@@ -106,6 +106,28 @@ function OrganizerChat() {
     });
   }, [conversationSearch, conversations, viewMode]);
 
+  const formatDate = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  };
+  const formatTime = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  };
+  const messagesWithSeparators = useMemo(() => {
+    const arr = [];
+    let lastDate = "";
+    (messages || []).forEach((m) => {
+      const ds = formatDate(m.createdAt || m.timestamp);
+      if (ds !== lastDate) {
+        arr.push({ type: "separator", id: `sep-${ds}`, label: ds });
+        lastDate = ds;
+      }
+      arr.push({ type: "message", data: m });
+    });
+    return arr;
+  }, [messages]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-gray-50 to-indigo-50">
@@ -304,17 +326,24 @@ function OrganizerChat() {
                   {messages.length === 0 ? (
                     <p className="text-gray-600">No messages yet. Say hello!</p>
                   ) : (
-                    messages.map((m) => (
-                      <div key={m._id} className={`max-w-[80%] flex items-end gap-2 ${m?.sender?.role === "organizer" ? "ml-auto flex-row-reverse" : ""}`}>
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-700">
-                          {avatarFor(m?.sender?.email)}
+                    messagesWithSeparators.map((item) =>
+                      item.type === "separator" ? (
+                        <div key={item.id} className="flex justify-center my-2">
+                          <span className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-full">{item.label}</span>
                         </div>
-                        <div className={`p-2 rounded-2xl shadow-sm ${m?.sender?.role === "organizer" ? "bg-indigo-100" : "bg-gray-100"}`}>
-                          <p className="text-xs text-gray-500">{m?.sender?.email}</p>
-                          <p className="text-sm text-gray-900">{m?.message_text}</p>
+                      ) : (
+                        <div key={item.data._id} className={`max-w-[80%] flex items-end gap-2 ${item.data?.sender?.role === "organizer" ? "ml-auto flex-row-reverse" : ""}`}>
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-700">
+                            {avatarFor(item.data?.sender?.email)}
+                          </div>
+                          <div className={`p-2 rounded-2xl shadow-sm ${item.data?.sender?.role === "organizer" ? "bg-indigo-100" : "bg-gray-100"} `}>
+                            <p className="text-xs text-gray-500">{item.data?.sender?.email}</p>
+                            <p className="text-sm text-gray-900">{item.data?.message_text}</p>
+                            <div className="text-[10px] text-gray-500 mt-1 text-right">{formatTime(item.data?.createdAt || item.data?.timestamp)}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      )
+                    )
                   )}
                 </div>
 

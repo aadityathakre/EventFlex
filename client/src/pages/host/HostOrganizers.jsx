@@ -16,6 +16,18 @@ function HostOrganizers() {
   const [search, setSearch] = useState("");
   const [inviteState, setInviteState] = useState({ organizerId: null, eventId: "", cover: "" });
   const [inviting, setInviting] = useState(false);
+  const [details, setDetails] = useState({ open: false, data: null, loading: false, error: null });
+  const personImages = [
+    "image.png",
+    "image2.png",
+    "image3.png",
+    "image copy.png",
+    "image copy 2.png",
+    "image copy 3.png",
+    "image copy 4.png",
+    "image copy 5.png",
+    "image copy 6.png",
+  ];
 
   useEffect(() => {
     const loadAll = async () => {
@@ -95,6 +107,16 @@ function HostOrganizers() {
     }
   };
 
+  const viewOrganizer = async (id) => {
+    setDetails({ open: true, data: null, loading: true, error: null });
+    try {
+      const res = await axios.get(`${serverURL}/host/organizers/${id}/profile`, { withCredentials: true });
+      setDetails({ open: true, data: res.data?.data, loading: false, error: null });
+    } catch (e) {
+      setDetails({ open: true, data: null, loading: false, error: e.response?.data?.message || "Failed to load organizer" });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -148,15 +170,7 @@ function HostOrganizers() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredOrganizers.map((o, idx) => {
                   const avatarUrl = organizerAvatar(o);
-                  const cardKeys = [
-                    "cardOrganizers",
-                    "cardPools",
-                    "cardEvents",
-                    "cardApplications",
-                    "cardGeneric",
-                    "cardChat",
-                  ];
-                  const bannerImg = getCardImage(cardKeys[idx % cardKeys.length]);
+                  const bannerImg = `/person_images/${personImages[idx % personImages.length]}`;
                   return (
                     <div key={o._id} className="group relative bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-lg transition">
                       <div className="relative h-24 overflow-hidden">
@@ -166,7 +180,7 @@ function HostOrganizers() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                       </div>
                       <div className="p-4">
                         <div className="flex items-center gap-3">
@@ -233,6 +247,12 @@ function HostOrganizers() {
                         ) : (
                           <div className="mt-4 text-xs text-gray-600">No events available for invites.</div>
                         )}
+                        <button
+                          onClick={() => viewOrganizer(o._id)}
+                          className="mt-2 w-full px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                        >
+                          View Organizer
+                        </button>
                       </div>
                     </div>
                   );
@@ -282,6 +302,43 @@ function HostOrganizers() {
           </aside>
         </div>
       </main>
+      {details.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setDetails({ open: false, data: null, loading: false, error: null })}></div>
+          <div className="relative z-10 bg-white rounded-xl p-6 w-full max-w-lg shadow-xl">
+            <h4 className="text-lg font-semibold mb-4">Organizer Details</h4>
+            {details.loading && <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>}
+            {details.error && <div className="p-2 bg-red-50 text-red-600 rounded-lg mb-3">{details.error}</div>}
+            {details.data && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  {details.data.user?.avatar && (
+                    <img src={details.data.user.avatar} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
+                  )}
+                  <div>
+                    <div className="font-semibold text-slate-900">{details.data.user?.first_name} {details.data.user?.last_name}</div>
+                    <div className="text-sm text-slate-600">{details.data.user?.email}</div>
+                    <div className="text-sm text-slate-600">{details.data.user?.phone}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 border rounded-lg">
+                    <div className="text-xs text-slate-500">Aadhaar Verified</div>
+                    <div className="font-semibold">{details.data.kyc?.aadhaar_verified ? "Yes" : "No"}</div>
+                  </div>
+                  <div className="p-3 border rounded-lg">
+                    <div className="text-xs text-slate-500">Aadhaar Number</div>
+                    <div className="font-semibold">**** **** **** {details.data.kyc?.aadhaar_last4 || "--"}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setDetails({ open: false, data: null, loading: false, error: null })} className="px-4 py-2 border rounded-lg">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

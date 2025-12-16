@@ -161,9 +161,9 @@ function HostOrganizerStatus() {
                 return (
                   <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                     {app?.event?.event_type && (
-                      <div className="h-28 w-full overflow-hidden">
+                      <div className="relative h-28 w-full overflow-hidden">
                         <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                       </div>
                     )}
                     <div className="p-4 flex items-start justify-between">
@@ -215,9 +215,9 @@ function HostOrganizerStatus() {
                 return (
                   <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                     {app?.event?.event_type && (
-                      <div className="h-40 w-full overflow-hidden">
+                      <div className="relative h-40 w-full overflow-hidden">
                         <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                       </div>
                     )}
                     <div className="p-4 flex items-start justify-between">
@@ -278,9 +278,9 @@ function HostOrganizerStatus() {
                 return (
                   <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                     {app?.event?.event_type && (
-                      <div className="h-40 w-full overflow-hidden">
+                      <div className="relative h-40 w-full overflow-hidden">
                         <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                       </div>
                     )}
                     <div className="p-4 flex items-start justify-between">
@@ -331,9 +331,9 @@ function HostOrganizerStatus() {
               rejectedApps.map((app) => (
                 <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                   {app?.event?.event_type && (
-                    <div className="h-40 w-full overflow-hidden">
+                    <div className="relative h-40 w-full overflow-hidden">
                       <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                      <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
                     </div>
                   )}
                   <div className="p-4 flex items-start justify-between">
