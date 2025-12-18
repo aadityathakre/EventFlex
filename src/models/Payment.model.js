@@ -36,8 +36,8 @@ const PaymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["completed", "pending"],
-      default: "completed",
+      enum: ["pending", "completed", "failed"],
+      default: "pending",
       required: true,
     },
     upi_transaction_id: {

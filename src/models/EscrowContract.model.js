@@ -44,6 +44,11 @@ const EscrowContractSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    blockchain_tx_hash: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["funded", "in_progress", "released"],

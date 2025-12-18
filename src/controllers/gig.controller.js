@@ -287,12 +287,13 @@ const withdraw = asyncHandler(async (req, res) => {
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const payments = await Payment.find({ payee: gigId })
-    .populate("escrow", "event total_amount status")
+  const payments = await Payment.find({ payee: gigId, status: "completed" })
     .populate({
-      path: "event",
-      select: "title start_date end_date event_type",
-    });
+      path: "escrow",
+      populate: { path: "event", select: "title start_date end_date event_type" }
+    })
+    .sort({ createdAt: -1 })
+    .select("-__v");
 
   if (!payments || payments.length === 0) {
     return res
@@ -300,10 +301,35 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, [], "No payments found"));
   }
 
-  const formattedPayments = payments.map((p) => ({
-    ...p.toObject(),
-    amount: parseFloat(p.amount?.toString() || "0.00"),
-  }));
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formattedPayments = payments.map((p) => {
+    const obj = p.toObject();
+    return {
+      _id: obj._id,
+      event: obj.escrow?.event || { title: "N/A" },
+      amount: toNum(obj.amount),
+      payment_date: obj.createdAt,
+      payment_method: obj.payment_method,
+      transaction_id: obj.upi_transaction_id || "N/A",
+      status: obj.status,
+      escrow_id: obj.escrow?._id,
+      createdAt: obj.createdAt,
+      updatedAt: obj.updatedAt
+    };
+  });
 
   return res
     .status(200)

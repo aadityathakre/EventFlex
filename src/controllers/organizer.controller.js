@@ -10,6 +10,7 @@ import User from "../models/User.model.js";
 import EventAttendance from "../models/EventAttendance.model.js";
 import UserWallet from "../models/UserWallet.model.js";
 import Escrow from "../models/EscrowContract.model.js";
+import Payment from "../models/Payment.model.js";
 import Rating from "../models/RatingReview.model.js";
 import Notification from "../models/Notification.model.js";
 import Dispute from "../models/Dispute.model.js";
@@ -552,6 +553,7 @@ export const getMyPools = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const pools = await Pool.find({ organizer: organizerId })
     .populate("event", "title start_date end_date location status event_type budget")
+    .populate("organizer", "first_name last_name avatar email fullName")
     .populate("gigs", "first_name last_name avatar fullName")
     .select("-__v");
   return res.status(200).json(new ApiResponse(200, pools, "Organizer pools fetched"));
@@ -879,50 +881,149 @@ export const deleteOrganizerApplication = asyncHandler(async (req, res) => {
 // 19. Payment History
 export const getPaymentHistory = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
+  
+  // Get escrow records
   const escrows = await Escrow
     .find({ organizer: organizerId })
     .populate("event", "title")
     .select("-__v");
 
-  const normalized = escrows.map((e) => {
-    const obj = e.toObject();
-    const toNum = (val) => {
-      try {
-        if (val === null || val === undefined) return null;
-        if (typeof val === "number") return val;
-        if (typeof val === "string") return parseFloat(val);
-        // Decimal128
-        if (typeof val === "object" && typeof val.toString === "function") {
-          return parseFloat(val.toString());
-        }
-        return null;
-      } catch {
-        return null;
+  // Get payment records where organizer is the payee
+  const payments = await Payment
+    .find({ payee: organizerId })
+    .populate({
+      path: "escrow",
+      populate: { path: "event", select: "title" }
+    })
+    .sort({ createdAt: -1 })
+    .select("-__v");
+
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      // Decimal128
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
       }
-    };
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Format escrow data
+  const formattedEscrows = escrows.map((e) => {
+    const obj = e.toObject();
     return {
       ...obj,
+      type: "escrow",
       total_amount: toNum(obj.total_amount),
       organizer_percentage: toNum(obj.organizer_percentage),
       gigs_percentage: toNum(obj.gigs_percentage),
     };
   });
 
-  return res.status(200).json(new ApiResponse(200, normalized, "Payment history fetched"));
+  // Format payment data
+  const formattedPayments = payments.map((p) => {
+    const obj = p.toObject();
+    return {
+      ...obj,
+      type: "payment",
+      amount: toNum(obj.amount),
+      payment_date: obj.createdAt,
+      event: obj.escrow?.event || { title: "N/A" },
+      escrow_id: obj.escrow?._id
+    };
+  });
+
+  // Combine and sort by date
+  const combined = [...formattedEscrows, ...formattedPayments].sort(
+    (a, b) => new Date(b.createdAt || b.payment_date) - new Date(a.createdAt || a.payment_date)
+  );
+
+  return res.status(200).json(new ApiResponse(200, combined, "Payment history fetched"));
 });
 
 export const deletePaymentHistory = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { id } = req.params;
-  const escrow = await Escrow.findById(id);
-  if (!escrow) {
-    throw new ApiError(404, "Payment record not found");
+  const { type } = req.query;
+  
+  if (type === "payment") {
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      throw new ApiError(404, "Payment record not found");
+    }
+    if (payment.payee?.toString() !== organizerId.toString()) {
+      throw new ApiError(403, "Not authorized to delete this payment record");
+    }
+    await Payment.findByIdAndDelete(id);
+    return res.status(200).json(new ApiResponse(200, null, "Payment record deleted"));
+  } else {
+    const escrow = await Escrow.findById(id);
+    if (!escrow) {
+      throw new ApiError(404, "Escrow record not found");
+    }
+    if (escrow.organizer?.toString() !== organizerId.toString()) {
+      throw new ApiError(403, "Not authorized to delete this escrow record");
+    }
+    await escrow.softDelete();
+    return res.status(200).json(new ApiResponse(200, null, "Escrow record deleted"));
   }
-  if (escrow.organizer?.toString() !== organizerId.toString()) {
-    throw new ApiError(403, "Not authorized to delete this payment record");
-  }
-  await escrow.softDelete();
-  return res.status(200).json(new ApiResponse(200, null, "Payment record deleted"));
+});
+
+// Get Escrow Release History (payments released to wallet)
+export const getEscrowReleaseHistory = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  
+  // Get all completed payments to this organizer
+  const payments = await Payment
+    .find({ payee: organizerId, status: "completed" })
+    .populate({
+      path: "escrow",
+      populate: { path: "event", select: "title" }
+    })
+    .sort({ createdAt: -1 })
+    .select("-__v");
+
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formattedPayments = payments.map((p) => {
+    const obj = p.toObject();
+    const escrowData = obj.escrow || {};
+    return {
+      _id: obj._id,
+      event: escrowData?.event || { title: "N/A" },
+      amount: toNum(obj.amount),
+      total_amount: toNum(escrowData.total_amount),
+      organizer_percentage: toNum(escrowData.organizer_percentage),
+      gigs_percentage: toNum(escrowData.gigs_percentage),
+      payment_date: obj.createdAt,
+      payment_method: obj.payment_method,
+      transaction_id: obj.upi_transaction_id || "N/A",
+      status: obj.status,
+      type: "payout",
+      escrow_id: escrowData?._id,
+      createdAt: obj.createdAt,
+      updatedAt: obj.updatedAt
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, formattedPayments, "Escrow release history fetched"));
 });
 
 // 20. Simulate Payout

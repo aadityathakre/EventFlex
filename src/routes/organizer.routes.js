@@ -41,6 +41,7 @@ import {
   getWallet,
   withdrawFunds,
   getPaymentHistory,
+  getEscrowReleaseHistory,
   deletePaymentHistory,
   simulatePayout,
 
@@ -135,6 +136,7 @@ router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLive
 router.get("/wallet", verifyToken, authorizeRoles("organizer"), getWallet);
 router.post("/withdraw", verifyToken, authorizeRoles("organizer"), withdrawFunds);
 router.get("/payment-history", verifyToken, authorizeRoles("organizer"), getPaymentHistory);
+router.get("/escrow-release-history", verifyToken, authorizeRoles("organizer"), getEscrowReleaseHistory);
 router.delete("/payment-history/:id", verifyToken, authorizeRoles("organizer"), deletePaymentHistory);
 router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer"), simulatePayout);
 

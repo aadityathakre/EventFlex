@@ -960,7 +960,10 @@ export const getHostDashboard = asyncHandler(async (req, res) => {
   );
   const payments = await Payment.find({ payer: hostId }).populate(
     "escrow payee"
-  );
+  ).populate({
+    path: "escrow",
+    populate: { path: "event", select: "title" }
+  });
 
   return res
     .status(200)
@@ -982,7 +985,7 @@ export const getInvitedOrganizerStatus = asyncHandler(async (req, res) => {
 
   const applications = await EventApplication.find({ event: { $in: eventIds } })
     .populate("applicant", "email role first_name last_name avatar")
-    .populate("event", "title organizer event_type")
+    .populate("event", "title organizer event_type status event_end_date")
     .sort({ createdAt: -1 });
 
   const requested = applications.filter(a => a.application_status === "pending" && a.sender?.toString() !== hostId.toString());
@@ -1138,35 +1141,51 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     status: "funded",
   });
 
-  const payment = await Payment.create({
-    escrow: escrow._id,
-    payer: hostId,
-    payee: organizerId,
-    amount: total_amount,
-    payment_method,
-    upi_transaction_id,
-    status: "pending",
-  });
+  // Note: Payment records are created during escrow release (verifyAttendance),
+  // not during deposit. This ensures we record the actual distribution amounts.
 
   const eventDoc = await Event.findById(eventId).select("title");
+  
+  // Notify organizer
   await Notification.create({
     user: organizerId,
     type: "payment",
-    message: `Escrow funded for ${eventDoc?.title || "event"}`,
+    message: `Escrow funded for ${eventDoc?.title || "event"}. Amount: ₹${totalNum.toFixed(2)}`,
   });
+  
+  // Notify host
   await Notification.create({
     user: hostId,
     type: "payment",
-    message: `Escrow funded for ${eventDoc?.title || "event"}`,
+    message: `Escrow funded for ${eventDoc?.title || "event"}. Amount: ₹${totalNum.toFixed(2)}`,
   });
+  
+  // Notify gigs in the pool
+  try {
+    const pool = await Pool.findOne({ organizer: organizerId, event: eventId });
+    if (pool && pool.gigs && pool.gigs.length > 0) {
+      const gigsPct = parseFloat(typeof gigs_percentage === "object" ? gigs_percentage.toString() : gigs_percentage);
+      const gigsShare = (totalNum * gigsPct) / 100;
+      const perGigAmount = gigsShare / pool.gigs.length;
+      for (const gigId of pool.gigs) {
+        await Notification.create({
+          user: gigId,
+          type: "payment",
+          message: `Escrow funded for ${eventDoc?.title || "event"}. Your share: ₹${perGigAmount.toFixed(2)}`,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error notifying gigs on deposit:", err);
+  }
 
   return res
     .status(201)
     .json(
       new ApiResponse(
         201,
-        { escrow, payment },
-        "Escrow funded and payment logged"
+        { escrow },
+        "Escrow funded successfully"
       )
     );
 });
@@ -1226,7 +1245,17 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
     });
   }
 
-  // Iterate over gigs in the Pool
+  // Create organizer payment record with calculated share
+  await Payment.create({
+    escrow: escrow._id,
+    payer: hostId,
+    payee: escrow.organizer,
+    amount: mongoose.Types.Decimal128.fromString(organizerAmount.toFixed(2)),
+    payment_method: "upi",
+    status: "completed",
+  });
+
+  // Create payment records for gigs
   for (const gid of pool?.gigs || []) {
     let gw = await UserWallet.findOne({ user: gid });
     if (!gw) {
@@ -1246,33 +1275,31 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
       payment_method: "upi",
       status: "completed",
     });
-    const evtTitle = (await Event.findById(escrow.event).select("title"))?.title || "event";
-    await Notification.create({
-      user: gid,
-      type: "payment",
-      message: `Escrow released for ${evtTitle}. Your payout is completed.`,
-    });
   }
 
-  await Payment.create({
-    escrow: escrow._id,
-    payer: hostId,
-    payee: escrow.organizer,
-    amount: mongoose.Types.Decimal128.fromString(organizerAmount.toFixed(2)),
-    payment_method: "upi",
-    status: "completed",
-  });
-
   const eventDoc = await Event.findById(escrow.event).select("title");
+  
+  // Notify organizer
   await Notification.create({
     user: escrow.organizer,
     type: "payment",
-    message: `Escrow released for ${eventDoc?.title || "event"}. Organizer payout completed.`,
+    message: `Escrow released for ${eventDoc?.title || "event"}. Your payout: ₹${organizerAmount.toFixed(2)} completed.`,
   });
+  
+  // Notify gigs
+  for (const gid of pool?.gigs || []) {
+    await Notification.create({
+      user: gid,
+      type: "payment",
+      message: `Escrow released for ${eventDoc?.title || "event"}. Your payout: ₹${perGigAmount.toFixed(2)} completed.`,
+    });
+  }
+  
+  // Notify host
   await Notification.create({
     user: hostId,
     type: "payment",
-    message: `Escrow released for ${eventDoc?.title || "event"}. All payouts completed.`,
+    message: `Escrow released for ${eventDoc?.title || "event"}. Total released: ₹${total.toFixed(2)}`,
   });
 
   return res
