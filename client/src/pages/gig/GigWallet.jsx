@@ -91,19 +91,26 @@ function GigWallet() {
       const res = await axios.get(`${serverURL}/gigs/payment-history`, { withCredentials: true });
       const items = res.data?.data || [];
       setPayments(items);
-      const esc = items.filter((p) => p?.escrow).map((p) => ({
-        _id: p._id,
-        event: p?.escrow?.event || p?.event,
-        total_amount: p?.escrow?.total_amount ?? p?.amount,
-        status: p?.escrow?.status || p?.status,
+    } catch (e) {}
+  };
+
+  const fetchEscrows = async () => {
+    try {
+      const res = await axios.get(`${serverURL}/gigs/escrows`, { withCredentials: true });
+      const list = (res.data?.data || []).map((e) => ({
+        _id: e._id,
+        event: e.event,
+        total_amount: e.total_amount,
+        status: e.status,
       }));
-      setEscrowPayments(esc);
+      setEscrowPayments(list);
     } catch (e) {}
   };
 
   useEffect(() => {
     fetchWallet();
     fetchPayments();
+    fetchEscrows();
   }, []);
 
   const withdraw = () => {

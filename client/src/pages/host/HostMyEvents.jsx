@@ -1,23 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
-import { FaCalendarAlt, FaCheckCircle, FaClock, FaStar } from "react-icons/fa";
+import { FaCalendarAlt, FaCheckCircle, FaClock, FaStar, FaUser, FaEdit, FaTrash } from "react-icons/fa";
 import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostMyEvents() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
   const [completingId, setCompletingId] = useState(null);
   const [feedbackModal, setFeedbackModal] = useState({ open: false, eventId: null, organizerId: null, rating: 5, review_text: "" });
+  const [orgDetails, setOrgDetails] = useState({});
 
   // Fetch events
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${serverURL}/host/events`, { withCredentials: true });
@@ -27,11 +28,11 @@ function HostMyEvents() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+  }, [fetchEvents]);
 
   // Filter events
   const now = new Date();
@@ -89,6 +90,14 @@ function HostMyEvents() {
       .catch(() => showToast("Could not find organizer details", "error"));
   };
 
+  const [feedbackSubmittedEvents, setFeedbackSubmittedEvents] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('feedback_submitted_events') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
   const submitFeedback = async () => {
     try {
       await axios.post(`${serverURL}/host/reviews/rating`, {
@@ -97,22 +106,72 @@ function HostMyEvents() {
         rating: feedbackModal.rating,
         review_text: feedbackModal.review_text,
       }, { withCredentials: true });
+      
       showToast("Feedback submitted successfully", "success");
+      
+      // Update local state and storage to disable button
+      if (feedbackModal.eventId) {
+        const newSubmitted = [...feedbackSubmittedEvents, feedbackModal.eventId];
+        setFeedbackSubmittedEvents(newSubmitted);
+        localStorage.setItem('feedback_submitted_events', JSON.stringify(newSubmitted));
+      }
+      
       setFeedbackModal({ open: false, eventId: null, organizerId: null, rating: 5, review_text: "" });
+      fetchEvents();
     } catch (e) {
       showToast(e.response?.data?.message || "Failed to submit feedback", "error");
     }
   };
 
+  const openOrganizerDetails = async (event) => {
+      setOrgDetails({ open: true, data: null, loading: true, error: null });
+      try {
+          let organizerId = null;
+
+          if (event.organizer) {
+              organizerId = event.organizer._id || event.organizer;
+          }
+
+          if (!organizerId || typeof organizerId !== 'string') {
+               const res = await axios.get(`${serverURL}/host/organizer?eventId=${event._id}`, { withCredentials: true });
+               const pools = res.data?.data || [];
+               const pool = pools.find(p => p.event?._id === event._id || p.event === event._id);
+               if (pool && pool.organizer) {
+                   organizerId = pool.organizer._id || pool.organizer;
+               }
+          }
+
+          if (!organizerId || typeof organizerId !== 'string') {
+             setOrgDetails(prev => ({ ...prev, loading: false, error: "No organizer assigned to this event yet." }));
+             return;
+          }
+
+          const res = await axios.get(`${serverURL}/host/organizers/${organizerId}/profile`, { withCredentials: true });
+          setOrgDetails({
+             open: true,
+             data: res.data?.data,
+             loading: false,
+             error: null
+          });
+      } catch (e) {
+          setOrgDetails(prev => ({ ...prev, loading: false, error: "Failed to load organizer details." }));
+      }
+  };
+
   const renderEventCard = (event, type) => (
-    <div key={event._id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-100">
+    <div key={event._id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-100 relative">
+      {type === 'completed' && (
+         <div className="absolute top-0 right-0 z-10 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-bl-xl shadow-sm">
+             Completed
+         </div>
+      )}
       <div className="h-40 overflow-hidden relative">
         <img 
           src={getEventTypeImage(event.event_type)} 
           alt={event.title} 
           className="w-full h-full object-cover"
         />
-        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-semibold text-gray-700 capitalize">
+        <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-semibold text-gray-700 capitalize">
           {event.event_type}
         </div>
       </div>
@@ -137,26 +196,76 @@ function HostMyEvents() {
             event.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
             'bg-yellow-100 text-yellow-700'
           }`}>
-            {event.status.replace('_', ' ')}
+            {event.status === 'in_progress' ? 'Active' : event.status.replace('_', ' ')}
           </span>
 
           <div className="flex gap-2">
-            {type !== 'completed' && (
-              <button 
-                onClick={() => handleMarkComplete(event._id)}
-                disabled={completingId === event._id}
-                className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-              >
-                {completingId === event._id ? 'Completing...' : 'Mark Complete'}
-              </button>
+            {type === 'active' && (
+              <>
+                <button 
+                  onClick={() => openOrganizerDetails(event)}
+                  className="px-3 py-1.5 bg-white border border-indigo-600 text-indigo-600 text-sm rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+                >
+                  <FaUser size={12} /> Org
+                </button>
+                <button 
+                  onClick={() => handleMarkComplete(event._id)}
+                  disabled={completingId === event._id}
+                  className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {completingId === event._id ? 'Completing...' : 'Mark Complete'}
+                </button>
+              </>
+            )}
+            {type === 'upcoming' && (
+              <>
+                <button 
+                  onClick={() => openOrganizerDetails(event)}
+                  className="px-3 py-1.5 bg-white border border-indigo-600 text-indigo-600 text-sm rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
+                >
+                  <FaUser size={12} /> Org
+                </button>
+                <button 
+                  onClick={() => navigate(`/host/events/${event._id}/edit`)}
+                  className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
+                >
+                  <FaEdit size={12} /> Edit
+                </button>
+              </>
             )}
             {type === 'completed' && (
-              <button 
-                onClick={() => openFeedback(event)}
-                className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1"
-              >
-                <FaStar /> Feedback
-              </button>
+              <>
+                {feedbackSubmittedEvents.includes(event._id) ? (
+                   <button 
+                     disabled
+                     className="px-3 py-1.5 bg-gray-300 text-gray-600 text-sm rounded-lg flex items-center gap-1 cursor-not-allowed"
+                   >
+                     <FaCheckCircle /> Feedback Submitted
+                   </button>
+                ) : (
+                   <button 
+                     onClick={() => openFeedback(event)}
+                     className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1"
+                   >
+                     <FaStar /> Feedback
+                   </button>
+                )}
+                <button 
+                  onClick={async () => {
+                    if(!window.confirm("Are you sure you want to delete this event?")) return;
+                    try {
+                      await axios.delete(`${serverURL}/host/events/${event._id}`, { withCredentials: true });
+                      fetchEvents();
+                      showToast("Event deleted successfully", "success");
+                    } catch (e) {
+                      showToast(e.response?.data?.message || "Failed to delete event", "error");
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1"
+                >
+                  <FaTrash size={12} /> Delete
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -254,6 +363,79 @@ function HostMyEvents() {
                   Submit
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Organizer Details Modal */}
+      {orgDetails.open && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4">
+                <h3 className="text-xl font-bold text-white">Organizer Details</h3>
+            </div>
+            
+            <div className="p-6">
+                {orgDetails.loading ? (
+                    <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    </div>
+                ) : orgDetails.error ? (
+                    <div className="text-center py-8">
+                        <p className="text-red-600 mb-2">{orgDetails.error}</p>
+                        <p className="text-sm text-gray-500">Could not load details.</p>
+                    </div>
+                ) : orgDetails.data ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      {orgDetails.data.user?.avatar ? (
+                        <img src={orgDetails.data.user.avatar} alt="avatar" className="w-16 h-16 rounded-full object-cover border-2 border-purple-100" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xl font-bold">
+                            {orgDetails.data.user?.first_name?.[0] || 'O'}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-bold text-xl text-gray-900">{orgDetails.data.user?.first_name} {orgDetails.data.user?.last_name}</div>
+                        <div className="text-gray-600">{orgDetails.data.user?.email}</div>
+                        {orgDetails.data.user?.phone && <div className="text-sm text-gray-500">{orgDetails.data.user?.phone}</div>}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">KYC Verified</div>
+                        <div className={`font-bold ${orgDetails.data.kyc?.aadhaar_verified ? 'text-green-600' : 'text-amber-600'}`}>
+                            {orgDetails.data.kyc?.aadhaar_verified ? "Yes" : "Pending"}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Experience</div>
+                        <div className="font-bold text-gray-900">{orgDetails.data.profile?.experience_years || 0} Years</div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Aadhaar Status</div>
+                         <div className="flex items-center gap-2">
+                             <div className="font-medium text-gray-900">
+                                 {orgDetails.data.kyc?.aadhaar_last4 ? `**** **** **** ${orgDetails.data.kyc?.aadhaar_last4}` : "Not provided"}
+                             </div>
+                             {orgDetails.data.kyc?.aadhaar_verified && <FaCheckCircle className="text-green-500" />}
+                         </div>
+                    </div>
+                  </div>
+                ) : null}
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 flex justify-end">
+              <button 
+                onClick={() => setOrgDetails({ open: false, data: null, loading: false, error: null })} 
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

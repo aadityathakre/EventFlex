@@ -5,6 +5,7 @@ import UserDocument from "../models/UserDocument.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
+import Pool from "../models/Pool.model.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import EscrowContract from "../models/EscrowContract.model.js";
@@ -185,11 +186,6 @@ export const uploadHostDocs = asyncHandler(async (req, res) => {
   const localFilePath = req.files?.fileUrl?.[0]?.path;
   const userId = req.user._id;
 
-  console.log("📥 uploadHostDocs - Received request");
-  console.log("Body:", req.body);
-  console.log("Files:", req.files);
-  console.log("Type from body:", type);
-  console.log("LocalFilePath:", localFilePath);
 
   if (!type || !localFilePath) {
     throw new ApiError(400, "Document type and file is required");
@@ -223,11 +219,6 @@ export const updateHostDocs = asyncHandler(async (req, res) => {
   const localFilePath = req.files?.fileUrl?.[0]?.path;
   const userId = req.user._id;
 
-  console.log("📥 updateHostDocs - Received request");
-  console.log("Body:", req.body);
-  console.log("Files:", req.files);
-  console.log("Type from body:", type);
-  console.log("LocalFilePath:", localFilePath);
 
   if (!type || !localFilePath) {
     throw new ApiError(400, "Document type and file is required");
@@ -853,7 +844,7 @@ export const getAssignedOrganizer = asyncHandler(async (req, res) => {
 
   const pools = await OrganizerPool.find({ event: { $in: eventIds } })
     .populate("organizer", "first_name last_name avatar email")
-    .populate("event", "title");
+    .populate("event", "title status event_type");
 
   return res
     .status(200)
@@ -943,6 +934,20 @@ export const sendHostMessage = asyncHandler(async (req, res) => {
   });
 
   return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
+export const deleteHostConversation = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+  const conversation = await Conversation.findById(id);
+  if (!conversation) {
+    throw new ApiError(404, "Conversation not found");
+  }
+  if (!conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+  await conversation.softDelete();
+  return res.status(200).json(new ApiResponse(200, null, "Conversation deleted"));
 });
 
 // 20.  Host Dashboard
@@ -1036,6 +1041,27 @@ export const deleteHostNotification = asyncHandler(async (req, res) => {
   }
   await Notification.findByIdAndDelete(id);
   return res.status(200).json(new ApiResponse(200, null, "Notification deleted"));
+});
+
+// 19.4 Delete Organizer Pool (Host)
+export const deleteOrganizerPool = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+
+  const pool = await OrganizerPool.findById(id).populate("event", "host status");
+  if (!pool) {
+    throw new ApiError(404, "Organizer pool not found");
+  }
+  const event = pool.event;
+  if (!event || event.host?.toString() !== hostId.toString()) {
+    throw new ApiError(403, "Not authorized to delete this organizer pool");
+  }
+  if (event.status !== "completed" && pool.status !== "completed") {
+    throw new ApiError(400, "Only completed pools or events can be deleted");
+  }
+
+  await OrganizerPool.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Organizer assignment deleted"));
 });
 export const getOrganizerPublicProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;

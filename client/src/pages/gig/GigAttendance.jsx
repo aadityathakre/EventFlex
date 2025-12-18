@@ -13,6 +13,7 @@ function GigAttendance() {
   const [disputeReason, setDisputeReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
+  const [eventFeedbackMap, setEventFeedbackMap] = useState({});
 
   const fetchMyEvents = async () => {
     setLoading(true);
@@ -30,6 +31,20 @@ function GigAttendance() {
     try {
       const res = await axios.get(`${serverURL}/gigs/attendance-history`, { withCredentials: true });
       setAttendance(res.data?.data || []);
+    } catch {}
+  };
+
+  const fetchMyFeedbacks = async () => {
+    try {
+      const res = await axios.get(`${serverURL}/gigs/feedbacks`, { withCredentials: true });
+      const list = res.data?.data || [];
+      const map = {};
+      list.forEach((item) => {
+        if (item?.event?._id && item.source === "gig" && item.kind === "gig_to_event") {
+          map[String(item.event._id)] = true;
+        }
+      });
+      setEventFeedbackMap(map);
     } catch {}
   };
 
@@ -70,7 +85,28 @@ function GigAttendance() {
     }
   };
 
-  useEffect(() => { fetchMyEvents(); fetchAttendance(); }, []);
+  useEffect(() => { fetchMyEvents(); fetchAttendance(); fetchMyFeedbacks(); }, []);
+
+  const classify = (ev) => {
+    const now = new Date();
+    const startAt = ev?.event?.start_date ? new Date(ev.event.start_date) : null;
+    const endAt = ev?.event?.end_date ? new Date(ev.event.end_date) : null;
+    const status = ev?.event?.status;
+    const isCompleted = status === "completed" || (endAt && now > endAt);
+    const isActive = status === "in_progress";
+    const isUpcoming = status === "published" || (startAt && now < startAt);
+    return { isUpcoming, isActive, isCompleted };
+  };
+
+  const deleteCompletedCard = async (poolId) => {
+    try {
+      await axios.delete(`${serverURL}/gigs/events/${poolId}`, { withCredentials: true });
+      setMyEvents((prev) => prev.filter((p) => p._id !== poolId));
+      showToast("Deleted from completed", "success");
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to delete", "error");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -94,13 +130,11 @@ function GigAttendance() {
               {activeTab === "active" && (
               <>
               <h4 className="text-lg font-semibold mt-2 mb-2">Active</h4>
+              {myEvents.filter((ev) => classify(ev).isActive).length === 0 ? (
+                <p className="text-gray-600">No active events.</p>
+              ) : (
               <div className="space-y-3">
-              {myEvents.filter((ev) => {
-                const now = new Date();
-                const startAt = ev?.event?.start_date ? new Date(ev.event.start_date) : null;
-                const endAt = ev?.event?.end_date ? new Date(ev.event.end_date) : null;
-                return startAt && endAt && now >= startAt && now <= endAt;
-              }).map((ev) => {
+              {myEvents.filter((ev) => classify(ev).isActive).map((ev) => {
                 const eventId = ev?.event?._id || ev?.event || ev?._id;
                 const att = attendance.find((a) => String(a?.event?._id || a?.event) === String(eventId));
                 const inProgress = !!att && !!att.check_in_time && !att.check_out_time;
@@ -115,6 +149,7 @@ function GigAttendance() {
                   ? parseFloat(att.hours_worked)
                   : 0;
                 const canReCheckIn = !!att && !!att.check_out_time && Number.isFinite(hours) && hours < (5 / 60);
+                const hasFeedback = !!eventFeedbackMap[String(eventId)];
                 return (
                 <div key={ev._id} className="border rounded-xl p-4 flex items-center justify-between">
                   <div>
@@ -173,29 +208,36 @@ function GigAttendance() {
                     </button>
                     {eventEnded && (
                       <button
-                        className="px-3 py-2 bg-indigo-600 text-white rounded-md"
-                        onClick={() => setSelectedEvent({ ...ev, giveFeedback: true })}
-                        title="Give feedback"
+                        className={`px-3 py-2 rounded-md ${
+                          hasFeedback ? "bg-gray-200 text-gray-700 cursor-default" : "bg-indigo-600 text-white"
+                        }`}
+                        onClick={() => {
+                          if (!hasFeedback) {
+                            setSelectedEvent({ ...ev, giveFeedback: true });
+                          }
+                        }}
+                        disabled={hasFeedback}
+                        title={hasFeedback ? "Feedback submitted" : "Give feedback"}
                       >
-                        Give Feedback
+                        {hasFeedback ? "Feedback submitted" : "Give Feedback"}
                       </button>
                     )}
                   </div>
                 </div>
                 );
               })}
-              </div>
-              </>
+                </div>
+                )}
+                </>
               )}
               {activeTab === "upcoming" && (
                 <>
                 <h4 className="text-lg font-semibold mt-6 mb-2">Upcoming</h4>
+                {myEvents.filter((ev) => classify(ev).isUpcoming).length === 0 ? (
+                  <p className="text-gray-600">No upcoming events.</p>
+                ) : (
                 <div className="space-y-3">
-                  {myEvents.filter((ev) => {
-                  const now = new Date();
-                  const startAt = ev?.event?.start_date ? new Date(ev.event.start_date) : null;
-                  return startAt && now < startAt;
-                }).map((ev) => (
+                {myEvents.filter((ev) => classify(ev).isUpcoming).map((ev) => (
                   <div key={ev._id} className="border rounded-xl p-4 flex items-center justify-between">
                     <div>
                       <p className="font-semibold">{ev?.event?.title || ev?.name || "Event"}</p>
@@ -209,17 +251,17 @@ function GigAttendance() {
                   </div>
                 ))}
                 </div>
+                )}
                 </>
               )}
               {activeTab === "completed" && (
                 <>
                 <h4 className="text-lg font-semibold mt-6 mb-2">Completed</h4>
+                {myEvents.filter((ev) => classify(ev).isCompleted).length === 0 ? (
+                  <p className="text-gray-600">No completed events.</p>
+                ) : (
                 <div className="space-y-3">
-                  {myEvents.filter((ev) => {
-                  const now = new Date();
-                  const endAt = ev?.event?.end_date ? new Date(ev.event.end_date) : null;
-                  return endAt && now > endAt;
-                }).map((ev) => {
+                {myEvents.filter((ev) => classify(ev).isCompleted).map((ev) => {
                   const eventId = ev?.event?._id || ev?.event || ev?._id;
                   const att = attendance.find((a) => String(a?.event?._id || a?.event) === String(eventId));
                   const hours = att?.hours_worked?.$numberDecimal
@@ -227,6 +269,7 @@ function GigAttendance() {
                     : att?.hours_worked
                     ? parseFloat(att.hours_worked)
                     : 0;
+                  const hasFeedback = !!eventFeedbackMap[String(eventId)];
                   return (
                     <div key={ev._id} className="border rounded-xl p-4 flex items-center justify-between">
                       <div>
@@ -239,16 +282,32 @@ function GigAttendance() {
                         <button className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md" disabled>Check In</button>
                         <button className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md" disabled>Check Out</button>
                         <button
-                          className="px-3 py-2 bg-indigo-600 text-white rounded-md"
-                          onClick={() => setSelectedEvent({ ...ev, giveFeedback: true })}
+                          className={`px-3 py-2 rounded-md ${
+                            hasFeedback ? "bg-gray-200 text-gray-700 cursor-default" : "bg-indigo-600 text-white"
+                          }`}
+                          onClick={() => {
+                            if (!hasFeedback) {
+                              setSelectedEvent({ ...ev, giveFeedback: true });
+                            }
+                          }}
+                          disabled={hasFeedback}
+                          title={hasFeedback ? "Feedback submitted" : "Give feedback"}
                         >
-                          Give Feedback
+                          {hasFeedback ? "Feedback submitted" : "Give Feedback"}
+                        </button>
+                        <button
+                          className="px-3 py-2 border rounded-md text-rose-600"
+                          onClick={() => deleteCompletedCard(ev._id)}
+                          title="Delete this completed card"
+                        >
+                          Delete
                         </button>
                       </div>
                     </div>
                   );
                 })}
                 </div>
+                )}
                 </>
               )}
             </>
@@ -272,19 +331,47 @@ function GigAttendance() {
           </div>
         )}
 
-        {selectedEvent && (
-          <div className="bg-white rounded-2xl shadow p-6 mt-6">
-            <h4 className="font-semibold mb-2">Event Details</h4>
-            <p className="text-sm text-gray-700">{selectedEvent?.description || "No details provided."}</p>
-            <div className="mt-4">
-              <button className="px-4 py-2 border rounded-md" onClick={() => setSelectedEvent(null)}>Close</button>
+        {selectedEvent && !selectedEvent.giveFeedback && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-8 bg-black/40">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h4 className="text-lg font-semibold text-gray-900">Event Details</h4>
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="px-3 py-1 text-sm border rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto">
+                <EventDetailsCard eventData={selectedEvent} onClose={() => setSelectedEvent(null)} />
+              </div>
             </div>
           </div>
         )}
         {selectedEvent?.giveFeedback && (
-          <div className="bg-white rounded-2xl shadow p-6 mt-6">
-            <h4 className="font-semibold mb-2">Give Feedback</h4>
-            <FeedbackForm eventId={selectedEvent?.event?._id || selectedEvent?._id} onClose={() => setSelectedEvent(null)} />
+          <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-8 bg-black/40">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h4 className="text-lg font-semibold text-gray-900">Give Feedback</h4>
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="px-3 py-1 text-sm border rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto">
+                <FeedbackForm
+                  eventId={selectedEvent?.event?._id || selectedEvent?._id}
+                  onClose={() => setSelectedEvent(null)}
+                  onSubmitted={(id) => {
+                    const key = String(id);
+                    setEventFeedbackMap((prev) => ({ ...prev, [key]: true }));
+                  }}
+                />
+              </div>
+            </div>
           </div>
         )}
       </main>
@@ -292,7 +379,95 @@ function GigAttendance() {
   );
 }
 
-function FeedbackForm({ eventId, onClose }) {
+function EventDetailsCard({ eventData, onClose }) {
+  const ev = eventData?.event || eventData || {};
+  const title = ev?.title || ev?.name || "Event";
+  const start = ev?.start_date ? new Date(ev.start_date).toLocaleString() : "-";
+  const end = ev?.end_date ? new Date(ev.end_date).toLocaleString() : "-";
+  const organizer = ev?.organizer;
+  const organizerName = organizer?.fullName || organizer?.name || null;
+  const organizerEmail = organizer?.email || null;
+  const organizerLabel = organizerName || (typeof organizer === "string" ? organizer : null);
+   const organizerAvatar = organizer?.profile_image_url || organizer?.avatar || null;
+
+  return (
+    <div className="bg-white rounded-2xl shadow p-6 mt-6">
+      <h4 className="text-lg font-semibold mb-4">Event Details</h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-1">Event</p>
+          <p className="text-base font-semibold text-gray-900">{title}</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-1">Organizer</p>
+          <div className="flex items-center gap-3">
+            {organizerAvatar ? (
+              <img
+                src={organizerAvatar}
+                alt={organizerLabel || "Organizer"}
+                className="w-9 h-9 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-indigo-100" />
+            )}
+            <div className="min-w-0">
+              <p className="text-sm text-gray-800 truncate">{organizerLabel || "Not available"}</p>
+              {organizerEmail && <p className="text-xs text-gray-500 truncate">{organizerEmail}</p>}
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-1">Start</p>
+          <p className="text-sm text-gray-800">{start}</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-1">End</p>
+          <p className="text-sm text-gray-800">{end}</p>
+        </div>
+      </div>
+      {eventData?.description && (
+        <div className="mt-4">
+          <p className="text-xs font-medium text-gray-500 mb-1">Description</p>
+          <p className="text-sm text-gray-700 whitespace-pre-line">{eventData.description}</p>
+        </div>
+      )}
+      <div className="mt-6 flex justify-end">
+        <button className="px-4 py-2 border rounded-md" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function StarRating({ value, onChange }) {
+  const [hovered, setHovered] = useState(0);
+  const stars = [1, 2, 3, 4, 5];
+
+  return (
+    <div className="flex items-center gap-1">
+      {stars.map((star) => {
+        const active = hovered ? star <= hovered : star <= (value || 0);
+        return (
+          <button
+            key={star}
+            type="button"
+            className={`w-9 h-9 flex items-center justify-center rounded-full border transition ${
+              active
+                ? "bg-yellow-400 border-yellow-400 text-white shadow-sm"
+                : "bg-white border-gray-300 text-gray-400 hover:bg-yellow-50"
+            }`}
+            onMouseEnter={() => setHovered(star)}
+            onMouseLeave={() => setHovered(0)}
+            onClick={() => onChange(star)}
+          >
+            <span className="text-lg leading-none">★</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FeedbackForm({ eventId, onClose, onSubmitted }) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
 
@@ -300,6 +475,9 @@ function FeedbackForm({ eventId, onClose }) {
     try {
       const res = await axios.post(`${serverURL}/gigs/feedback/${eventId}`, { rating, comment }, { withCredentials: true });
       alert(res.data?.message || "Feedback submitted");
+      try {
+        onSubmitted?.(eventId);
+      } catch {}
       onClose?.();
     } catch (e) {
       alert(e?.response?.data?.message || "Failed to submit feedback");
@@ -307,20 +485,29 @@ function FeedbackForm({ eventId, onClose }) {
   };
 
   return (
-    <div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">Rating (1-5)</label>
-          <input type="number" min={1} max={5} value={rating} onChange={(e) => setRating(parseInt(e.target.value, 10))} className="w-full border rounded-md px-3 py-2" />
+    <div className="bg-slate-50 border border-dashed border-indigo-100 rounded-2xl p-5">
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-800 mb-2">Rate your experience</p>
+          <StarRating value={rating} onChange={setRating} />
+          <p className="mt-2 text-xs text-gray-500">
+            {rating ? `You selected ${rating} star${rating > 1 ? "s" : ""}` : "Tap a star to rate"}
+          </p>
         </div>
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">Comment</label>
-          <textarea value={comment} onChange={(e) => setComment(e.target.value)} className="w-full border rounded-md px-3 py-2" rows={3} />
+        <div className="flex-1">
+          <label className="block text-sm text-gray-600 mb-1">Share your feedback</label>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="w-full border rounded-xl px-3 py-2 text-sm min-h-[96px] focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+            rows={4}
+            placeholder="Write about your experience, what went well, and what can improve."
+          />
         </div>
       </div>
-      <div className="mt-4 flex gap-3">
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-md" onClick={submit}>Submit</button>
+      <div className="mt-4 flex justify-end gap-3">
         <button className="px-4 py-2 border rounded-md" onClick={onClose}>Cancel</button>
+        <button className="px-4 py-2 bg-indigo-600 text-white rounded-md" onClick={submit}>Submit</button>
       </div>
     </div>
   );

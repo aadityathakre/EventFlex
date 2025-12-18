@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
@@ -8,6 +9,7 @@ import { FaCheckCircle } from "react-icons/fa";
 
 function OrganizerPools() {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [pools, setPools] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedPoolId, setSelectedPoolId] = useState("");
@@ -66,20 +68,20 @@ function OrganizerPools() {
         { eventId, poolId },
         { withCredentials: true }
       );
-      const convId = res.data?.data?.conversation?._id;
+      const convId = res.data?.data?.conversation?._id || res.data?.data?._id;
       if (convId) {
-        showToast("Chat ready", "success");
+        navigate(`/organizer/chat/${convId}`);
       } else {
-        showToast("Chat ready", "success");
+        showToast("Chat created but ID missing", "warning");
       }
     } catch (e) {
-      showToast(e?.response?.data?.message || "Failed to send message", "error");
+      showToast(e?.response?.data?.message || "Failed to start chat", "error");
     }
   };
 
   const deletePool = async (poolId) => {
     try {
-      await axios.delete(`${serverURL}/organizer/pools/${poolId}`, { withCredentials: true });
+      await axios.delete(`${serverURL}/organizer/messages/${poolId}`, { withCredentials: true });
       setPools((prev) => prev.filter((p) => p._id !== poolId));
       if (selectedPoolId === poolId) setSelectedPoolId("");
       showToast("Pool deleted", "success");
@@ -211,7 +213,9 @@ function OrganizerPools() {
                       <div className="flex items-center justify-between mt-3">
                         <div className="flex gap-2">
                           <button onClick={() => startEditPool(p)} className="px-3 py-2 text-sm border rounded-lg">Edit</button>
-                          <button onClick={() => deletePool(p._id)} className="px-3 py-2 text-sm border rounded-lg text-rose-600">Delete</button>
+                          {activeTab === "completed" && (
+                            <button onClick={() => deletePool(p._id)} className="px-3 py-2 text-sm border rounded-lg text-rose-600">Delete</button>
+                          )}
                         </div>
                         <button
                           onClick={() => setSelectedPoolId(selectedPoolId === p._id ? "" : p._id)}

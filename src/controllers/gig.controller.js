@@ -288,10 +288,16 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
   const payments = await Payment.find({ payee: gigId })
-    .populate("escrow", "event total_amount status");
+    .populate("escrow", "event total_amount status")
+    .populate({
+      path: "event",
+      select: "title start_date end_date event_type",
+    });
 
   if (!payments || payments.length === 0) {
-    throw new ApiError(404, "No payments found");
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], "No payments found"));
   }
 
   const formattedPayments = payments.map((p) => ({
@@ -590,17 +596,23 @@ const getMyApplications = asyncHandler(async (req, res) => {
 
 // 15. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
-  const gigObjectId = req.user._id; 
+  const gigObjectId = req.user._id;
 
-  console.log("Gig ObjectId:", gigObjectId);
   const events = await Pool.find({ gigs: gigObjectId })
     .select("-__v")
-    .populate("event", "title start_date end_date event_type organizer status");
+    .populate({
+      path: "event",
+      select: "title start_date end_date event_type organizer status banner_url",
+      populate: {
+        path: "organizer",
+        select: "first_name last_name fullName name email avatar profile_image_url",
+      },
+    });
 
   if (!events || events.length === 0) {
-   return res
-    .status(200)
-    .json(new ApiResponse(200, [], "No accepted events found"));
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], "No accepted events found"));
   }
 
   return res
@@ -817,6 +829,41 @@ const getMyDisputes = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, disputes, "Gig disputes fetched"));
 });
 
+// List escrows related to this gig's accepted events
+const getGigEscrows = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const pools = await Pool.find({ gigs: gigId }).select("event");
+  const eventIds = pools.map((p) => p.event).filter(Boolean);
+
+  if (eventIds.length === 0) {
+    return res.status(200).json(new ApiResponse(200, [], "No escrows found for this gig"));
+  }
+
+  const escrows = await EscrowContract.find({ event: { $in: eventIds } })
+    .populate("event", "title")
+    .select("event total_amount status organizer_percentage gigs_percentage createdAt updatedAt");
+
+  const toNum = (v) => {
+    if (v && typeof v === "object" && v.$numberDecimal) return parseFloat(v.$numberDecimal);
+    const n = parseFloat(v);
+    return Number.isNaN(n) ? 0 : n;
+  };
+
+  const normalized = escrows.map((e) => ({
+    _id: e._id,
+    event: e.event,
+    total_amount: toNum(e.total_amount),
+    status: e.status,
+    organizer_percentage: toNum(e.organizer_percentage),
+    gigs_percentage: toNum(e.gigs_percentage),
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+  }));
+
+  return res.status(200).json(new ApiResponse(200, normalized, "Escrows fetched for gig"));
+});
+
 // 20. Simulate payout from escrow (for testing)
 const simulatePayout = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
@@ -895,10 +942,81 @@ const getMyFeedbacks = asyncHandler(async (req, res) => {
 
   const feedbacks = await Feedback.find({ gig: gigId })
     .populate("event", "title start_date end_date event_type")
-    .select("-__v")
-    .sort({ createdAt: -1 });
+    .select("-__v");
 
-  return res.status(200).json(new ApiResponse(200, feedbacks, "Gig feedbacks fetched"));
+  const reviews = await RatingReview.find({
+    reviewee: gigId,
+    review_type: "organizer_to_gig",
+  })
+    .populate("event", "title start_date end_date event_type")
+    .populate("reviewer", "first_name last_name fullName name email avatar profile_image_url")
+    .select("-__v");
+
+  const myRatings = await RatingReview.find({
+    reviewer: gigId,
+    review_type: "gig_to_organizer",
+  })
+    .populate("event", "title start_date end_date event_type")
+    .populate("reviewee", "first_name last_name fullName name email avatar profile_image_url")
+    .select("-__v");
+
+  const normalizedFeedbacks = feedbacks.map((f) => ({
+    _id: f._id,
+    event: f.event,
+    rating: f.rating,
+    comment: f.comment,
+    createdAt: f.createdAt,
+    source: "gig",
+    kind: "gig_to_event",
+  }));
+
+  const normalizedReviews = reviews.map((r) => {
+    let numericRating;
+    if (r.rating && typeof r.rating === "object" && r.rating.$numberDecimal) {
+      numericRating = parseFloat(r.rating.$numberDecimal);
+    } else {
+      const candidate = Number(r.rating || 0);
+      numericRating = Number.isFinite(candidate) ? candidate : 0;
+    }
+
+    return {
+      _id: r._id,
+      event: r.event,
+      rating: numericRating,
+      comment: r.review_text,
+      createdAt: r.createdAt,
+      source: "organizer",
+      kind: r.review_type || "organizer_to_gig",
+      organizer: r.reviewer
+    };
+  });
+
+  const normalizedMyRatings = myRatings.map((r) => {
+    let numericRating;
+    if (r.rating && typeof r.rating === "object" && r.rating.$numberDecimal) {
+      numericRating = parseFloat(r.rating.$numberDecimal);
+    } else {
+      const candidate = Number(r.rating || 0);
+      numericRating = Number.isFinite(candidate) ? candidate : 0;
+    }
+
+    return {
+      _id: r._id,
+      event: r.event,
+      rating: numericRating,
+      comment: r.review_text,
+      createdAt: r.createdAt,
+      source: "gig",
+      kind: r.review_type || "gig_to_organizer",
+      organizer: r.reviewee,
+    };
+  });
+
+  const combined = [...normalizedFeedbacks, ...normalizedReviews, ...normalizedMyRatings].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
+  return res.status(200).json(new ApiResponse(200, combined, "Gig feedbacks fetched"));
 });
 
 // 22.2 Submit rating for organizer (post-completion)
@@ -1044,20 +1162,92 @@ const getGigConversationMessages = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, messages, "Messages fetched"));
 });
 
+const deleteGigConversation = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { id } = req.params;
+  const conversation = await Conversation.findById(id);
+  if (!conversation) {
+    throw new ApiError(404, "Conversation not found");
+  }
+  if (!conversation.participants.some((p) => p.toString() === gigId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+  conversation.participants = conversation.participants.filter((p) => p.toString() !== gigId.toString());
+  if (conversation.participants.length === 0) {
+    await conversation.softDelete();
+  } else {
+    await conversation.save();
+  }
+  return res.status(200).json(new ApiResponse(200, null, "Conversation deleted"));
+});
+
 //  List chat threads
 const getConversations = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-const conversations = await Conversation.find({
-  participants: gigId
-}).populate("event", "name date location")
-    .populate("pool", "name")
+  const rows = await Conversation.find({ participants: gigId })
+    .populate("event", "title start_date end_date status")
+    .populate("pool", "pool_name status")
+    .populate("participants", "email role avatar first_name last_name")
     .sort({ createdAt: -1 });
 
-    console.log(conversations)
-  return res
-    .status(200)
-    .json(new ApiResponse(200, conversations, "Conversations fetched"));
+  const conversations = rows.map((c) => {
+    const obj = c.toObject();
+    const organizerUser = (obj.participants || []).find((p) => p.role === "organizer");
+    const organizer =
+      organizerUser &&
+      {
+        _id: organizerUser._id,
+        email: organizerUser.email,
+        avatar: organizerUser.avatar,
+        fullName: `${organizerUser.first_name} ${organizerUser.last_name}`.trim(),
+        name: `${organizerUser.first_name} ${organizerUser.last_name}`.trim(),
+      };
+    return {
+      ...obj,
+      organizer,
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+const deleteGigApplication = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { id } = req.params;
+  const app = await PoolApplication.findById(id);
+  if (!app) throw new ApiError(404, "Application not found");
+  if (app.gig?.toString() !== gigId.toString()) {
+    throw new ApiError(403, "Not authorized to delete this application");
+  }
+  if (!["accepted", "rejected"].includes(app.application_status)) {
+    throw new ApiError(400, "Only accepted or rejected applications can be deleted");
+  }
+  await PoolApplication.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Application deleted"));
+});
+
+//  Remove gig's completed event card (leave pool)
+const deleteCompletedEventCard = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { poolId } = req.params;
+
+  const pool = await Pool.findById(poolId).populate("event", "end_date status");
+  if (!pool) throw new ApiError(404, "Pool not found");
+
+  const isMember = (pool.gigs || []).some((g) => g?.toString() === gigId.toString());
+  if (!isMember) throw new ApiError(403, "Not authorized to modify this pool");
+
+  const now = new Date();
+  const endAt = pool?.event?.end_date ? new Date(pool.event.end_date) : null;
+  const completedByDate = endAt && now > endAt;
+  const completedByStatus = pool?.event?.status === "completed";
+  if (!completedByDate && !completedByStatus) {
+    throw new ApiError(400, "Only completed events can be deleted from your list");
+  }
+
+  await Pool.updateOne({ _id: poolId }, { $pull: { gigs: gigId } });
+  return res.status(200).json(new ApiResponse(200, null, "Event removed from your completed list"));
 });
 
 //  Get notifications
@@ -1079,13 +1269,14 @@ export {
   joinPool,
   getMyEvents,
   getMyApplications,
+  deleteGigApplication,
   checkIn,
   checkOut,
   getAttendanceHistory,
   getWallet,
   withdraw,
-  verifyAadhaar,
   getPaymentHistory,
+  verifyAadhaar,
   getProfile,
   updateProfile,
   getBadges,
@@ -1095,6 +1286,7 @@ export {
   sendMessage,
   raiseDispute,
   getMyDisputes,
+  getGigEscrows,
   getNotifications,
   deleteNotification,
   updateProfileImage,
@@ -1109,5 +1301,6 @@ export {
   updateGigDocs,
   uploadKycVideo,
   createWallet,
-  
+  deleteGigConversation,
+  deleteCompletedEventCard,
 };

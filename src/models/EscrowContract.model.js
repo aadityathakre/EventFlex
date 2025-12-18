@@ -1,7 +1,8 @@
 import { mongoose, Schema } from "mongoose";
 import Event from "./Event.model.js";
 import Admin from "./Admin.model.js";
-import User from "./User.model.js"; // used for both host and organizer
+import User from "./User.model.js"; 
+import { softDelete } from "../middlewares/softDelete.middleware.js";
 
 const EscrowContractSchema = new mongoose.Schema(
   {
@@ -52,6 +53,8 @@ const EscrowContractSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );
+
+softDelete(EscrowContractSchema);
 
 const EscrowContract = mongoose.model("EscrowContract", EscrowContractSchema);
 export default EscrowContract;

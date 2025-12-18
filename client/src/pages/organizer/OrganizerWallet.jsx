@@ -5,6 +5,7 @@ import { serverURL } from "../../App";
 import { useAuth } from "../../context/AuthContext";
 import TopNavbar from "../../components/TopNavbar.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
+import { FaTrash } from "react-icons/fa";
 
 function OrganizerWallet() {
   const navigate = useNavigate();
@@ -74,7 +75,19 @@ function OrganizerWallet() {
       const res = await axios.get(`${serverURL}/organizer/payment-history`, { withCredentials: true });
       setPayments(res.data?.data || []);
     } catch (e) {
-      // keep page usable
+      void e;
+    }
+  };
+
+  const deletePayment = async (id) => {
+    const ok = typeof window !== "undefined" ? window.confirm("Delete this payment record?") : true;
+    if (!ok) return;
+    try {
+      await axios.delete(`${serverURL}/organizer/payment-history/${id}`, { withCredentials: true });
+      setPayments((prev) => prev.filter((p) => p._id !== id));
+      showToast("Payment record deleted", "success");
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to delete payment record", "error");
     }
   };
 
@@ -243,41 +256,66 @@ function OrganizerWallet() {
           </div>
           <div className="w-full md:w-3/5 space-y-6 mt-6 md:mt-0">
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h4 className="text-lg font-bold mb-3">Escrow & Payment Status</h4>
+              <h4 className="text-lg font-bold mb-3">Escrow Payment History</h4>
               {payments.length === 0 ? (
                 <p className="text-gray-600">No escrow records yet.</p>
               ) : (
-                <div className="space-y-3 max-h-[360px] overflow-auto">
-                  {payments.map((p) => (
-                    <div key={p._id} className="border rounded-xl p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">
-                          Event: {(() => {
-                            const ev = p?.event;
-                            if (!ev) return "-";
-                            if (typeof ev === "object") return ev?.title || ev?._id || "-";
-                            return ev;
-                          })()}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Total: ₹ {(() => {
-                            const amt = asNumber(p?.total_amount ?? p?.amount);
-                            return amt !== null ? amt.toFixed(2) : "-";
-                          })()}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Split: Org {(() => {
-                            const org = asNumber(p?.organizer_percentage);
-                            return org !== null ? org : "-";
-                          })()}% · Gigs {(() => {
-                            const gigs = asNumber(p?.gigs_percentage);
-                            return gigs !== null ? gigs : "-";
-                          })()}%
-                        </p>
+                <div className="space-y-3 max-h-[400px] overflow-auto">
+                  {payments.map((p) => {
+                    const total = asNumber(p?.total_amount ?? p?.amount) || 0;
+                    const orgPct = asNumber(p?.organizer_percentage) || 0;
+                    const gigsPct = asNumber(p?.gigs_percentage) || 0;
+                    
+                    const orgAmount = (total * orgPct) / 100;
+                    const gigsAmount = (total * gigsPct) / 100;
+                    
+                    return (
+                      <div key={p._id} className="border rounded-xl p-4 hover:shadow-md transition-shadow bg-white">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-bold text-gray-900">
+                              {(() => {
+                                const ev = p?.event;
+                                if (!ev) return "Event Payment";
+                                if (typeof ev === "object") return ev?.title || ev?._id || "Event Payment";
+                                return ev;
+                              })()}
+                            </p>
+                            <p className="text-xs text-gray-500">{new Date(p.createdAt || Date.now()).toLocaleDateString()}</p>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${p?.status === 'released' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {p?.status || 'pending'}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase font-bold">Total Escrow</p>
+                            <p className="text-lg font-bold text-gray-900">₹ {total.toFixed(2)}</p>
+                          </div>
+                          <div className="text-right">
+                            <button
+                              onClick={() => deletePayment(p._id)}
+                              className="text-red-500 text-xs hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                          <div className="bg-purple-50 p-2 rounded border border-purple-100">
+                            <p className="text-xs text-purple-600 font-bold">Organizer ({orgPct}%)</p>
+                            <p className="font-semibold text-purple-900">+ ₹ {orgAmount.toFixed(2)}</p>
+                          </div>
+                          <div className="bg-indigo-50 p-2 rounded border border-indigo-100">
+                            <p className="text-xs text-indigo-600 font-bold">Gigs Pool ({gigsPct}%)</p>
+                            <p className="font-semibold text-indigo-900">₹ {gigsAmount.toFixed(2)}</p>
+                          </div>
+                        </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-lg text-xs ${p?.status === 'released' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p?.status || 'pending'}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

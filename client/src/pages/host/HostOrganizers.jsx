@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
-import { FaUsers, FaArrowLeft, FaPaperPlane, FaEnvelope } from "react-icons/fa";
+import { FaUsers, FaArrowLeft, FaPaperPlane,FaTrash, FaEnvelope } from "react-icons/fa";
 import { getCardImage, getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostOrganizers() {
@@ -71,11 +71,7 @@ function HostOrganizers() {
     );
   };
 
-  const eventById = useMemo(() => {
-    const map = new Map();
-    events.forEach((e) => map.set(e._id, e));
-    return map;
-  }, [events]);
+  // removed unused eventById map
 
   const startInvite = (organizerId) => {
     setInviteState({ organizerId, eventId: "", cover: "" });
@@ -263,17 +259,21 @@ function HostOrganizers() {
 
           {/* Right: Assigned Organizers sidebar (≈30%) */}
           <aside className="basis-[30%] shrink-0">
-            <div className="sticky top-24 bg-white rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Assigned Organizers</h3>
+            <div className="sticky top-24 bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <FaUsers className="text-purple-600" /> Assigned Organizers
+              </h3>
               {assignedPools.length === 0 ? (
-                <p className="text-gray-600">No assigned organizers yet.</p>
+                <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                  <p className="text-gray-500 text-sm">No assigned organizers yet.</p>
+                </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {assignedPools.map((p) => (
-                    <div key={p._id} className="border rounded-xl overflow-hidden">
-                      <div className="p-4 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-md overflow-hidden bg-gray-100">
+                    <div key={p._id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow duration-300">
+                      <div className="p-4">
+                        <div className="flex items-start gap-4 mb-4">
+                          <div className="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 shadow-sm">
                             <img
                               src={p?.event?.event_type ? getEventTypeImage(p.event.event_type) : getCardImage("cardPools")}
                               alt={p?.event?.title || "Pool"}
@@ -281,18 +281,51 @@ function HostOrganizers() {
                               loading="lazy"
                             />
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{p.pool_name || p?.event?.title}</p>
-                            <p className="text-xs text-gray-600">Event: {p?.event?.title}</p>
-                            <p className="text-xs text-gray-600">Organizer: {p?.organizer?.email}</p>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-semibold text-gray-900 truncate" title={p.pool_name || p?.event?.title}>
+                              {p.pool_name || p?.event?.title}
+                            </h4>
+                            <p className="text-xs text-purple-600 font-medium truncate mb-0.5">
+                              {p?.event?.title}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+                              <FaEnvelope size={10} /> {p?.organizer?.email}
+                            </p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => navigate(`/host/events/${p?.event?._id}`)}
-                          className="px-3 py-2 text-xs border rounded-lg hover:bg-gray-50"
-                        >
-                          View Event
-                        </button>
+                        
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => navigate(`/host/events/${p?.event?._id}`)}
+                              className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-100"
+                            >
+                              View Event
+                            </button>
+                            {p?.event?.status === "completed" ? (
+                              <button
+                                onClick={async () => {
+                                  if (!window.confirm("Remove this organizer assignment?")) return;
+                                  try {
+                                    await axios.delete(`${serverURL}/host/pools/${p._id}`, { withCredentials: true });
+                                    const poolRes = await axios.get(`${serverURL}/host/organizer`, { withCredentials: true });
+                                    setAssignedPools(poolRes.data?.data || []);
+                                  } catch (e) {
+                                    setError(e.response?.data?.message || "Failed to delete assignment");
+                                  }
+                                }}
+                                className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
+                              >
+                                <FaTrash className="mr-1.5" /> Remove
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                className="flex-1 flex items-center justify-center px-3 py-2 text-xs font-medium text-green-700 bg-green-50 rounded-lg cursor-not-allowed border border-green-100"
+                              >
+                                Active
+                              </button>
+                            )}
+                          </div>
                       </div>
                     </div>
                   ))}

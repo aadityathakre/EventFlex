@@ -33,6 +33,8 @@ import {
   getHostConversations,
   getConversationMessages,
   sendHostMessage,
+  deleteHostConversation,
+  deleteOrganizerPool,
 
   // 💰 Payments & Escrow
   depositToEscrow,
@@ -90,11 +92,13 @@ router.get("/organizers/invites", verifyToken, authorizeRoles("host"), getInvite
 router.delete("/organizers/applications/:id", verifyToken, authorizeRoles("host"), deleteHostApplication);
 router.post("/pools/create", verifyToken, authorizeRoles("host"), createOrganizerPoolForEvent);
 router.get("/organizer", verifyToken, authorizeRoles("host"), getAssignedOrganizer);
+router.delete("/pools/:id", verifyToken, authorizeRoles("host"), deleteOrganizerPool);
 router.get("/organizers/:id/profile", verifyToken, authorizeRoles("host"), getOrganizerPublicProfile);
 router.post("/chat", verifyToken, authorizeRoles("host"), startChatWithOrganizer);
 router.get("/conversations", verifyToken, authorizeRoles("host"), getHostConversations);
 router.get("/messages/:conversationId", verifyToken, authorizeRoles("host"), getConversationMessages);
 router.post("/message/:conversationId", verifyToken, authorizeRoles("host"), sendHostMessage);
+router.delete("/conversations/:id", verifyToken, authorizeRoles("host"), deleteHostConversation);
 
 //
 // 💰 Payments & Escrow

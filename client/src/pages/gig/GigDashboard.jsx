@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
-import { FaCalendarAlt, FaWallet, FaSignOutAlt, FaUserCircle, FaBell, FaComments } from "react-icons/fa";
+import { FaCalendarAlt, FaWallet, FaSignOutAlt, FaUserCircle, FaBell, FaComments, FaTrash } from "react-icons/fa";
 import { getEventTypeImage, getCardImage } from "../../utils/imageMaps.js";
 
 function GigDashboard() {
@@ -14,6 +14,8 @@ function GigDashboard() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAllEvents, setShowAllEvents] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -75,7 +77,60 @@ function GigDashboard() {
     );
   }
 
-  const recentEvents = [...events].slice(0, 3);
+  const recentEvents = [...events]
+    .filter((pool) => {
+      const ev = pool?.event || null;
+      const end = ev?.end_date ? new Date(ev.end_date) : null;
+      const status = ev?.status;
+      const now = new Date();
+      return status === "completed" || (end && now > end);
+    })
+    .slice(0, 3);
+
+  const getEventStatusBadge = (pool) => {
+    const event = pool?.event || null;
+    const now = new Date();
+    const start = event?.start_date ? new Date(event.start_date) : null;
+    const end = event?.end_date ? new Date(event.end_date) : null;
+    const status = event?.status;
+
+    let label = "Upcoming";
+    let cls = "bg-gray-100 text-gray-800";
+
+    const completedByTime = end && now > end;
+    const activeByTime = start && end && now >= start && now <= end;
+    const upcomingByTime = start && now < start;
+
+    if (status === "completed" || completedByTime) {
+      label = "Completed";
+      cls = "bg-blue-100 text-blue-800";
+    } else if (status === "in_progress" || activeByTime) {
+      label = "Active";
+      cls = "bg-green-100 text-green-800";
+    } else if (status === "published" || upcomingByTime) {
+      label = "Upcoming";
+      cls = "bg-gray-100 text-gray-800";
+    } else if (pool?.status) {
+      label = pool.status;
+      cls =
+        pool.status === "completed"
+          ? "bg-blue-100 text-blue-800"
+          : pool.status === "active"
+          ? "bg-green-100 text-green-800"
+          : "bg-gray-100 text-gray-800";
+    }
+
+    return { label, cls };
+  };
+
+  const deleteRecentEvent = async (poolId) => {
+    try {
+      await axios.delete(`${serverURL}/gigs/events/${poolId}`, { withCredentials: true });
+      setEvents((prev) => prev.filter((p) => p._id !== poolId));
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to delete event card");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -229,7 +284,7 @@ function GigDashboard() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold text-gray-900">Recent Events</h3>
             <button
-              onClick={() => navigate("/gig/pools")}
+              onClick={() => setShowAllEvents(true)}
               className="text-purple-600 hover:text-indigo-600 font-semibold"
             >
               View All
@@ -241,37 +296,48 @@ function GigDashboard() {
               <p className="text-gray-600 mb-4">No accepted events yet</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {recentEvents.map((pool) => {
                 const event = pool?.event || null;
                 const start = event?.start_date ? new Date(event.start_date).toLocaleString() : "-";
                 const end = event?.end_date ? new Date(event.end_date).toLocaleString() : "-";
-                const statusBadge =
-                  pool.status === "active"
-                    ? "bg-green-100 text-green-800"
-                    : pool.status === "completed"
-                    ? "bg-blue-100 text-blue-800"
-                    : "bg-gray-100 text-gray-800";
+                const { label: statusLabel, cls: statusBadge } = getEventStatusBadge(pool);
+                const isCompleted = statusLabel === "Completed";
+                const eventImage = event?.banner_url || getEventTypeImage(event?.event_type);
                 return (
-                  <div key={pool._id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300">
+                  <div
+                    key={pool._id}
+                    className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col"
+                  >
                     <div className="relative h-28 overflow-hidden">
                       <img
-                        src={getEventTypeImage(event?.event_type)}
+                        src={eventImage}
                         alt={event?.title || "Event"}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25 pointer-events-none" />
                     </div>
-                    <div className="p-4 flex items-center justify-between">
+                    <div className="p-4 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <h4 className="font-semibold text-gray-900 truncate">{event?.title || pool.pool_name || "Assigned Event"}</h4>
                         <p className="text-xs text-gray-600">Start: {start}</p>
                         <p className="text-xs text-gray-600">End: {end}</p>
-                        {pool.status && (
-                          <span className={`mt-2 inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadge}`}>{pool.status}</span>
+                        {statusLabel && (
+                          <span className={`mt-2 inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadge}`}>
+                            {statusLabel}
+                          </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
+                        {isCompleted && (
+                          <button
+                            onClick={() => deleteRecentEvent(pool._id)}
+                            className="p-2 rounded-lg border text-xs text-rose-600 hover:bg-rose-50"
+                            title="Remove from recent events"
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
                         <button
                           onClick={() => navigate(`/gig/chat`)}
                           className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
@@ -280,7 +346,7 @@ function GigDashboard() {
                           <FaComments className="text-purple-600" />
                         </button>
                         <button
-                          onClick={() => navigate(`/gig/attendance`)}
+                          onClick={() => navigate(`/gig/event/${pool._id}`)}
                           className="px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300 text-sm"
                         >
                           View
@@ -293,9 +359,192 @@ function GigDashboard() {
             </div>
           )}
         </div>
-      </main>
+        {showAllEvents && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-8 bg-black/40">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h4 className="text-lg font-semibold text-gray-900">All Events</h4>
+                <button
+                  onClick={() => setShowAllEvents(false)}
+                  className="px-3 py-1 text-sm border rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto">
+                {events.length === 0 ? (
+                  <p className="text-gray-600">No events found.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {events.map((pool) => {
+                      const event = pool?.event || null;
+                      const start = event?.start_date ? new Date(event.start_date).toLocaleString() : "-";
+                      const end = event?.end_date ? new Date(event.end_date).toLocaleString() : "-";
+                      const { label: statusLabel, cls: statusBadge } = getEventStatusBadge(pool);
+                      const isCompleted = statusLabel === "Completed";
+                      const eventImage = event?.banner_url || getEventTypeImage(event?.event_type);
+                      return (
+                        <div
+                          key={pool._id}
+                          className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col"
+                        >
+                          <div className="relative h-28 overflow-hidden">
+                            <img
+                              src={eventImage}
+                              alt={event?.title || "Event"}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25 pointer-events-none" />
+                          </div>
+                          <div className="p-4 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <h4 className="font-semibold text-gray-900 truncate">
+                                {event?.title || pool.pool_name || "Assigned Event"}
+                              </h4>
+                              <p className="text-xs text-gray-600">Start: {start}</p>
+                              <p className="text-xs text-gray-600">End: {end}</p>
+                              {statusLabel && (
+                                <span
+                                  className={`mt-2 inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusBadge}`}
+                                >
+                                  {statusLabel}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {isCompleted && (
+                                <button
+                                  onClick={() => deleteRecentEvent(pool._id)}
+                                  className="p-2 rounded-lg border text-xs text-rose-600 hover:bg-rose-50"
+                                  title="Remove from events"
+                                >
+                                  <FaTrash />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => navigate(`/gig/chat`)}
+                                className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                                title="Open chat"
+                              >
+                                <FaComments className="text-purple-600" />
+                              </button>
+                              <button
+                                onClick={() => setSelectedEvent(pool)}
+                                className="px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300 text-sm"
+                              >
+                                View
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+     {selectedEvent && (
+  <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-8 bg-black/40">
+    <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between px-6 py-4 border-b">
+        <h4 className="text-lg font-semibold text-gray-900">Event Details</h4>
+        <button
+          onClick={() => setSelectedEvent(null)}
+          className="px-3 py-1 text-sm border rounded-lg"
+        >
+          Close
+        </button>
+      </div>
+
+      <div className="p-6 overflow-y-auto">
+        {(() => {
+          const pool = selectedEvent;
+          const event = pool?.event || null;
+          const start = event?.start_date ? new Date(event.start_date).toLocaleString() : "-";
+          const end = event?.end_date ? new Date(event.end_date).toLocaleString() : "-";
+          const { label: statusLabel } = getEventStatusBadge(pool);
+          const eventImage = event?.banner_url || getEventTypeImage(event?.event_type);
+          const organizer = event?.organizer;
+          const organizerName = organizer?.fullName || organizer?.name || null;
+          const organizerEmail = organizer?.email || null;
+          const organizerAvatar = organizer?.profile_image_url || organizer?.avatar || null;
+
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <div className="rounded-xl overflow-hidden border">
+                  <img
+                    src={eventImage}
+                    alt={event?.title || "Event"}
+                    className="w-full h-40 object-cover"
+                  />
+                </div>
+
+                {statusLabel && (
+                  <span className="mt-3 inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                    {statusLabel}
+                  </span>
+                )}
+              </div>
+
+              <div className="md:col-span-2 space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Event</p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {event?.title || pool.pool_name || "Assigned Event"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Type: {event?.event_type || "-"}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Start</p>
+                    <p className="text-sm text-gray-800">{start}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">End</p>
+                    <p className="text-sm text-gray-800">{end}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Organizer</p>
+                  <div className="flex items-center gap-3">
+                    {organizerAvatar ? (
+                      <img
+                        src={organizerAvatar}
+                        alt={organizerName || "Organizer"}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-indigo-100" />
+                    )}
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {organizerName || "Not available"}
+                      </p>
+                      {organizerEmail && (
+                        <p className="text-xs text-gray-600 truncate">{organizerEmail}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
     </div>
-  );
+  </div>
+)}
+</main>
+</div>
+);
 }
 
 export default GigDashboard;

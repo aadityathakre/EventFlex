@@ -21,7 +21,6 @@ app.use(cookieParser());
 
 // Build CORS origin
 const corsOrigin = `http://${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}`;
-console.log("🔐 CORS Origin:", corsOrigin);
 
 app.use(
   cors({
@@ -35,7 +34,7 @@ app.use(
 
 // Security middlewares
 app.use(sanitizeInput);
-app.use(rateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
+app.use(rateLimit(1000, 15 * 60 * 1000)); // 1000 requests per 15 minutes
 
 
 // users auth route
@@ -75,13 +74,11 @@ app.get('/health', (req, res) => {
 
 // TEST ENDPOINT - Simple cookie test
 app.get('/api/v1/test-cookie', (req, res) => {
-  console.log("🧪 Test cookie endpoint called");
   res.cookie('testCookie', 'testValue123', {
     httpOnly: true,
     secure: false,
     sameSite: 'Lax',
   });
-  console.log("🍪 Set test cookie");
   res.json({ success: true, message: 'Cookie set' });
 });
 

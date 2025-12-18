@@ -19,7 +19,7 @@ const verifyToken = asyncHandler(async (req, _ , next) => {
      );
    
      if (!user) {
-       console.log("Decoded Token : ",decodedToken);
+
        throw new ApiError(401, "Invalid Access Token !!");
      }
    

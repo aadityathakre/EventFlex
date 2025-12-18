@@ -29,50 +29,61 @@ function HostPayments() {
   const [payments, setPayments] = useState([]);
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyForm, setAddMoneyForm] = useState({ amount: "", upi_id: "", name: "" });
+
+  // Safety check for user object
+  const safeUser = user || {};
   
   useEffect(() => {
     const init = async () => {
       try {
         const [walletRes, eventsRes, poolsRes, profileRes, dashboardRes] = await Promise.all([
-          axios.get(`${serverURL}/host/wallet/balance`, { withCredentials: true }),
-          axios.get(`${serverURL}/host/events`, { withCredentials: true }),
-          axios.get(`${serverURL}/host/organizer`, { withCredentials: true }),
-          axios.get(`${serverURL}/host/profile`, { withCredentials: true }),
-          axios.get(`${serverURL}/host/dashboard`, { withCredentials: true }),
+          axios.get(`${serverURL}/host/wallet/balance`, { withCredentials: true }).catch(() => ({ data: { data: null } })),
+          axios.get(`${serverURL}/host/events`, { withCredentials: true }).catch(() => ({ data: { data: [] } })),
+          axios.get(`${serverURL}/host/organizer`, { withCredentials: true }).catch(() => ({ data: { data: [] } })),
+          axios.get(`${serverURL}/host/profile`, { withCredentials: true }).catch(() => ({ data: { data: {} } })),
+          axios.get(`${serverURL}/host/dashboard`, { withCredentials: true }).catch(() => ({ data: { data: {} } })),
         ]);
+        
+        // Robust data setting
         setWallet(walletRes.data?.data || null);
-        setEvents(eventsRes.data?.data || []);
-        setAssignedPools(poolsRes.data?.data || []);
-        const mergedProfile = profileRes.data?.data?.mergedProfile || null;
+        setEvents(Array.isArray(eventsRes.data?.data) ? eventsRes.data.data : []);
+        setAssignedPools(Array.isArray(poolsRes.data?.data) ? poolsRes.data.data : []);
+        
+        const mergedProfile = profileRes.data?.data?.mergedProfile || {};
         setProfile(mergedProfile);
-        setPayments(dashboardRes.data?.data?.payments || []);
+        
+        const paymentsData = dashboardRes.data?.data?.payments;
+        setPayments(Array.isArray(paymentsData) ? paymentsData : []);
 
         // Build Razorpay prefill using profile, then auth user, then safe defaults
-        const namePref = mergedProfile?.name || user?.fullName || user?.name || "Host User";
-        const emailPref = mergedProfile?.email || user?.email || "";
-        const phoneRaw = mergedProfile?.phone || user?.phone || user?.mobile || "9999999999";
+        const namePref = mergedProfile?.name || safeUser?.fullName || safeUser?.name || "Host User";
+        const emailPref = mergedProfile?.email || safeUser?.email || "";
+        const phoneRaw = mergedProfile?.phone || safeUser?.phone || safeUser?.mobile || "9999999999";
         const phonePref = typeof phoneRaw === "string" && /^\d{10}$/.test(phoneRaw) ? phoneRaw : "9999999999";
         setPrefill({ name: namePref, email: emailPref, contact: phonePref });
         setError(null);
       } catch (err) {
         console.error("Payments init error:", err);
-        setError(err.response?.data?.message || "Failed to load payments data");
+        setError("Failed to load payments data. Please try refreshing.");
       } finally {
         setLoading(false);
       }
     };
-    init();
-  }, []);
+    if (user) {
+        init();
+    }
+  }, [user]);
 
   const selectedOrganizerId = useMemo(() => {
+    if (!Array.isArray(assignedPools)) return null;
     const pool = assignedPools.find((p) => p?.event?._id === selectedEventId);
     return pool?.organizer?._id || null;
   }, [assignedPools, selectedEventId]);
 
   const filteredEvents = useMemo(() => {
-    const q = escrowSearch.trim().toLowerCase();
-    if (!q) return events;
-    return events.filter((evt) => (evt?.title || "").toLowerCase().includes(q));
+    const q = (escrowSearch || "").trim().toLowerCase();
+    if (!q) return events || [];
+    return (events || []).filter((evt) => (evt?.title || "").toLowerCase().includes(q));
   }, [escrowSearch, events]);
 
   const refreshWallet = async () => {
@@ -109,9 +120,9 @@ function HostPayments() {
       setBusy((b) => ({ ...b, withdraw: true }));
       // Navigate to Razorpay test checkout to confirm withdraw
       const safePrefill = prefill || {
-        name: user?.name || user?.fullName || "Host User",
-        email: user?.email || "",
-        contact: (typeof user?.phone === "string" && /^\d{10}$/.test(user.phone)) ? user.phone : (typeof user?.mobile === "string" && /^\d{10}$/.test(user.mobile)) ? user.mobile : "9999999999",
+        name: safeUser?.name || safeUser?.fullName || "Host User",
+        email: safeUser?.email || "",
+        contact: (typeof safeUser?.phone === "string" && /^\d{10}$/.test(safeUser.phone)) ? safeUser.phone : (typeof safeUser?.mobile === "string" && /^\d{10}$/.test(safeUser.mobile)) ? safeUser.mobile : "9999999999",
       };
       navigate("/razorpay", {
         state: {
@@ -154,6 +165,31 @@ function HostPayments() {
       setError("Organizer and gigs percentages must sum to 100");
       return;
     }
+
+    // If UPI/Online, redirect to Razorpay
+    if (deposit.payment_method === "upi") {
+      const safePrefill = prefill || {
+        name: safeUser?.name || safeUser?.fullName || "Host User",
+        email: safeUser?.email || "",
+        contact: (typeof safeUser?.phone === "string" && /^\d{10}$/.test(safeUser.phone)) ? safeUser.phone : (typeof safeUser?.mobile === "string" && /^\d{10}$/.test(safeUser.mobile)) ? safeUser.mobile : "9999999999",
+      };
+      
+      navigate("/razorpay", {
+        state: {
+          checkoutPurpose: "deposit_escrow",
+          amount: total,
+          eventId: selectedEventId,
+          organizerId: selectedOrganizerId,
+          organizer_percentage: orgPct,
+          gigs_percentage: gigsPct,
+          payment_method: "upi",
+          returnPath: "/host/payments",
+          prefill: safePrefill,
+        },
+      });
+      return;
+    }
+
     try {
       setBusy((b) => ({ ...b, deposit: true }));
       const payload = {
@@ -168,7 +204,7 @@ function HostPayments() {
       await axios.post(`${serverURL}/host/payment/deposit`, payload, { withCredentials: true });
       await refreshEscrow(selectedEventId);
       await refreshWallet();
-      setDeposit({ total_amount: "", organizer_percentage: 70, gigs_percentage: 30, payment_method: deposit.payment_method, upi_transaction_id: "" });
+      setDeposit({ total_amount: "", organizer_percentage: 70, gigs_percentage: 30, payment_method: deposit.payment_method, upi_transaction_id: "", upi_id: "" });
     } catch (err) {
       setError(err.response?.data?.message || "Escrow deposit failed");
     } finally {
@@ -201,17 +237,6 @@ function HostPayments() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading payments...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Robust balance parsing (handles Decimal128 JSON like { $numberDecimal: "123.45" })
   const balanceRaw = wallet?.balance_inr?.$numberDecimal ?? wallet?.balance_inr;
   const balanceDisplay = (() => {
@@ -222,6 +247,22 @@ function HostPayments() {
       ? "0.00"
       : num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   })();
+
+  const sortedPayments = useMemo(() => {
+    if (!Array.isArray(payments)) return [];
+    return [...payments].sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
+  }, [payments]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading payments...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
@@ -309,9 +350,9 @@ function HostPayments() {
                       upi_id: addMoneyForm.upi_id,
                       name: addMoneyForm.name,
                       prefill: {
-                        name: addMoneyForm.name || user?.name || "",
-                        contact: user?.phone || "9999999999",
-                        email: user?.email || ""
+                        name: addMoneyForm.name || safeUser?.name || "",
+                        contact: safeUser?.phone || "9999999999",
+                        email: safeUser?.email || ""
                       },
                       returnPath: "/host/payments"
                     }
@@ -452,26 +493,11 @@ function HostPayments() {
                 onChange={(e) => setDeposit((d) => ({ ...d, payment_method: e.target.value }))}
                 className="w-full border rounded-lg px-3 py-2 text-sm"
               >
-                <option value="upi">UPI</option>
-                <option value="cashless">Cashless</option>
+                <option value="upi">Online / UPI (Razorpay)</option>
+                <option value="cashless">Cashless / Wallet</option>
               </select>
-              {deposit.payment_method === "upi" && (
-                <input
-                  value={deposit.upi_transaction_id}
-                  onChange={(e) => setDeposit((d) => ({ ...d, upi_transaction_id: e.target.value }))}
-                  placeholder="UPI Transaction ID"
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                />
-              )}
             </div>
-            {deposit.payment_method === "upi" && (
-              <input
-                value={deposit.upi_id}
-                onChange={(e) => setDeposit((d) => ({ ...d, upi_id: e.target.value }))}
-                placeholder="Your UPI ID (e.g., name@bank)"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-            )}
+            
             <button
               onClick={onDeposit}
               disabled={busy.deposit}
@@ -479,52 +505,7 @@ function HostPayments() {
             >
               {busy.deposit ? "Depositing..." : "Deposit to Escrow"}
             </button>
-            {deposit.payment_method === "upi" && (
-              <button
-                onClick={() => {
-                  const total = parseFloat(deposit.total_amount);
-                  if (!selectedEventId) {
-                    setError("Select an event for escrow deposit");
-                    return;
-                  }
-                  if (!selectedOrganizerId) {
-                    setError("No organizer assigned to selected event");
-                    return;
-                  }
-                  if (isNaN(total) || total <= 0) {
-                    setError("Enter a valid total amount");
-                    return;
-                  }
-                  const safePrefill = prefill || {
-                    name: user?.name || user?.fullName || "Host User",
-                    email: user?.email || "",
-                    contact:
-                      typeof user?.phone === "string" && /^\d{10}$/.test(user.phone)
-                        ? user.phone
-                        : typeof user?.mobile === "string" && /^\d{10}$/.test(user.mobile)
-                        ? user.mobile
-                        : "9999999999",
-                  };
-                  navigate("/razorpay", {
-                    state: {
-                      checkoutPurpose: "deposit_escrow",
-                      amount: total,
-                      eventId: selectedEventId,
-                      organizerId: selectedOrganizerId,
-                      organizer_percentage: deposit.organizer_percentage,
-                      gigs_percentage: deposit.gigs_percentage,
-                      payment_method: "upi",
-                      upi_id: deposit.upi_id,
-                      returnPath: "/host/payments",
-                      prefill: safePrefill,
-                    },
-                  });
-                }}
-                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:shadow"
-              >
-                Pay via UPI (Razorpay)
-              </button>
-            )}
+            
           </div>
         </section>
         </div>
@@ -603,37 +584,58 @@ function HostPayments() {
           )}
         </section>
 
-        {/* Payment History */}
-        <section className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-          <h3 className="text-md font-semibold text-gray-900 mb-4">Payment History</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {payments.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">No payments found</td>
+        {/* Transaction History */}
+        <section className="bg-white rounded-2xl shadow-lg p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <FaWallet className="text-indigo-600" /> Transaction History
+          </h3>
+          
+          {sortedPayments.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              No transactions yet
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
+                    <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
-                ) : (
-                  payments.map((payment) => (
-                    <tr key={payment._id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(payment.createdAt).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₹{payment.amount?.$numberDecimal || payment.amount}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{payment.type}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{payment.status}</td>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {sortedPayments.map((p, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-4 text-sm text-gray-600">
+                        {new Date(p.created_at || p.date).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                        {p.description || p.type || "Transaction"}
+                      </td>
+                      <td className={`py-3 px-4 text-sm font-bold ${
+                        (p.type === 'credit' || p.amount > 0) ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {p.type === 'debit' ? '-' : '+'} ₹{Math.abs(p.amount).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          p.status === 'success' || p.status === 'completed' 
+                            ? 'bg-green-100 text-green-700' 
+                            : p.status === 'failed' 
+                            ? 'bg-red-100 text-red-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {p.status || 'Completed'}
+                        </span>
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </main>
     </div>

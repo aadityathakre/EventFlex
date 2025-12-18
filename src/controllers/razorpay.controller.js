@@ -12,7 +12,7 @@ export const createPayment = asyncHandler(async (req, res) => {
   }
 
   const options = {
-    amount: Math.round(amount * 100), // smallest currency unit (paise) - ensure integer
+    amount: Math.round(amount), // smallest currency unit (paise) - ensure integer
     currency: currency || "INR",
     receipt: `receipt_${Math.random().toString(36).substring(7)}`,
   };

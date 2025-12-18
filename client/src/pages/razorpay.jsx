@@ -304,8 +304,12 @@ function Razorpay() {
   };
 
   useEffect(() => {
-    // Auto-open checkout if navigated here for withdrawal
-    if (flow?.checkoutPurpose === "withdraw") {
+    // Auto-open checkout if navigated here for withdrawal, add_money, or deposit_escrow
+    if (
+      flow?.checkoutPurpose === "withdraw" ||
+      flow?.checkoutPurpose === "add_money" ||
+      flow?.checkoutPurpose === "deposit_escrow"
+    ) {
       handlePayment();
     }
   }, []);

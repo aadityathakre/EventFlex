@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { serverURL } from "../../App";
 import { useNavigate } from "react-router-dom";
+import { FaCheckCircle } from "react-icons/fa";
 import { getEventTypeImage } from "../../utils/imageMaps.js";
 
 function HostOrganizerStatus() {
@@ -42,10 +43,10 @@ function HostOrganizerStatus() {
     return (eventId) => map.get(eventId);
   }, [assignedPools]);
 
-  const invitedApps = appsSummary.invited || [];
-  const requestedApps = appsSummary.requested || [];
-  const acceptedApps = appsSummary.accepted || [];
-  const rejectedApps = appsSummary.rejected || [];
+  const invitedApps = useMemo(() => [...(appsSummary.invited || [])].reverse(), [appsSummary.invited]);
+  const requestedApps = useMemo(() => [...(appsSummary.requested || [])].reverse(), [appsSummary.requested]);
+  const acceptedApps = useMemo(() => [...(appsSummary.accepted || [])].reverse(), [appsSummary.accepted]);
+  const rejectedApps = useMemo(() => [...(appsSummary.rejected || [])].reverse(), [appsSummary.rejected]);
 
   const approveApplication = async (appId) => {
     try {
@@ -67,6 +68,15 @@ function HostOrganizerStatus() {
 
   const openPoolForm = (organizerId, eventId) => {
     setPoolForm((f) => ({ ...f, open: true, organizerId, eventId }));
+  };
+
+  const resendInvite = async (organizerId, eventId) => {
+    try {
+      await axios.post(`${serverURL}/host/invite-organizer/${organizerId}`, { eventId, cover_letter: "" }, { withCredentials: true });
+      await fetchAll();
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to resend invitation");
+    }
   };
 
   const openOrganizerDetails = async (organizerId) => {
@@ -130,15 +140,38 @@ function HostOrganizerStatus() {
       <header className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <button onClick={() => navigate(-1)} className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold">Back</button>
-            <h1 className="text-xl font-extrabold  bg-clip-text text-transparent">Organizer Status</h1>
-            <div></div>
+            <button onClick={() => navigate(-1)} className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold flex items-center gap-2">
+                <span>&larr;</span> Back
+            </button>
+            <h1 className="text-xl font-extrabold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">Organizer Status</h1>
+            <div className="w-16"></div>
           </div>
-          <div className="m-4 p-4 mb-5 flex items-center gap-2">
-            <button onClick={() => setActiveTab("invited")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "invited" ? "bg-purple-600 text-white" : "border border-purple-200 text-purple-700 hover:bg-purple-50"}`}>Invited</button>
-            <button onClick={() => setActiveTab("requested")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "requested" ? "bg-purple-600 text-white" : "border border-purple-200 text-purple-700 hover:bg-purple-50"}`}>Requested</button>
-            <button onClick={() => setActiveTab("accepted")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "accepted" ? "bg-green-600 text-white" : "border border-green-200 text-green-700 hover:bg-green-50"}`}>Accepted</button>
-            <button onClick={() => setActiveTab("rejected")} className={`px-3 py-2 text-sm rounded-lg ${activeTab === "rejected" ? "bg-pink-600 text-white" : "border border-pink-200 text-pink-700 hover:bg-pink-50"}`}>Rejected</button>
+          <div className="max-w-3xl mx-auto mb-6">
+            <div className="relative flex p-1 space-x-1 bg-slate-100 rounded-xl shadow-inner">
+                {/* Sliding background pill */}
+                <div 
+                    className="absolute top-1 bottom-1 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out"
+                    style={{
+                        left: `${['invited', 'requested', 'accepted', 'rejected'].indexOf(activeTab) * 25}%`,
+                        width: '24.5%',
+                        marginLeft: '0.25%'
+                    }}
+                />
+                
+                {['invited', 'requested', 'accepted', 'rejected'].map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-lg capitalize transition-colors duration-200 ${
+                            activeTab === tab
+                            ? 'text-purple-700'
+                            : 'text-slate-500 hover:text-purple-600'
+                        }`}
+                    >
+                        {tab}
+                    </button>
+                ))}
+            </div>
           </div>
         </div>
       </header>
@@ -147,53 +180,76 @@ function HostOrganizerStatus() {
         {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg mb-4">{error}</div>}
 
         {activeTab === "invited" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {invitedApps.length === 0 ? (
-              <p className="text-gray-600">No invitations yet.</p>
+              <p className="text-gray-600 col-span-full text-center py-10 bg-white rounded-xl shadow-sm border border-dashed border-gray-300">No pending invitations.</p>
             ) : (
               invitedApps.map((app) => {
                 const pool = hasPoolForEvent(app?.event?._id);
                 const statusClass = app.application_status === 'accepted'
-                  ? 'bg-green-100 text-green-700'
+                  ? 'bg-green-100 text-green-700 border-green-200'
                   : app.application_status === 'rejected'
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-amber-100 text-amber-700';
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-amber-100 text-amber-700 border-amber-200';
                 return (
-                  <div key={app._id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
+                  <div key={app._id} className="group rounded-2xl bg-white border border-slate-100 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
                     {app?.event?.event_type && (
-                      <div className="relative h-28 w-full overflow-hidden">
-                        <img src={getEventTypeImage(app.event.event_type)} alt={app.event.event_type} className="w-full h-full object-cover" loading="lazy" />
-                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25" />
+                      <div className="relative h-32 w-full overflow-hidden">
+                        <img 
+                            src={getEventTypeImage(app.event.event_type)} 
+                            alt={app.event.event_type} 
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                            loading="lazy" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+                        <div className="absolute top-3 right-3">
+                             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border shadow-sm backdrop-blur-md ${statusClass}`}>
+                                 {app.application_status}
+                             </span>
+                        </div>
                       </div>
                     )}
-                    <div className="p-4 flex items-start justify-between">
-                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${statusClass}`}>{app.application_status}</span>
-                  </div>
-                    {app.application_status === 'pending' && (
-                      <p className="text-sm text-slate-500">Invitation sent • Awaiting organizer response</p>
-                    )}
-                    {app.application_status === 'accepted' && (
-                      <div className="px-4 pb-4">
-                        {app?.organizer_pool_exists ? (
-                          <button disabled className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-100 text-slate-600">Organizer pool created</button>
-                        ) : (
-                          <button onClick={() => openPoolForm(app.applicant?._id, app.event?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">Create Organizer Pool</button>
-                        )}
-                        <button
-                          onClick={async () => {
-                            try {
-                              await axios.delete(`${serverURL}/host/organizers/applications/${app._id}`, { withCredentials: true });
-                              await fetchAll();
-                            } catch (e) {
-                              setError(e.response?.data?.message || "Failed to delete");
-                            }
-                          }}
-                          className="mt-2 w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
+                    <div className="p-5 flex-1 flex flex-col">
+                      <h3 className="text-lg font-bold text-slate-900 mb-1 truncate" title={app?.event?.title}>{app?.event?.title || "Event"}</h3>
+                      <p className="text-sm text-slate-500 mb-4 flex items-center gap-1">
+                          Organizer: <span className="font-medium text-slate-700">{app?.applicant?.email || "Unknown"}</span>
+                      </p>
+
+                      {app.application_status === 'pending' && (
+                        <div className="mt-auto bg-amber-50 border border-amber-100 rounded-lg p-3 text-center">
+                            <p className="text-xs font-medium text-amber-800">Invitation sent</p>
+                            <p className="text-[10px] text-amber-600">Awaiting organizer response</p>
+                        </div>
+                      )}
+                      
+                      {app.application_status === 'accepted' && (
+                        <div className="mt-auto space-y-2 pt-4 border-t border-slate-100">
+                          {app?.organizer_pool_exists ? (
+                            <div className="w-full px-3 py-2 text-sm text-center rounded-lg bg-emerald-50 text-emerald-700 font-medium border border-emerald-100 flex items-center justify-center gap-2">
+                                <FaCheckCircle /> Pool Active
+                            </div>
+                          ) : (
+                            <button onClick={() => openPoolForm(app.applicant?._id, app.event?._id)} className="w-full px-3 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition-colors">
+                                Create Organizer Pool
+                            </button>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if(!window.confirm("Are you sure you want to remove this application?")) return;
+                              try {
+                                await axios.delete(`${serverURL}/host/organizers/applications/${app._id}`, { withCredentials: true });
+                                await fetchAll();
+                              } catch (e) {
+                                setError(e.response?.data?.message || "Failed to delete");
+                              }
+                            }}
+                            className="w-full px-3 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -351,6 +407,12 @@ function HostOrganizerStatus() {
                   <div className="px-4 pb-4">
                     <button onClick={() => openOrganizerDetails(app.applicant?._id)} className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50">View Organizer</button>
                     <button
+                      onClick={() => resendInvite(app.applicant?._id, app.event?._id)}
+                      className="mt-2 w-full px-3 py-2 text-sm rounded-lg border border-purple-300 text-purple-700 hover:bg-purple-50"
+                    >
+                      Invite Again
+                    </button>
+                    <button
                       onClick={async () => {
                         try {
                           await axios.delete(`${serverURL}/host/organizers/applications/${app._id}`, { withCredentials: true });
@@ -397,38 +459,72 @@ function HostOrganizerStatus() {
         </div>
       )}
       {orgDetails.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setOrgDetails({ open: false, data: null, loading: false, error: null })}></div>
-          <div className="relative z-10 bg-white rounded-xl p-6 w-full max-w-lg shadow-xl">
-            <h4 className="text-lg font-semibold mb-4">Organizer Details</h4>
-            {orgDetails.loading && <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>}
-            {orgDetails.error && <div className="p-2 bg-red-50 text-red-600 rounded-lg mb-3">{orgDetails.error}</div>}
-            {orgDetails.data && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  {orgDetails.data.user?.avatar && (
-                    <img src={orgDetails.data.user.avatar} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
-                  )}
-                  <div>
-                    <div className="font-semibold text-slate-900">{orgDetails.data.user?.first_name} {orgDetails.data.user?.last_name}</div>
-                    <div className="text-sm text-slate-600">{orgDetails.data.user?.email}</div>
-                    <div className="text-sm text-slate-600">{orgDetails.data.user?.phone}</div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4">
+                <h3 className="text-xl font-bold text-white">Organizer Details</h3>
+            </div>
+            
+            <div className="p-6">
+                {orgDetails.loading ? (
+                    <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    </div>
+                ) : orgDetails.error ? (
+                    <div className="text-center py-8">
+                        <p className="text-red-600 mb-2">{orgDetails.error}</p>
+                        <p className="text-sm text-gray-500">Could not load details.</p>
+                    </div>
+                ) : orgDetails.data ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      {orgDetails.data.user?.avatar ? (
+                        <img src={orgDetails.data.user.avatar} alt="avatar" className="w-16 h-16 rounded-full object-cover border-2 border-purple-100" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xl font-bold">
+                            {orgDetails.data.user?.first_name?.[0] || 'O'}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-bold text-xl text-gray-900">{orgDetails.data.user?.first_name} {orgDetails.data.user?.last_name}</div>
+                        <div className="text-gray-600">{orgDetails.data.user?.email}</div>
+                        {orgDetails.data.user?.phone && <div className="text-sm text-gray-500">{orgDetails.data.user?.phone}</div>}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">KYC Verified</div>
+                        <div className={`font-bold ${orgDetails.data.kyc?.aadhaar_verified ? 'text-green-600' : 'text-amber-600'}`}>
+                            {orgDetails.data.kyc?.aadhaar_verified ? "Yes" : "Pending"}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Experience</div>
+                        <div className="font-bold text-gray-900">{orgDetails.data.profile?.experience_years || 0} Years</div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Aadhaar Status</div>
+                         <div className="flex items-center gap-2">
+                             <div className="font-medium text-gray-900">
+                                 {orgDetails.data.kyc?.aadhaar_last4 ? `**** **** **** ${orgDetails.data.kyc?.aadhaar_last4}` : "Not provided"}
+                             </div>
+                             {orgDetails.data.kyc?.aadhaar_verified && <FaCheckCircle className="text-green-500" />}
+                         </div>
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 border rounded-lg">
-                    <div className="text-xs text-slate-500">Aadhaar Verified</div>
-                    <div className="font-semibold">{orgDetails.data.kyc?.aadhaar_verified ? "Yes" : "No"}</div>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <div className="text-xs text-slate-500">Aadhaar Number</div>
-                    <div className="font-semibold">**** **** **** {orgDetails.data.kyc?.aadhaar_last4 || "--"}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="mt-4 flex justify-end">
-              <button onClick={() => setOrgDetails({ open: false, data: null, loading: false, error: null })} className="px-4 py-2 border rounded-lg">Close</button>
+                ) : null}
+            </div>
+
+            <div className="bg-gray-50 px-6 py-4 flex justify-end">
+              <button 
+                onClick={() => setOrgDetails({ open: false, data: null, loading: false, error: null })} 
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

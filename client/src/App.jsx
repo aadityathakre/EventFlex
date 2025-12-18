@@ -46,6 +46,7 @@ import GigDisputes from "./pages/gig/GigDisputes.jsx";
 import GigBadges from "./pages/gig/GigBadges.jsx";
 import GigFeedbacks from "./pages/gig/GigFeedbacks.jsx";
 import GigMyEvents from "./pages/gig/GigMyEvents.jsx";
+import GigEventDetails from "./pages/gig/GigEventDetails.jsx";
 
 // Robust serverURL fallback to avoid env-related 404s during local dev
 const host = import.meta.env.VITE_SERVER_URL ?? "http://localhost";
@@ -266,6 +267,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['gig']}>
             <GigMyEvents />
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path='/gig/event/:poolId'
+        element={
+          <ProtectedRoute allowedRoles={['gig']}>
+            <GigEventDetails />
           </ProtectedRoute>
         }
       />

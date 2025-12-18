@@ -117,7 +117,7 @@ EventSchema.pre("findOneAndUpdate", async function (next) {
     if (!docToUpdate) return next(new Error("Event not found"));
 
     const validTransitions = {
-      published: ["in_progress"],
+      published: ["in_progress", "completed"],
       in_progress: ["completed"],
       completed: []
     };

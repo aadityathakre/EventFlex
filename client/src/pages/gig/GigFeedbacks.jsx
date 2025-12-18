@@ -26,6 +26,12 @@ function GigFeedbacks() {
 
   useEffect(() => { load(); }, []);
 
+  const renderSourceLabel = (item) => {
+    if (item?.source === "organizer") return "Feedback from organizer";
+    if (item?.source === "gig") return "Your feedback";
+    return "Feedback";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
       <TopNavbar title="Feedback & Ratings" />
@@ -36,22 +42,99 @@ function GigFeedbacks() {
             <p>Loading...</p>
           ) : error ? (
             <p className="text-red-600">{error}</p>
-          ) : feedbacks.length === 0 ? (
+          ) : feedbacks.filter((f) => f.source === "organizer").length === 0 ? (
             <p className="text-gray-600">No feedback yet.</p>
           ) : (
-            <div className="space-y-3">
-              {feedbacks.map((f) => (
-                <div key={f._id} className="border rounded-xl p-4">
-                  <p className="font-semibold">{f?.event?.title || "Event"}</p>
-                  <p className="text-sm text-gray-600">Rating: {f.rating}/5</p>
-                  <p className="text-sm text-gray-700 mt-1">{f.comment}</p>
-                  <p className="text-xs text-gray-500 mt-1">At: {new Date(f.createdAt).toLocaleString()}</p>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {feedbacks.filter((f) => f.source === "organizer").map((f) => {
+                const createdAt = f?.createdAt ? new Date(f.createdAt) : null;
+                const dateLabel = createdAt ? createdAt.toLocaleString() : "-";
+                const ratingValue = typeof f.rating === "number" ? f.rating : Number(f.rating || 0);
+                const organizer = f.organizer;
+                return (
+                  <div
+                    key={f._id}
+                    className="relative bg-gradient-to-br from-white via-slate-50 to-indigo-50/40 border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          {organizer?.avatar || organizer?.profile_image_url ? (
+                            <img
+                              src={organizer?.profile_image_url || organizer?.avatar}
+                              alt={organizer?.fullName || organizer?.name || "Organizer"}
+                              className="w-9 h-9 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-indigo-100" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {organizer?.fullName || organizer?.name || "Organizer"}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {organizer?.email || "-"}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-gray-900 truncate">
+                          {f?.event?.title || "Event"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {f?.event?.start_date
+                            ? new Date(f.event.start_date).toLocaleDateString()
+                            : "-"}{" "}
+                          —{" "}
+                          {f?.event?.end_date
+                            ? new Date(f.event.end_date).toLocaleDateString()
+                            : "-"}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-1">
+                          <StarRow value={ratingValue} />
+                          <span className="text-xs font-medium text-gray-700">
+                            {ratingValue ? ratingValue.toFixed(1).replace(/\.0$/, "") : "-"}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-gray-400">{dateLabel}</span>
+                      </div>
+                    </div>
+                    {f.comment && (
+                      <p className="mt-3 text-sm text-gray-700 line-clamp-4 whitespace-pre-line">
+                        {f.comment}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function StarRow({ value }) {
+  const stars = [1, 2, 3, 4, 5];
+  const numeric = typeof value === "number" ? value : Number(value || 0);
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {stars.map((star) => {
+        const active = numeric >= star - 0.5;
+        return (
+          <span
+            key={star}
+            className={`text-xs ${
+              active ? "text-yellow-400" : "text-gray-300"
+            }`}
+          >
+            ★
+          </span>
+        );
+      })}
     </div>
   );
 }

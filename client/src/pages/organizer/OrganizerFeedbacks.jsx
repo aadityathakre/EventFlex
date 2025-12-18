@@ -29,9 +29,12 @@ function OrganizerFeedbacks() {
   }, []);
 
   // Filter reviews
-  // Gigs Feedback: Reviews related to Gigs (Organizer -> Gig OR Gig -> Organizer)
+  // Gigs Feedback: Reviews related to Gigs (Gig -> Organizer only)
+  // We want to see reviews GIVEN BY Gigs TO Organizer.
+  // The backend might return all reviews where user is involved.
+  // review_type should be "gig_to_organizer".
   const gigReviews = reviews.filter(r => 
-    r.review_type === "organizer_to_gig" || r.review_type === "gig_to_organizer"
+    r.review_type === "gig_to_organizer"
   );
 
   // Host Feedback: Reviews related to Hosts (Host -> Organizer)

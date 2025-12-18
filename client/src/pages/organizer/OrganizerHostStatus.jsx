@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import { getEventTypeImage } from "../../utils/imageMaps.js";
+import { FaTrash } from "react-icons/fa";
 
 function OrganizerHostStatus() {
   const { showToast } = useToast();
@@ -17,10 +18,13 @@ function OrganizerHostStatus() {
     setLoading(true);
     try {
       const res = await axios.get(`${serverURL}/organizer/applications/summary`, { withCredentials: true });
-      setSummary(res.data?.data || { invited: [], requested: [], accepted: [], rejected: [] });
+      const data = res.data?.data || { invited: [], requested: [], accepted: [], rejected: [] };
+      setSummary(data);
       setError(null);
+      return data;
     } catch (e) {
       setError(e?.response?.data?.message || "Failed to load applications");
+      return { invited: [], requested: [], accepted: [], rejected: [] };
     } finally {
       setLoading(false);
     }
@@ -34,15 +38,26 @@ function OrganizerHostStatus() {
     setPoolModal({ open: false, app: null, name: "", description: "" });
   }, [activeTab]);
 
-  const invitedApps = summary.invited || [];
-  const requestedApps = summary.requested || [];
+  const invitedApps = summary.invited.filter(a => a.event?.status !== 'completed') || [];
+  const requestedApps = summary.requested.filter(a => a.event?.status !== 'completed') || [];
   const acceptedApps = summary.accepted || [];
-  const rejectedApps = summary.rejected || [];
+  
+  // Combine originally rejected apps with pending apps from completed events
+  const rejectedApps = [
+    ...(summary.rejected || []),
+    ...(summary.invited || []).filter(a => a.event?.status === 'completed'),
+    ...(summary.requested || []).filter(a => a.event?.status === 'completed')
+  ];
 
   const acceptInvite = async (appId) => {
     try {
       await axios.post(`${serverURL}/organizer/events/accept-invitation/${appId}`, {}, { withCredentials: true });
-      await fetchApplications();
+      const data = await fetchApplications();
+      setActiveTab("accepted");
+      const accepted = (data.accepted || []).find((a) => a._id === appId);
+      if (accepted && !accepted.pool_exists) {
+        openPoolModal(accepted);
+      }
       showToast("Invitation accepted", "success");
     } catch (e) {
       showToast(e?.response?.data?.message || "Failed to accept invitation", "error");
@@ -67,7 +82,9 @@ function OrganizerHostStatus() {
         showToast("Pool already exists for this event", "error");
         return;
       }
-    } catch {}
+    } catch (e) {
+      console.warn("Pool existence check failed", e);
+    }
     setPoolModal({ open: true, app, name: `Pool for ${app?.event?.title || "Event"}`, description: "Gig pool for event" });
   };
 
@@ -103,31 +120,20 @@ function OrganizerHostStatus() {
           </div>
           {loading && <div className="mt-4 animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>}
           {error && <p className="text-red-600 mt-3">{error}</p>}
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => setActiveTab("invited")}
-              className={`px-3 py-2 text-sm rounded-lg ${activeTab === "invited" ? "bg-purple-600 text-white" : "border"}`}
-            >
-              Invited
-            </button>
-            <button
-              onClick={() => setActiveTab("requested")}
-              className={`px-3 py-2 text-sm rounded-lg ${activeTab === "requested" ? "bg-indigo-600 text-white" : "border"}`}
-            >
-              Requested
-            </button>
-            <button
-              onClick={() => setActiveTab("accepted")}
-              className={`px-3 py-2 text-sm rounded-lg ${activeTab === "accepted" ? "bg-green-600 text-white" : "border"}`}
-            >
-              Accepted
-            </button>
-            <button
-              onClick={() => setActiveTab("rejected")}
-              className={`px-3 py-2 text-sm rounded-lg ${activeTab === "rejected" ? "bg-pink-600 text-white" : "border"}`}
-            >
-              Rejected
-            </button>
+          <div className="mt-4 bg-gray-100 p-1 rounded-xl inline-flex">
+            {["invited", "requested", "accepted", "rejected"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  activeTab === tab
+                    ? "bg-white text-purple-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -220,36 +226,40 @@ function OrganizerHostStatus() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600/40 via-indigo-600/30 to-pink-600/30 pointer-events-none" />
                   </div>
-                    <div className="p-5 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {a?.host?.avatar && (
-                          <img src={a.host.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
-                        )}
-                        <div>
-                          <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
-                          <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                    <div className="p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {a?.host?.avatar && (
+                            <img src={a.host.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                          )}
+                          <div>
+                            <p className="font-semibold text-gray-900">{a?.event?.title || "Event"}</p>
+                            <p className="text-sm text-gray-600">Status: {a.application_status}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {a?.pool_exists ? (
-                          <button disabled className="px-3 py-2 text-sm border rounded-lg bg-slate-100 text-slate-600">Pool created</button>
-                        ) : (
-                          <button onClick={() => openPoolModal(a)} className="px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">Create Pool</button>
-                        )}
-                        <button
-                          onClick={async () => {
-                            try {
-                              await axios.delete(`${serverURL}/organizer/applications/${a._id}`, { withCredentials: true });
-                              await fetchApplications();
-                              showToast("Application deleted", "success");
-                            } catch (e) {
-                              showToast(e?.response?.data?.message || "Failed to delete", "error");
-                            }
-                          }}
-                          className="px-3 py-2 text-sm border rounded-lg"
-                        >
-                          Delete
-                        </button>
+                          <div className="flex items-center gap-2">
+                            {a?.pool_exists ? (
+                              <span className="px-3 py-2 text-sm font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg">
+                                Pool has been created
+                              </span>
+                            ) : (
+                              <button onClick={() => openPoolModal(a)} className="px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-shadow">Create Pool</button>
+                            )}
+                            <button
+                            onClick={async () => {
+                              try {
+                                await axios.delete(`${serverURL}/organizer/applications/${a._id}`, { withCredentials: true });
+                                await fetchApplications();
+                                showToast("Application deleted", "success");
+                              } catch (e) {
+                                showToast(e?.response?.data?.message || "Failed to delete", "error");
+                              }
+                            }}
+                            className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 text-red-500"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -297,9 +307,10 @@ function OrganizerHostStatus() {
                               showToast(e?.response?.data?.message || "Failed to delete", "error");
                             }
                           }}
-                          className="px-3 py-2 text-sm border rounded-lg"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Application"
                         >
-                          Delete
+                          <FaTrash />
                         </button>
                       </div>
                     </div>

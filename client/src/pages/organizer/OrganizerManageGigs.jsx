@@ -4,7 +4,7 @@ import { serverURL } from "../../App";
 import TopNavbar from "../../components/TopNavbar.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import { getEventTypeImage } from "../../utils/imageMaps.js";
-import { FaCheckCircle, FaStar } from "react-icons/fa";
+import { FaCheckCircle, FaStar, FaTrash } from "react-icons/fa";
 
 function OrganizerManageGigs() {
   const { showToast } = useToast();
@@ -23,6 +23,7 @@ function OrganizerManageGigs() {
   // Rating Modal State
   const [ratingModal, setRatingModal] = useState({ open: false, gigId: null, eventId: null, gigName: "" });
   const [ratingData, setRatingData] = useState({ rating: 5, review_text: "" });
+  const [ratedGigs, setRatedGigs] = useState(new Set());
 
   // Local-only clear chat support (per conversation)
   const clearKey = (convId) => `org_chat_cleared_ts_${convId}`;
@@ -46,7 +47,7 @@ function OrganizerManageGigs() {
     if (!chatModal.convId) return;
     try {
       localStorage.setItem(clearKey(chatModal.convId), new Date().toISOString());
-    } catch {}
+    } catch (e) { void e; }
     setChatMessages([]);
     showToast("Chat cleared locally", "success");
   };
@@ -63,16 +64,60 @@ function OrganizerManageGigs() {
     }
   };
 
+  const fetchGivenRatings = async () => {
+    try {
+      const res = await axios.get(`${serverURL}/organizer/reviews/given`, { withCredentials: true });
+      const given = res.data?.data || [];
+      const set = new Set();
+      given.forEach((r) => {
+        if (r.event && r.reviewee) {
+          set.add(`${r.event}-${r.reviewee}`);
+        }
+      });
+      setRatedGigs(set);
+    } catch (e) {
+      console.warn("Failed to fetch given ratings", e);
+    }
+  };
+
   useEffect(() => {
     fetchPools();
+    fetchGivenRatings();
   }, []);
+
+  const removeGig = async (poolId, gigId) => {
+    const ok = typeof window !== "undefined" ? window.confirm("Are you sure you want to remove this gig from the pool?") : true;
+    if (!ok) return;
+    try {
+      await axios.delete(`${serverURL}/organizer/pools/${poolId}/gigs/${gigId}`, { withCredentials: true });
+      showToast("Gig removed from pool", "success");
+      await fetchPools();
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to remove gig", "error");
+    }
+  };
 
   const viewGigProfile = async (gigId) => {
     try {
       const res = await axios.get(`${serverURL}/organizer/gigs/${gigId}/profile`, { withCredentials: true });
-      setGigProfileModal({ open: true, data: res.data?.data || null });
+      const payload = res.data?.data || null;
+      const merged = payload ? { ...(payload.mergedProfile || {}), kyc: payload.kyc || null } : null;
+      setGigProfileModal({ open: true, data: merged });
     } catch (e) {
       showToast(e?.response?.data?.message || "Failed to load gig profile", "error");
+    }
+  };
+
+  const deletePool = async (poolId) => {
+    const ok = typeof window !== "undefined" ? window.confirm("Delete this completed pool?") : true;
+    if (!ok) return;
+    try {
+      await axios.delete(`${serverURL}/organizer/pools/${poolId}`, { withCredentials: true });
+      setPools((prev) => prev.filter((p) => p._id !== poolId));
+      if (expandedPoolId === poolId) setExpandedPoolId("");
+      showToast("Pool deleted", "success");
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to delete pool", "error");
     }
   };
 
@@ -110,7 +155,9 @@ function OrganizerManageGigs() {
         { withCredentials: true }
       );
       const msg = res.data?.data || res.data;
-      setChatMessages((m) => [...m, msg]);
+      // Ensure sender is formatted for UI
+      const uiMsg = { ...msg, sender: { role: 'organizer', _id: msg.sender } };
+      setChatMessages((m) => [...m, uiMsg]);
       setChatInput("");
     } catch (e) {
       showToast(e?.response?.data?.message || "Failed to send", "error");
@@ -131,6 +178,7 @@ function OrganizerManageGigs() {
         rating: ratingData.rating,
         review_text: ratingData.review_text
       }, { withCredentials: true });
+      setRatedGigs((prev) => new Set(prev).add(`${ratingModal.eventId}-${ratingModal.gigId}`));
       showToast("Rating submitted successfully", "success");
       setRatingModal({ open: false, gigId: null, eventId: null, gigName: "" });
     } catch (e) {
@@ -217,8 +265,18 @@ function OrganizerManageGigs() {
                   
                   {/* Status Badge for Completed */}
                   {activeTab === "completed" && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
-                      <FaCheckCircle /> Event has been completed
+                    <div className="absolute top-2 right-2 flex items-center gap-2">
+                      <div className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                        <FaCheckCircle /> Event has been completed
+                      </div>
+                      <button
+                        onClick={() => deletePool(p._id)}
+                        className="p-2 rounded-full bg-white/80 backdrop-blur border border-rose-200 text-rose-600 hover:bg-rose-50"
+                        aria-label="Delete pool"
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -254,13 +312,27 @@ function OrganizerManageGigs() {
                             <div className="flex items-center gap-1">
                               <button onClick={() => viewGigProfile(g._id)} className="px-2 py-1 text-xs border bg-white rounded hover:bg-gray-100">Profile</button>
                               <button onClick={() => openChat(g, p?.event?._id, p._id)} className="px-2 py-1 text-xs border bg-white rounded hover:bg-gray-100">Chat</button>
-                              {activeTab === "completed" && (
+                              {activeTab !== "completed" && (
                                 <button 
-                                  onClick={() => openRatingModal(g, p?.event?._id)} 
-                                  className="px-2 py-1 text-xs bg-yellow-400 text-white font-bold rounded hover:bg-yellow-500 flex items-center gap-1"
+                                  onClick={() => removeGig(p._id, g._id)}
+                                  className="px-2 py-1 text-xs border border-red-200 bg-red-50 text-red-600 rounded hover:bg-red-100"
                                 >
-                                  <FaStar className="w-3 h-3" /> Rate
+                                  Remove
                                 </button>
+                              )}
+                              {activeTab === "completed" && (
+                                ratedGigs.has(`${p?.event?._id}-${g._id}`) ? (
+                                  <button disabled className="px-2 py-1 text-xs bg-gray-100 text-gray-500 font-bold rounded cursor-not-allowed border border-gray-200">
+                                    Rating Submitted
+                                  </button>
+                                ) : (
+                                  <button 
+                                    onClick={() => openRatingModal(g, p?.event?._id)} 
+                                    className="px-2 py-1 text-xs bg-yellow-400 text-white font-bold rounded hover:bg-yellow-500 flex items-center gap-1"
+                                  >
+                                    <FaStar className="w-3 h-3" /> Rate
+                                  </button>
+                                )
                               )}
                             </div>
                           </div>
@@ -389,9 +461,76 @@ function OrganizerManageGigs() {
           </div>
         )}
 
+        {/* Gig Profile Modal */}
+        {gigProfileModal.open && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="absolute inset-0" onClick={() => setGigProfileModal({ open: false, data: null })}></div>
+            <div className="relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 h-24"></div>
+              <div className="px-6 pb-6 relative">
+                <div className="-mt-12 mb-4">
+                  <img 
+                    src={gigProfileModal.data?.profile_image_url || "https://via.placeholder.com/100"} 
+                    alt="Profile" 
+                    className="w-24 h-24 rounded-full border-4 border-white object-cover shadow-md bg-white"
+                  />
+                </div>
+                
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {gigProfileModal.data?.name || ""}
+                </h3>
+                <p className="text-gray-500 mb-2">{gigProfileModal.data?.email || ""}</p>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600 font-medium">KYC Status</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                      gigProfileModal.data?.kyc?.status === "approved"
+                        ? "bg-green-100 text-green-700" 
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                      {gigProfileModal.data?.kyc?.status || "Pending"}
+                    </span>
+                  </div>
+                  
+                  {gigProfileModal.data?.bio ? (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-500 uppercase font-bold mb-1">Bio</p>
+                      <p className="text-sm text-gray-700">{gigProfileModal.data.bio}</p>
+                    </div>
+                  ) : null}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                        <p className="text-xs text-gray-500 uppercase">Events</p>
+                        <p className="font-bold text-lg">{gigProfileModal.data?.events_count || 0}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-lg text-center">
+                        <p className="text-xs text-gray-500 uppercase">Rating</p>
+                        <p className="font-bold text-lg flex items-center justify-center gap-1">
+                            {gigProfileModal.data?.rating ? Number(gigProfileModal.data.rating).toFixed(1) : "N/A"} <FaStar className="text-yellow-400 text-xs"/>
+                        </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button 
+                    onClick={() => setGigProfileModal({ open: false, data: null })}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
 }
 
 export default OrganizerManageGigs;
+  

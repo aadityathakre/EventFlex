@@ -17,6 +17,11 @@ function OrganizerGigChat() {
   const [sending, setSending] = useState(false);
   const [conversationSearch, setConversationSearch] = useState("");
 
+  const avatarFor = (email) => {
+    const ch = (email || "?").trim().charAt(0).toUpperCase();
+    return ch || "?";
+  };
+
   const loadConversations = async () => {
     setLoading(true);
     try {
@@ -40,6 +45,19 @@ function OrganizerGigChat() {
       setMessages(res.data?.data || []);
     } catch (e) {
       setError(e.response?.data?.message || "Failed to fetch messages");
+    }
+  };
+
+  const deleteConversation = async (id) => {
+    try {
+      await axios.delete(`${serverURL}/organizer/conversations/${id}`, { withCredentials: true });
+      setConversations((prev) => prev.filter((c) => c._id !== id));
+      if (conversationId === id) {
+        setMessages([]);
+        navigate('/organizer/gig-chat');
+      }
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to delete conversation");
     }
   };
 
@@ -141,16 +159,41 @@ function OrganizerGigChat() {
             ) : (
               <div className="space-y-2">
                 {filteredConversations.map((c) => (
-                  <button
+                  <div
                     key={c._id}
                     onClick={() => navigate(`/organizer/gig-chat/${c._id}`)}
-                    className={`w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition ${c._id === conversationId ? "border-indigo-600" : ""}`}
+                    className={`w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition cursor-pointer ${c._id === conversationId ? "border-indigo-600" : ""}`}
                   >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.pool?.pool_name || "Conversation"}</p>
-                      <p className="text-xs text-gray-600 truncate">Pool: {c?.pool?.pool_name || "N/A"}</p>
+                    <div className="flex items-center gap-3">
+                      {c?.gig?.profile_image_url || c?.gig?.avatar || c?.gig?.photo ? (
+                        <img
+                          src={c?.gig?.profile_image_url || c?.gig?.avatar || c?.gig?.photo}
+                          alt="Gig"
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 text-sm font-bold">
+                          {avatarFor(c?.gig?.email)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.pool?.pool_name || "Conversation"}</p>
+                        <p className="text-xs text-gray-600 truncate">
+                          {(c?.gig?.fullName || c?.gig?.name || c?.gig?.email || "Gig")} • Pool: {c?.pool?.pool_name || "N/A"}
+                        </p>
+                      </div>
+                      <button
+                        className="ml-auto text-rose-600 hover:text-rose-800 p-2 hover:bg-rose-50 rounded-full transition-colors shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteConversation(c._id);
+                        }}
+                        title="Delete conversation"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -161,9 +204,26 @@ function OrganizerGigChat() {
             {conversationId && selectedConversation ? (
               <div className="flex flex-col md:h-full">
                 <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{selectedConversation?.event?.title || "Event"}</h3>
-                    <p className="text-xs text-gray-600">Pool: {selectedConversation?.pool?.pool_name || "N/A"}</p>
+                  <div className="flex items-center gap-3">
+                    {selectedConversation?.gig?.profile_image_url || selectedConversation?.gig?.avatar || selectedConversation?.gig?.photo ? (
+                      <img
+                        src={selectedConversation?.gig?.profile_image_url || selectedConversation?.gig?.avatar || selectedConversation?.gig?.photo}
+                        alt="Gig"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-800 font-bold">
+                        {avatarFor(selectedConversation?.gig?.email)}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {selectedConversation?.gig?.fullName || selectedConversation?.gig?.name || selectedConversation?.gig?.email || "Gig"}
+                      </h3>
+                      <p className="text-xs text-gray-600">
+                        {selectedConversation?.event?.title || "Event"} • Pool: {selectedConversation?.pool?.pool_name || "N/A"}
+                      </p>
+                    </div>
                   </div>
                   <button onClick={() => setMessages([])} className="px-3 py-2 text-xs bg-red-600 text-white rounded-lg flex items-center gap-2">
                     <FaTrash />

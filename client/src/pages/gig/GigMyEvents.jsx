@@ -13,6 +13,7 @@ function GigMyEvents() {
   const [activeTab, setActiveTab] = useState("active"); // active | upcoming | completed
   const [ratingModal, setRatingModal] = useState({ open: false, eventId: null, organizerId: null, rating: 5, review_text: "" });
   const [disputeModal, setDisputeModal] = useState({ open: false, eventId: null, reason: "" });
+  const [eventRatingMap, setEventRatingMap] = useState({});
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -31,6 +32,23 @@ function GigMyEvents() {
 
   useEffect(() => {
     fetchEvents();
+  }, []);
+
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      try {
+        const res = await axios.get(`${serverURL}/gigs/feedbacks`, { withCredentials: true });
+        const list = res.data?.data || [];
+        const map = {};
+        list.forEach((item) => {
+          if (item?.event?._id && item.source === "gig" && item.kind === "gig_to_organizer") {
+            map[String(item.event._id)] = true;
+          }
+        });
+        setEventRatingMap(map);
+      } catch {}
+    };
+    fetchFeedbacks();
   }, []);
 
   const now = new Date();
@@ -71,6 +89,7 @@ function GigMyEvents() {
         rating: ratingModal.rating,
         review_text: ratingModal.review_text,
       }, { withCredentials: true });
+      setEventRatingMap((prev) => ({ ...prev, [String(ratingModal.eventId)]: true }));
       setRatingModal({ open: false, eventId: null, organizerId: null, rating: 5, review_text: "" });
       showToast("Rating submitted", "success");
     } catch (e) {
@@ -96,7 +115,7 @@ function GigMyEvents() {
     setEvents((prev) => prev.filter((p) => p._id !== poolId));
   };
 
-  const Section = ({ title, items, showRate }) => (
+  const Section = ({ title, items, showRate, showAttendance }) => (
     <div className="bg-white rounded-2xl shadow-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-900">{title}</h3>
@@ -106,8 +125,11 @@ function GigMyEvents() {
         <p className="text-gray-600">No events in this section.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map((p) => (
-            <div key={p._id} className="group relative bg-white rounded-2xl overflow-hidden shadow hover:shadow-lg transition">
+          {items.map((p) => {
+            const eventId = p?.event?._id;
+            const rated = !!eventRatingMap[String(eventId)];
+            return (
+            <div key={p._id} className="group relative bg-white rounded-2xl overflow-hidden shadow hover:shadow-lg transition flex flex-col">
               <div className="h-36 w-full overflow-hidden">
                 <img
                   src={p?.event?.banner_url || getEventTypeImage(p?.event?.event_type)}
@@ -116,30 +138,41 @@ function GigMyEvents() {
                   loading="lazy"
                 />
               </div>
-              <div className="p-5">
+              <div className="p-5 flex flex-col flex-1">
                 <p className="text-sm text-gray-600">{p?.event?.title || "-"}</p>
                 <p className="text-xs text-gray-500">
                   {p?.event?.start_date ? new Date(p.event.start_date).toLocaleString() : "-"} — {p?.event?.end_date ? new Date(p.event.end_date).toLocaleString() : "-"}
                 </p>
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <button className="px-3 py-2 text-sm border rounded-lg" onClick={() => window.location.href = "/gig/chat"}>Chat</button>
-                    <button className="px-3 py-2 text-sm border rounded-lg" onClick={() => setDisputeModal({ open: true, eventId: p?.event?._id, reason: "" })}>Raise Dispute</button>
-                  </div>
-                  {showRate && (
-                    <div className="flex gap-2">
-                      <button onClick={() => openRate(p)} className="px-3 py-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg">
-                        Rate Organizer
-                      </button>
-                      <button onClick={() => removeLocal(p._id)} className="px-3 py-2 text-sm border rounded-lg text-rose-600">
-                        Delete
-                      </button>
-                    </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <button className="w-full px-3 py-2 text-sm border rounded-lg" onClick={() => window.location.href = "/gig/chat"}>Chat</button>
+                  <button className="w-full px-3 py-2 text-sm border rounded-lg" onClick={() => setDisputeModal({ open: true, eventId: p?.event?._id, reason: "" })}>Dispute</button>
+                  {showAttendance ? (
+                    <button className="w-full px-3 py-2 text-sm border rounded-lg" onClick={() => window.location.href = "/gig/attendance"}>Attendance</button>
+                  ) : (
+                    <button className="w-full px-3 py-2 text-sm border bg-emerald-500 text-white rounded-lg line-through" disabled>Completed</button>
                   )}
                 </div>
+                {showRate && (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        if (!rated) openRate(p);
+                      }}
+                      disabled={rated}
+                      className={`w-full px-3 py-2 text-sm rounded-lg ${
+                        rated ? "bg-gray-200 text-gray-700 cursor-default" : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                      }`}
+                    >
+                      {rated ? "Feedback submitted" : "Rate Organizer ⭐"}
+                    </button>
+                    <button onClick={() => removeLocal(p._id)} className="w-full px-3 py-2 text-sm border rounded-lg text-rose-600">
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>
@@ -158,9 +191,9 @@ function GigMyEvents() {
         {loading && <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />}
         {error && <div className="p-3 rounded-lg bg-red-50 text-red-700 border border-red-200 mb-4">{error}</div>}
 
-        {activeTab === "active" && <Section title="Active Events" items={grouped.active} showRate={false} />}
-        {activeTab === "upcoming" && <Section title="Upcoming Events" items={grouped.upcoming} showRate={false} />}
-        {activeTab === "completed" && <Section title="Completed Events" items={grouped.completed} showRate={true} />}
+        {activeTab === "active" && <Section title="Active Events" items={grouped.active} showRate={false} showAttendance={true} />}
+        {activeTab === "upcoming" && <Section title="Upcoming Events" items={grouped.upcoming} showRate={false} showAttendance={false} />}
+        {activeTab === "completed" && <Section title="Completed Events" items={grouped.completed} showRate={true} showAttendance={false} />}
 
         {ratingModal.open && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

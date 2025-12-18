@@ -160,8 +160,19 @@ function HostDashboard() {
 
   const { events = [], escrows = [], payments = [] } = dashboardData || {};
   const recentEvents = [...events]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 3);
+    .filter(e => ['active', 'in_progress', 'completed'].includes(e.status))
+    .sort((a, b) => {
+      // Show active/in_progress events first
+      const isActiveA = a.status === 'active' || a.status === 'in_progress';
+      const isActiveB = b.status === 'active' || b.status === 'in_progress';
+      
+      if (isActiveA && !isActiveB) return -1;
+      if (!isActiveA && isActiveB) return 1;
+      
+      // Then sort by date descending
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    })
+    .slice(0, 5);
 
   const handleDelete = async (eventId) => {
     const confirm = window.confirm("Delete this event? This action can’t be undone.");
@@ -362,9 +373,9 @@ function HostDashboard() {
               {recentEvents.map((event) => (
                 <div
                   key={event._id}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-300"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-300 gap-4"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 w-full sm:w-auto">
                     <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                       <img
                         src={getEventTypeImage(event.event_type)}
@@ -373,29 +384,31 @@ function HostDashboard() {
                         loading="lazy"
                       />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{event.title}</h4>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold text-gray-900 truncate">{event.title}</h4>
                       <p className="text-sm text-gray-600">
                         {new Date(event.start_date).toLocaleDateString()} -{" "}
                         {new Date(event.end_date).toLocaleDateString()}
                       </p>
                       <span
                         className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                          event.status === "published"
-                            ? "bg-blue-100 text-blue-800"
-                            : event.status === "in_progress"
+                          event.status === "completed" 
+                            ? "bg-gray-100 text-gray-800"
+                            : event.status === "in_progress" 
                             ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
+                            : event.status === "published"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
-                        {event.status}
+                        {event.status === "in_progress" ? "Active" : event.status === "published" ? "Upcoming" : event.status.replace('_', ' ')}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <button
                       onClick={() => navigate(`/host/events/${event._id}`)}
-                      className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300"
+                      className="flex-1 sm:flex-none px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold transition-all duration-300 text-center"
                     >
                       View
                     </button>
@@ -403,7 +416,7 @@ function HostDashboard() {
                       <button
                         onClick={() => handleDelete(event._id)}
                         disabled={deletingId === event._id}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-60"
+                        className="flex-1 sm:flex-none px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-60 text-center"
                       >
                         {deletingId === event._id ? "Deleting..." : "Delete"}
                       </button>
@@ -420,18 +433,18 @@ function HostDashboard() {
       {poolForm.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30" onClick={() => setPoolForm((f) => ({ ...f, open: false }))}></div>
-          <div className="relative z-10 bg-white rounded-xl p-6 w-full max-w-lg shadow-xl">
+          <div className="relative z-10 bg-white rounded-xl p-6 w-full max-w-lg shadow-xl m-4 sm:m-0">
             <h4 className="text-lg font-semibold mb-4">Create Organizer Pool</h4>
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <input value={poolForm.pool_name} onChange={(e) => setPoolForm((f) => ({ ...f, pool_name: e.target.value }))} placeholder="Pool name" className="border rounded-lg px-3 py-2 text-sm" />
               <input type="number" min="1" value={poolForm.max_capacity} onChange={(e) => setPoolForm((f) => ({ ...f, max_capacity: e.target.value }))} placeholder="Max capacity" className="border rounded-lg px-3 py-2 text-sm" />
             </div>
             <input value={poolForm.required_skills} onChange={(e) => setPoolForm((f) => ({ ...f, required_skills: e.target.value }))} placeholder="Required skills (comma-separated)" className="border rounded-lg px-3 py-2 text-sm w-full mb-3" />
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <input type="number" value={poolForm.pay_min} onChange={(e) => setPoolForm((f) => ({ ...f, pay_min: e.target.value }))} placeholder="Pay min (₹)" className="border rounded-lg px-3 py-2 text-sm" />
               <input type="number" value={poolForm.pay_max} onChange={(e) => setPoolForm((f) => ({ ...f, pay_max: e.target.value }))} placeholder="Pay max (₹)" className="border rounded-lg px-3 py-2 text-sm" />
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <input type="number" value={poolForm.lat} onChange={(e) => setPoolForm((f) => ({ ...f, lat: e.target.value }))} placeholder="Lat" className="border rounded-lg px-3 py-2 text-sm" />
               <input type="number" value={poolForm.lng} onChange={(e) => setPoolForm((f) => ({ ...f, lng: e.target.value }))} placeholder="Lng" className="border rounded-lg px-3 py-2 text-sm" />
             </div>

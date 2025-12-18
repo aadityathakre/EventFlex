@@ -41,6 +41,11 @@ import {
   getConversations,
   getGigConversationMessages,
   sendMessage,
+  deleteGigConversation,
+  deleteCompletedEventCard,
+
+  // Escrow
+  getGigEscrows,
 
   // Notifications & Disputes
   getNotifications,
@@ -55,6 +60,7 @@ import {
   
   // Applications
   getMyApplications,
+  deleteGigApplication,
 } from "../controllers/gig.controller.js";
 
 const router = express.Router();
@@ -102,6 +108,8 @@ router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
 
 // Applications
 router.get("/applications", verifyToken, authorizeRoles("gig"), getMyApplications);
+router.delete("/applications/:id", verifyToken, authorizeRoles("gig"), deleteGigApplication);
+router.delete("/events/:poolId", verifyToken, authorizeRoles("gig"), deleteCompletedEventCard);
 
 //
 // 💰 Wallet & Payments
@@ -139,6 +147,12 @@ router.delete(
   authorizeRoles("gig"),
   deleteProfileImage
 );
+router.get(
+  "/escrows",
+  verifyToken,
+  authorizeRoles("gig"),
+  getGigEscrows
+);
 
 router.get("/badges", verifyToken, authorizeRoles("gig"), getBadges);
 router.get("/leaderboard", verifyToken, authorizeRoles("gig"), getLeaderboard);
@@ -163,6 +177,12 @@ router.post(
   verifyToken,
   authorizeRoles("gig"),
   sendMessage
+);
+router.delete(
+  "/conversations/:id",
+  verifyToken,
+  authorizeRoles("gig"),
+  deleteGigConversation
 );
 
 //

@@ -368,6 +368,19 @@ export const getAllEvents = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, activeEvents, "Active events fetched"));
 });
 
+export const getMyEvents = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  // Fetch events where I am the organizer
+  // Also populate pool details if needed for the dashboard card
+  // We can just fetch events and let frontend handle pool fetching or populate here.
+  // The requirement says: "event details , pool details and budget amount"
+  // Budget is in event.budget (if exists) or we calculate? 
+  // Event model has 'budget' field? Let's check Event model.
+  // Assuming Event model has basic fields.
+  const events = await Event.find({ organizer: organizerId }).sort({ updatedAt: -1 });
+  return res.status(200).json(new ApiResponse(200, events, "My events fetched"));
+});
+
 // 11. get event organizising order
 export const reqHostForEvent = asyncHandler(async (req, res) => {
   // Organizer requests to manage a host's event
@@ -538,7 +551,7 @@ export const createPool = asyncHandler(async (req, res) => {
 export const getMyPools = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const pools = await Pool.find({ organizer: organizerId })
-    .populate("event", "title start_date end_date location status event_type")
+    .populate("event", "title start_date end_date location status event_type budget")
     .populate("gigs", "first_name last_name avatar fullName")
     .select("-__v");
   return res.status(200).json(new ApiResponse(200, pools, "Organizer pools fetched"));
@@ -583,6 +596,44 @@ export const deletePool = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, null, "Pool deleted"));
 });
 
+export const removeGigFromPool = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { poolId, gigId } = req.params;
+
+  const pool = await Pool.findById(poolId);
+  if (!pool) throw new ApiError(404, "Pool not found");
+  if (pool.organizer.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to manage this pool");
+  }
+
+  // Remove gig from pool
+  pool.gigs = pool.gigs.filter((id) => id.toString() !== gigId);
+  await pool.save();
+
+  // Also update application status if needed? 
+  // Maybe set application to "rejected" or just leave it. 
+  // Ideally we should reset application to "rejected" or "pending" so they can re-apply or know they were removed.
+  // For now, let's just remove from pool array as requested.
+  // Optionally update PoolApplication status to "removed" if such status existed, but "rejected" works.
+  await PoolApplication.findOneAndUpdate(
+    { pool: poolId, gig: gigId },
+    { application_status: "rejected" }
+  );
+
+  return res.status(200).json(new ApiResponse(200, null, "Gig removed from pool"));
+});
+
+// Get ratings given by organizer (to persist 'Rating Submitted' state)
+export const getMyGivenRatings = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const ratings = await Rating.find({ 
+    reviewer: organizerId,
+    review_type: "organizer_to_gig"
+  }).select("event reviewee rating");
+  
+  return res.status(200).json(new ApiResponse(200, ratings, "My given ratings fetched"));
+});
+
 // 13.3 View a Gig's public profile (for organizer)
 export const getGigPublicProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -590,6 +641,15 @@ export const getGigPublicProfile = asyncHandler(async (req, res) => {
   if (!gig || gig.role !== "gig") {
     throw new ApiError(404, "Gig not found");
   }
+  
+  // Calculate average rating
+  const ratings = await Rating.find({ reviewee: id });
+  let avgRating = 0;
+  if (ratings.length > 0) {
+    const total = ratings.reduce((sum, r) => sum + parseFloat(r.rating?.toString() || 0), 0);
+    avgRating = (total / ratings.length).toFixed(1);
+  }
+
   let profile = await UserProfile.findOne({ user: id });
   if (!profile) {
     profile = {
@@ -614,6 +674,7 @@ export const getGigPublicProfile = asyncHandler(async (req, res) => {
     availability: profile.availability || {},
     bank_details: profile.bank_details || {},
     profile_image_url: profile.profile_image_url || gig.avatar,
+    rating: avgRating,
     createdAt: profile.createdAt || gig.createdAt,
     updatedAt: profile.updatedAt || gig.updatedAt,
   };
@@ -787,7 +848,7 @@ export const getOrganizerApplicationSummary = asyncHandler(async (req, res) => {
   const rejected = apps.filter(a => a.application_status === "rejected");
 
   const acceptedWithFlags = await Promise.all(accepted.map(async (a) => {
-    const exists = await Pool.findOne({ organizer: organizerId, event: a.event._id });
+    const exists = await Pool.findOne({ organizer: organizerId, event: a.event });
     return { ...a.toObject(), pool_exists: !!exists };
   }));
 
@@ -848,6 +909,20 @@ export const getPaymentHistory = asyncHandler(async (req, res) => {
   });
 
   return res.status(200).json(new ApiResponse(200, normalized, "Payment history fetched"));
+});
+
+export const deletePaymentHistory = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const escrow = await Escrow.findById(id);
+  if (!escrow) {
+    throw new ApiError(404, "Payment record not found");
+  }
+  if (escrow.organizer?.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to delete this payment record");
+  }
+  await escrow.softDelete();
+  return res.status(200).json(new ApiResponse(200, null, "Payment record deleted"));
 });
 
 // 20. Simulate Payout
@@ -1134,6 +1209,20 @@ export const sendOrganizerMessage = asyncHandler(async (req, res) => {
   });
 
   return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
+export const deleteOrganizerConversation = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const conversation = await Conversation.findById(id);
+  if (!conversation) {
+    throw new ApiError(404, "Conversation not found");
+  }
+  if (!conversation.participants.some((p) => p.toString() === organizerId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+  await conversation.softDelete();
+  return res.status(200).json(new ApiResponse(200, null, "Conversation deleted"));
 });
 
 

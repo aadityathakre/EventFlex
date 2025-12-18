@@ -48,6 +48,18 @@ function HostChat() {
     }
   };
 
+  const deleteConversation = async (id) => {
+    try {
+      await axios.delete(`${serverURL}/host/conversations/${id}`, { withCredentials: true });
+      setConversations((prev) => prev.filter((c) => c._id !== id));
+      if (conversationId === id) {
+        setMessages([]);
+      }
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to delete conversation");
+    }
+  };
+
   const loadMessages = async (id) => {
     try {
       const res = await axios.get(`${serverURL}/host/messages/${id}`, { withCredentials: true });
@@ -160,10 +172,10 @@ function HostChat() {
             ) : (
               <div className="space-y-2">
                 {filteredConversations.map((c) => (
-                  <button
+                  <div
                     key={c._id}
                     onClick={() => navigate(`/host/chat/${c._id}`)}
-                    className={`w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition ${c._id === conversationId ? "border-indigo-600" : ""}`}
+                    className={`w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition cursor-pointer ${c._id === conversationId ? "border-indigo-600" : ""}`}
                   >
                     <div className="flex items-center gap-3">
                       {c?.organizer?.profile_image_url || c?.organizer?.avatar || c?.organizer?.photo ? (
@@ -177,12 +189,22 @@ function HostChat() {
                           {avatarFor(c?.organizer?.email)}
                         </div>
                       )}
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.pool?.pool_name || "Conversation"}</p>
                         <p className="text-xs text-gray-600 truncate">{c?.organizer?.name || c?.organizer?.email || "Organizer"} • Pool: {c?.pool?.pool_name || "N/A"}</p>
                       </div>
+                      <button
+                        className="ml-auto text-rose-600 hover:text-rose-800 p-2 hover:bg-rose-50 rounded-full transition-colors shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteConversation(c._id);
+                        }}
+                        title="Delete conversation"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

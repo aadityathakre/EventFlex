@@ -4,18 +4,21 @@ import TopNavbar from "../../components/TopNavbar.jsx";
 import { serverURL } from "../../App";
 import { useToast } from "../../context/ToastContext.jsx";
 import { getEventTypeImage } from "../../utils/imageMaps.js";
-import { FaComments } from "react-icons/fa";
+import { FaComments, FaTrash } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
-function Section({ title, items, navigate }) {
+function Section({ title, items, navigate, onDelete, onRequestAgain, disableMap }) {
+
+
   return (
     <div className="bg-white rounded-2xl shadow p-6 mb-6">
       <h3 className="text-xl font-bold text-gray-900 mb-4">{title}</h3>
       {items.length === 0 ? (
-        <p className="text-gray-600">No items.</p>
+        <p className="text-gray-600">No any application fount</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {items.map((app) => {
-            const event = app.event;
+            const event = app.event || app?.pool?.event || null;
             const organizer = app.organizer;
             const start = event?.start_date ? new Date(event.start_date).toLocaleString() : "-";
             const end = event?.end_date ? new Date(event.end_date).toLocaleString() : "-";
@@ -30,7 +33,7 @@ function Section({ title, items, navigate }) {
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-indigo-600/25 to-pink-600/25 pointer-events-none" />
                 </div>
                 <div className="p-4">
-                  <p className="font-semibold text-gray-900">{event?.title || "Event"}</p>
+                  <p className="font-semibold text-gray-900">{event?.title || app?.pool?.pool_name || "Event details not available"}</p>
                   <p className="text-xs text-gray-600">Start: {start}</p>
                   <p className="text-xs text-gray-600">End: {end}</p>
                   <div className="mt-2 flex items-center gap-2">
@@ -52,13 +55,32 @@ function Section({ title, items, navigate }) {
                   </div>
                   <div className="mt-3 flex items-center justify-between">
                     <span className="text-xs text-gray-600">Applied: {new Date(app.createdAt).toLocaleString()}</span>
-                    <button
-                      className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
-                      onClick={() => navigate("/gig/chat")}
-                      title="Chat with organizer"
-                    >
-                      <FaComments className="text-purple-600" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                        onClick={() => navigate("/gig/chat")}
+                        title="Chat with organizer"
+                      >
+                        <FaComments className="text-purple-600" />
+                      </button>
+                      <button
+                        className="px-3 py-2 border rounded-lg text-sm text-rose-600 hover:bg-rose-50"
+                        onClick={() => onDelete?.(app)}
+                        title="Delete application"
+                      >
+                        <FaTrash />
+                      </button>
+                      {title === "Rejected" && (
+                        <button
+                          className="px-3 py-2 border rounded-lg text-sm bg-indigo-600 text-white disabled:bg-gray-300 disabled:text-gray-600"
+                          onClick={() => onRequestAgain?.(app)}
+                          disabled={!!disableMap?.[app._id]}
+                          title="Request again"
+                        >
+                          {disableMap?.[app._id] ? "Requested" : "Request Again"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -76,6 +98,8 @@ function GigApplications({ navigate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("requested"); // requested | accepted | rejected
+  const [disableMap, setDisableMap] = useState({});
+  const nav = useNavigate();
 
   const load = async () => {
     setLoading(true);
@@ -93,6 +117,35 @@ function GigApplications({ navigate }) {
 
   useEffect(() => { load(); }, []);
 
+  const deleteApplication = async (app) => {
+    try {
+      await axios.delete(`${serverURL}/gigs/applications/${app._id}`, { withCredentials: true });
+      setSections((prev) => ({
+        requested: prev.requested.filter((x) => x._id !== app._id),
+        accepted: prev.accepted.filter((x) => x._id !== app._id),
+        rejected: prev.rejected.filter((x) => x._id !== app._id),
+      }));
+      showToast("Application deleted", "success");
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to delete application", "error");
+    }
+  };
+
+  const requestAgain = async (app) => {
+    try {
+      const poolId = app?.pool?._id || app?.pool;
+      if (!poolId) {
+        showToast("Pool not found for application", "error");
+        return;
+      }
+      await axios.post(`${serverURL}/gigs/join-pool/${poolId}`, { proposed_rate: 0, cover_message: "Requesting again" }, { withCredentials: true });
+      setDisableMap((m) => ({ ...m, [app._id]: true }));
+      showToast("Requested again", "success");
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to request again", "error");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50">
       <TopNavbar title="Application Status" />
@@ -109,9 +162,9 @@ function GigApplications({ navigate }) {
               <button onClick={() => setActiveTab("rejected")} className={`px-4 py-2 rounded-lg border ${activeTab === "rejected" ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-transparent" : ""}`}>Rejected</button>
               <button className="ml-auto px-3 py-2 text-sm border rounded-lg" onClick={load}>Refresh</button>
             </div>
-            {activeTab === "requested" && <Section title="Requested" items={sections.requested} navigate={navigate} />}
-            {activeTab === "accepted" && <Section title="Accepted" items={sections.accepted} navigate={navigate} />}
-            {activeTab === "rejected" && <Section title="Rejected" items={sections.rejected} navigate={navigate} />}
+            {activeTab === "requested" && <Section title="Requested" items={sections.requested} navigate={nav} onDelete={deleteApplication} disableMap={disableMap} />}
+            {activeTab === "accepted" && <Section title="Accepted" items={sections.accepted} navigate={nav} onDelete={deleteApplication} disableMap={disableMap} />}
+            {activeTab === "rejected" && <Section title="Rejected" items={sections.rejected} navigate={nav} onDelete={deleteApplication} onRequestAgain={requestAgain} disableMap={disableMap} />}
           </>
         )}
       </main>

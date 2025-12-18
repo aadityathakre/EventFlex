@@ -141,7 +141,7 @@ function TopNavbar({ title = null }) {
             {title && <span className="text-sm text-gray-700">{title}</span>}
           </div>
 
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-3 sm:space-x-6">
             <div className="hidden sm:flex flex-col items-start">
               <div className="flex items-center space-x-2 text-gray-700">
                 <FaEnvelope className="text-purple-600" />

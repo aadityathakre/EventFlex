@@ -29,6 +29,7 @@ import {
   getOrganizerConversations,
   getOrganizerConversationMessages,
   sendOrganizerMessage,
+  deleteOrganizerConversation,
 
   // 📅 Event Management
   getEventDetails,
@@ -40,6 +41,7 @@ import {
   getWallet,
   withdrawFunds,
   getPaymentHistory,
+  deletePaymentHistory,
   simulatePayout,
 
   // 🏆 Reputation & Gamification
@@ -48,6 +50,7 @@ import {
   getGigPublicProfile,
   createOrganizerRating,
   getMyFeedbacks,
+  removeGigFromPool,
   
 
   // 🔔 Notifications
@@ -63,6 +66,9 @@ import {
   getWellnessScore,
   getNoShowRisk,
   deleteOrganizerApplication,
+
+  getMyGivenRatings,
+  getMyEvents,
 } from "../controllers/organizer.controller.js";
 
 const router = express.Router();
@@ -87,11 +93,13 @@ router.post("/events/accept-invitation/:id", verifyToken, authorizeRoles("organi
 router.post("/events/reject-invitation/:id", verifyToken, authorizeRoles("organizer"), rejectInvitationFromHost);
 
 router.get("/events/all", verifyToken, authorizeRoles("organizer"), getAllEvents);
+router.get("/events/my", verifyToken, authorizeRoles("organizer"), getMyEvents);
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
 router.get("/pools", verifyToken, authorizeRoles("organizer"), getMyPools);
 router.put("/pools/:id", verifyToken, authorizeRoles("organizer"), updatePoolDetails);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
 router.delete("/pools/:id", verifyToken, authorizeRoles("organizer"), deletePool);
+router.delete("/pools/:poolId/gigs/:gigId", verifyToken, authorizeRoles("organizer"), removeGigFromPool);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 router.get("/pools/:poolId/applications", verifyToken, authorizeRoles("organizer"), getPoolApplications);
 router.post("/applications/:applicationId/review", verifyToken, authorizeRoles("organizer"), reviewApplication);
@@ -102,6 +110,7 @@ router.get("/gigs/:id/profile", verifyToken, authorizeRoles("organizer"), getGig
 router.get("/conversations", verifyToken, authorizeRoles("organizer"), getOrganizerConversations);
 router.get("/messages/:conversationId", verifyToken, authorizeRoles("organizer"), getOrganizerConversationMessages);
 router.post("/message/:conversationId", verifyToken, authorizeRoles("organizer"), sendOrganizerMessage);
+router.delete("/conversations/:id", verifyToken, authorizeRoles("organizer"), deleteOrganizerConversation);
 
 //
 // 🧠 Wellness & Analytics
@@ -126,6 +135,7 @@ router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLive
 router.get("/wallet", verifyToken, authorizeRoles("organizer"), getWallet);
 router.post("/withdraw", verifyToken, authorizeRoles("organizer"), withdrawFunds);
 router.get("/payment-history", verifyToken, authorizeRoles("organizer"), getPaymentHistory);
+router.delete("/payment-history/:id", verifyToken, authorizeRoles("organizer"), deletePaymentHistory);
 router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer"), simulatePayout);
 
 //
@@ -135,6 +145,7 @@ router.get("/leaderboard", verifyToken, authorizeRoles("organizer"), getLeaderbo
 router.get("/badges", verifyToken, authorizeRoles("organizer"), getOrganizerBadges);
 router.post("/reviews/rating", verifyToken, authorizeRoles("organizer"), createOrganizerRating);
 router.get("/reviews/my-feedbacks", verifyToken, authorizeRoles("organizer"), getMyFeedbacks);
+router.get("/reviews/given", verifyToken, authorizeRoles("organizer"), getMyGivenRatings);
 
 //
 // 🔔 Notifications

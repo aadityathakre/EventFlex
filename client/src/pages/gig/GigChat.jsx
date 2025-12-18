@@ -35,6 +35,20 @@ function GigChat() {
     }
   };
 
+  const deleteConversation = async (id) => {
+    try {
+      await axios.delete(`${serverURL}/gigs/conversations/${id}`, { withCredentials: true });
+      setConversations((prev) => prev.filter((c) => c._id !== id));
+      if (active === id) {
+        setActive(null);
+        setMessages([]);
+      }
+      showToast("Conversation deleted", "success");
+    } catch (e) {
+      showToast(e?.response?.data?.message || "Failed to delete conversation", "error");
+    }
+  };
+
   const loadMessages = async (convId) => {
     try {
       const res = await axios.get(`${serverURL}/gigs/messages/${convId}`, { withCredentials: true });
@@ -114,9 +128,9 @@ function GigChat() {
                 <p className="text-gray-600">No conversations yet.</p>
               ) : (
                 filteredConversations.map((c) => (
-                  <button
+                  <div
                     key={c._id}
-                    className={`w-full text-left border rounded-md px-3 py-2 hover:bg-gray-50 transition ${active === c._id ? "bg-indigo-50 border-indigo-600" : ""}`}
+                    className={`w-full text-left border rounded-md px-3 py-2 hover:bg-gray-50 transition cursor-pointer ${active === c._id ? "bg-indigo-50 border-indigo-600" : ""}`}
                     onClick={() => { setActive(c._id); loadMessages(c._id); }}
                   >
                     <div className="flex items-center gap-3">
@@ -131,14 +145,21 @@ function GigChat() {
                           {avatarFor(c?.organizer?.email)}
                         </div>
                       )}
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-gray-900 truncate">{c?.event?.title || c?.event?.name || c?.pool?.pool_name || c?.pool?.name || "Conversation"}</p>
                         <p className="text-xs text-gray-600 truncate">
                           {(c?.organizer?.name || c?.organizer?.email || "Organizer")} • Pool: {c?.pool?.pool_name || c?.pool?.name || "N/A"}
                         </p>
                       </div>
+                      <button
+                        className="ml-auto text-rose-600 hover:text-rose-800 p-2 hover:bg-rose-50 rounded-full transition-colors shrink-0"
+                        onClick={(e) => { e.stopPropagation(); deleteConversation(c._id); }}
+                        title="Delete conversation"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
