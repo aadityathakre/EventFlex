@@ -47,6 +47,9 @@ app.use(
 app.use(sanitizeInput);
 app.use(rateLimit(1000, 15 * 60 * 1000)); // 1000 requests per 15 minutes
 
+// Apply rate limiting to API routes only
+app.use("/api/", rateLimit(100, 60 * 1000)); // 100 requests per minute for API
+
 
 // users auth route
 import authRoutes from "./routes/users.auth.routes.js";
