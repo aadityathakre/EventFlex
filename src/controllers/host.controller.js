@@ -1336,6 +1336,18 @@ export const createRatingReview = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required rating fields");
   }
 
+  // Check if rating already exists
+  const existingRating = await RatingReview.findOne({
+    event: eventId,
+    reviewer: hostId,
+    reviewee: organizerId,
+    review_type: "host_to_organizer"
+  });
+
+  if (existingRating) {
+    throw new ApiError(400, "You have already rated this organizer for this event");
+  }
+
   const review = await RatingReview.create({
     event: eventId,
     reviewer: hostId,
@@ -1346,6 +1358,18 @@ export const createRatingReview = asyncHandler(async (req, res) => {
   });
 
   return res.status(201).json(new ApiResponse(201, review, "Rating review submitted"));
+});
+
+// Get Host's Given Ratings
+export const getMyGivenRatings = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  
+  const ratings = await RatingReview.find({
+    reviewer: hostId,
+    review_type: "host_to_organizer"
+  }).select("event reviewee");
+  
+  return res.status(200).json(new ApiResponse(200, ratings, "Given ratings fetched"));
 });
 
 //  26. Leaderboard

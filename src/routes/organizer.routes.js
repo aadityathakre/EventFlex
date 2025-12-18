@@ -124,10 +124,10 @@ router.get("/no-show-risk/:gigId", verifyToken, authorizeRoles("organizer"), get
 // 📅 Event Management
 //
 router.get("/events/:id", verifyToken, authorizeRoles("organizer"), getEventDetails);
+router.get("/events/:id/live-tracking", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
 router.get("/applications", verifyToken, authorizeRoles("organizer"), getOrganizerApplications);
 router.get("/applications/summary", verifyToken, authorizeRoles("organizer"), getOrganizerApplicationSummary);
 router.delete("/applications/:id", verifyToken, authorizeRoles("organizer"), deleteOrganizerApplication);
-router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
 
 
 //

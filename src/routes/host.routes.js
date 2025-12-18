@@ -49,6 +49,7 @@ import {
   getInvitedOrganizerStatus,
   getLeaderboard,
   createRatingReview,
+  getMyGivenRatings,
   createFeedback,
   deleteHostApplication,
   getHostNotifications,
@@ -115,6 +116,7 @@ router.post("/wallet/add", verifyToken, authorizeRoles("host"), addMoneyToWallet
 router.get("/dashboard", verifyToken, authorizeRoles("host"), getHostDashboard);
 router.get("/leaderboard", verifyToken, authorizeRoles("host"), getLeaderboard);
 router.post("/reviews/rating", verifyToken, authorizeRoles("host"), createRatingReview); // Host
+router.get("/reviews/given", verifyToken, authorizeRoles("host"), getMyGivenRatings);
 router.post("/reviews/feedback", verifyToken, authorizeRoles("host"), createFeedback);   // Gig
 router.get("/notifications", verifyToken, authorizeRoles("host"), getHostNotifications);
 router.put("/notifications/:id/read", verifyToken, authorizeRoles("host"), markHostNotificationRead);

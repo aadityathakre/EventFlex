@@ -1058,6 +1058,18 @@ const createGigRatingReview = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Rating must be between 1 and 5");
   }
 
+  // Check if rating already exists
+  const existingRating = await RatingReview.findOne({
+    event: eventId,
+    reviewer: gigId,
+    reviewee: organizerId,
+    review_type: "gig_to_organizer"
+  });
+
+  if (existingRating) {
+    throw new ApiError(400, "You have already rated this organizer for this event");
+  }
+
   const review = await RatingReview.create({
     event: eventId,
     reviewer: gigId,

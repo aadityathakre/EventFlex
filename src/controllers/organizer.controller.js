@@ -1091,7 +1091,7 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const attendance = await EventAttendance.find({ event: id })
-    .populate("gig", "name avatar")
+    .populate("gig", "first_name last_name fullName avatar email")
     .select("-__v");
 
   if (!attendance || attendance.length === 0) {
@@ -1100,9 +1100,31 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
     );
   }
 
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formattedAttendance = attendance.map((a) => {
+    const obj = a.toObject();
+    return {
+      ...obj,
+      hours_worked: toNum(obj.hours_worked)
+    };
+  });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, attendance, "Live attendance data"));
+    .json(new ApiResponse(200, formattedAttendance, "Live attendance data"));
 });
 
 // 26. Badges
@@ -1169,6 +1191,18 @@ export const createOrganizerRating = asyncHandler(async (req, res) => {
 
   if (!eventId || !gigId || rating === undefined) {
     throw new ApiError(400, "Missing required rating fields");
+  }
+
+  // Check if rating already exists
+  const existingRating = await Rating.findOne({
+    event: eventId,
+    reviewer: organizerId,
+    reviewee: gigId,
+    review_type: "organizer_to_gig"
+  });
+
+  if (existingRating) {
+    throw new ApiError(400, "You have already rated this gig for this event");
   }
 
   const review = await Rating.create({
