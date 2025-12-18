@@ -1,6 +1,7 @@
 import { mongoose, Schema } from "mongoose";
 import OrganizerPool from "./OrganizerPool.model.js";
 import Event from "./Event.model.js";
+import { softDelete } from "../middlewares/softDelete.middleware.js";
 
 const ConversationSchema = new mongoose.Schema(
   {
@@ -23,6 +24,8 @@ const ConversationSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );
+
+softDelete(ConversationSchema);
 
 const Conversation = mongoose.model("Conversation", ConversationSchema);
 export default Conversation;

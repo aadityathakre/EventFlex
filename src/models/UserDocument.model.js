@@ -26,4 +26,7 @@ const userDocumentSchema = new mongoose.Schema({
   uploadedAt: { type: Date, default: Date.now },
 });
 
+// Ensure only one document per user
+userDocumentSchema.index({ user: 1 }, { unique: true });
+
 export default mongoose.model("UserDocument", userDocumentSchema);

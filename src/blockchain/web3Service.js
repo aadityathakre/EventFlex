@@ -22,7 +22,6 @@ class Web3Service {
       this.contracts = this.loadContracts();
       
       console.log('✅ Web3Service initialized');
-      console.log('📍 Wallet:', this.wallet.address);
     } catch (error) {
       console.error('❌ Web3Service initialization failed:', error.message);
       throw error;

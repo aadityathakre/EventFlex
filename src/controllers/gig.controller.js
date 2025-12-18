@@ -11,7 +11,6 @@ import UserProfile from "../models/UserProfile.model.js";
 import UserBadge from "../models/UserBadge.model.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
-import Dispute from "../models/Dispute.model.js";
 import Notification from "../models/Notification.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import EscrowContract from "../models/EscrowContract.model.js";
@@ -23,6 +22,8 @@ import { ethers } from "ethers";
 import mongoose from "mongoose";
 import Badge from "../models/Badge.model.js"
 import OrganizerPool from "../models/OrganizerPool.model.js";
+import Dispute from "../models/Dispute.model.js";
+import RatingReview from "../models/RatingReview.model.js";
 
 
 // 1. View profile //
@@ -61,7 +62,12 @@ const getProfile = asyncHandler(async (req, res) => {
     updatedAt: profile.updatedAt || user.updatedAt,
   };
 
-  return res.status(200).json(new ApiResponse(200, mergedProfile, "Profile fetched"));
+  const documents = await UserDocument.find({ user: gigId }).select("-__v").lean();
+  const kyc = await KYCVerification.findOne({ user: gigId }).select("-__v").lean();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { mergedProfile, documents, kyc }, "Profile fetched"));
 });
 
 // 2. Update profile //
@@ -281,17 +287,49 @@ const withdraw = asyncHandler(async (req, res) => {
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const payments = await Payment.find({ payee: gigId })
-    .populate("escrow", "event total_amount status");
+  const payments = await Payment.find({ payee: gigId, status: "completed" })
+    .populate({
+      path: "escrow",
+      populate: { path: "event", select: "title start_date end_date event_type" }
+    })
+    .sort({ createdAt: -1 })
+    .select("-__v");
 
   if (!payments || payments.length === 0) {
-    throw new ApiError(404, "No payments found");
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], "No payments found"));
   }
 
-  const formattedPayments = payments.map((p) => ({
-    ...p.toObject(),
-    amount: parseFloat(p.amount?.toString() || "0.00"),
-  }));
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formattedPayments = payments.map((p) => {
+    const obj = p.toObject();
+    return {
+      _id: obj._id,
+      event: obj.escrow?.event || { title: "N/A" },
+      amount: toNum(obj.amount),
+      payment_date: obj.createdAt,
+      payment_method: obj.payment_method,
+      transaction_id: obj.upi_transaction_id || "N/A",
+      status: obj.status,
+      escrow_id: obj.escrow?._id,
+      createdAt: obj.createdAt,
+      updatedAt: obj.updatedAt
+    };
+  });
 
   return res
     .status(200)
@@ -313,13 +351,56 @@ const uploadDocuments = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Cloudinary upload failed");
   }
 
-  const doc = await UserDocument.create({
-    user: userId,
-    type,
-    fileUrl: cloudinaryRes.secure_url,
-  });
+  try {
+    const doc = await UserDocument.create({
+      user: userId,
+      type,
+      fileUrl: cloudinaryRes.secure_url,
+    });
+    return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+  } catch (err) {
+    if (err && (err.code === 11000 || err.name === "MongoError")) {
+      const existingDoc = await UserDocument.findOne({ user: userId });
+      if (!existingDoc) {
+        throw new ApiError(409, "Document already exists and could not be located for update");
+      }
+      existingDoc.fileUrl = cloudinaryRes.secure_url;
+      existingDoc.type = type;
+      await existingDoc.save();
+      return res.status(200).json(new ApiResponse(200, existingDoc, "Existing document updated"));
+    }
+    throw err;
+  }
+});
 
-  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+// 9.1 update existing document //
+const updateGigDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+  const userId = req.user._id;
+
+  if (!type || !localFilePath) {
+    throw new ApiError(400, "Document type and file is required");
+  }
+
+  // Find any existing document for this user (unique per user)
+  const existingDoc = await UserDocument.findOne({ user: userId });
+  if (!existingDoc) {
+    throw new ApiError(404, "No existing document found for user");
+  }
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes?.secure_url) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  existingDoc.fileUrl = cloudinaryRes.secure_url;
+  existingDoc.type = type;
+  await existingDoc.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, existingDoc, "Document updated successfully"));
 });
 
 // 10.  Aadhaar verification 
@@ -376,25 +457,56 @@ const getKYCStatus = asyncHandler(async (req, res) => {
 
 // 12. View nearby events
 const getNearbyEvents = asyncHandler(async (req, res) => {
-  const { coordinates } = req.body; // [lng, lat]
+  const { coordinates } = req.body || {}; // [lng, lat]
 
-  // 1. Find nearby organizer pools that are NOT completed
-  const orgPools = await OrganizerPool.find({
-    location: {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates,
+  // Also support query params (GET requests generally don't send body)
+  let coords = Array.isArray(coordinates) && coordinates.length === 2 ? coordinates : null;
+  const qlng = req.query?.lng;
+  const qlat = req.query?.lat;
+  if (!coords && qlng !== undefined && qlat !== undefined) {
+    const lngNum = parseFloat(qlng);
+    const latNum = parseFloat(qlat);
+    if (Number.isFinite(lngNum) && Number.isFinite(latNum)) {
+      coords = [lngNum, latNum];
+    }
+  }
+
+  let orgPools;
+  if (Array.isArray(coords) && coords.length === 2) {
+    orgPools = await OrganizerPool.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: coords,
+          },
+          $maxDistance: 10000, // 10km
         },
-        $maxDistance: 10000, // 10km
       },
-    },
-    status: { $ne: "completed" },
+      status: { $ne: "completed" },
+    })
+      .populate("event", "title start_date end_date event_type")
+      .populate("organizer", "first_name last_name fullName name email avatar profile_image_url");
+  } else {
+    orgPools = await OrganizerPool.find({
+      status: { $ne: "completed" },
+    })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .populate("event", "title start_date end_date event_type")
+      .populate("organizer", "first_name last_name fullName name email avatar profile_image_url");
+  }
+
+  // Exclude events that have ended
+  const now = new Date();
+  const filtered = (orgPools || []).filter((p) => {
+    const e = p?.event?.end_date ? new Date(p.event.end_date) : null;
+    return e && now <= e;
   });
 
   return res
     .status(200)
-    .json(new ApiResponse(200, orgPools, "Nearby events fetched"));
+    .json(new ApiResponse(200, filtered, "Nearby events fetched"));
 });
 
 // 13. View nearby organizer pools
@@ -403,7 +515,8 @@ const getOrganizerPool = asyncHandler(async (req, res) => {
 
   // 1. Fetch OrganizerPool
   const orgPool = await OrganizerPool.findById(poolId)
-    .select("-organizer");
+    .populate("event", "title start_date end_date event_type location")
+    .populate("organizer", "first_name last_name fullName name email avatar profile_image_url kycVideo.status");
 
   if (!orgPool) {
     return res
@@ -415,10 +528,18 @@ const getOrganizerPool = asyncHandler(async (req, res) => {
   const pool = await Pool.findOne({
     event: orgPool.event,
     organizer: orgPool.organizer
-  });
+  })
+    .populate("organizer", "first_name last_name fullName name email avatar profile_image_url kycVideo.status")
+    .populate("gigs", "_id first_name last_name avatar fullName");
+
+  // 3. Flags for current gig
+  const gigId = req.user._id;
+  const isGigInPool = !!(pool && (pool.gigs || []).some((g) => g?._id?.toString() === gigId.toString()));
+  const existingApp = await PoolApplication.findOne({ gig: gigId, pool: pool?._id });
+  const appliedStatus = existingApp ? existingApp.application_status || "pending" : "none";
 
   return res.status(200).json(
-    new ApiResponse(200, { orgPool, pool }, "Pool details fetched")
+    new ApiResponse(200, { orgPool, pool, flags: { isGigInPool, appliedStatus } }, "Pool details fetched")
   );
 });
 
@@ -457,17 +578,67 @@ const joinPool = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, application, "Pool application submitted"));
 });
 
+// View my pool applications with status sections
+const getMyApplications = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const apps = await PoolApplication.find({ gig: gigId })
+    .populate({
+      path: "pool",
+      populate: [
+        { path: "event", select: "title start_date end_date event_type description organizer" },
+        { path: "organizer", select: "first_name last_name fullName name email avatar profile_image_url" },
+      ],
+      select: "-__v",
+    })
+    .select("-__v");
+
+  const sections = {
+    requested: [],
+    accepted: [],
+    rejected: [],
+  };
+
+  for (const app of apps) {
+    const item = {
+      _id: app._id,
+      application_status: app.application_status,
+      cover_message: app.cover_message,
+      proposed_rate: app.proposed_rate,
+      createdAt: app.createdAt,
+      pool: app.pool,
+      event: app.pool?.event || null,
+      organizer: app.pool?.organizer || null,
+    };
+    if (app.application_status === "pending") sections.requested.push(item);
+    else if (app.application_status === "accepted") sections.accepted.push(item);
+    else if (app.application_status === "rejected") sections.rejected.push(item);
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, sections, "Gig applications fetched"));
+});
+
 // 15. View accepted events
 const getMyEvents = asyncHandler(async (req, res) => {
-  const gigObjectId = req.user._id; 
+  const gigObjectId = req.user._id;
 
-  console.log("Gig ObjectId:", gigObjectId);
-  const events = await Pool.find({ gigs: gigObjectId }).select("-__v");
+  const events = await Pool.find({ gigs: gigObjectId })
+    .select("-__v")
+    .populate({
+      path: "event",
+      select: "title start_date end_date event_type organizer status banner_url",
+      populate: {
+        path: "organizer",
+        select: "first_name last_name fullName name email avatar profile_image_url",
+      },
+    });
 
   if (!events || events.length === 0) {
-   return res
-    .status(200)
-    .json(new ApiResponse(200, [], "No accepted events found"));
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], "No accepted events found"));
   }
 
   return res
@@ -512,14 +683,33 @@ const checkIn = asyncHandler(async (req, res) => {
   if (now > event.end_date) throw new ApiError(400, "Event has already ended");
 
   // Prevent duplicate check-in
-  const alreadyCheckedIn = await EventAttendance.findOne({
-    gig: gigId,
-    event: eventId,
-  });
-  if (alreadyCheckedIn) {
+  const existingAttendance = await EventAttendance.findOne({ gig: gigId, event: eventId });
+  if (existingAttendance) {
+    if (!existingAttendance.check_out_time) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, existingAttendance, "User already checked in"));
+    }
+    // If previously checked out and worked less than 5 minutes, allow re-check-in
+    const worked =
+      existingAttendance.hours_worked && typeof existingAttendance.hours_worked === "object" && existingAttendance.hours_worked.$numberDecimal
+        ? parseFloat(existingAttendance.hours_worked.$numberDecimal)
+        : parseFloat(existingAttendance.hours_worked || 0);
+    const thresholdHours = 5 / 60; // 5 minutes
+    if (!Number.isFinite(worked) || worked < thresholdHours) {
+      existingAttendance.check_in_time = now;
+      existingAttendance.check_out_time = undefined;
+      existingAttendance.hours_worked = undefined;
+      existingAttendance.status = "checked_in";
+      await existingAttendance.save();
+      return res
+        .status(200)
+        .json(new ApiResponse(200, existingAttendance, "Re-check-in successful"));
+    }
+    // Otherwise, disallow re-check-in
     return res
-      .status(200)
-      .json(new ApiResponse(200, alreadyCheckedIn, "User already checked in"));
+      .status(400)
+      .json(new ApiResponse(400, existingAttendance, "Attendance already completed"));
   }
 
   //  Create attendance record
@@ -536,46 +726,63 @@ const checkIn = asyncHandler(async (req, res) => {
 });
 
 // 17. check out 
-const checkOut = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-  const { eventId } = req.params;
-
+// Helper function to process checkout logic (can be called from endpoint or event completion)
+const processCheckout = async (gigId, eventId) => {
   // 1) Load attendance for this gig-event
   const attendance = await EventAttendance.findOne({ gig: gigId, event: eventId });
-  if (!attendance) throw new ApiError(404, "Attendance record not found");
+  if (!attendance) return null;
 
-  // 2) Prevent duplicate checkout (do not modify past data)
+  // 2) Skip if already checked out
   if (attendance.check_out_time) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, attendance, "Gig already checked out"));
+    return attendance;
   }
 
-  // 3) Set checkout time for THIS event only
+  // 3) Set checkout time
   attendance.check_out_time = new Date();
 
   // 4) Calculate hours worked (stored as Decimal128)
   if (attendance.check_in_time && attendance.check_out_time) {
-    const msWorked = attendance.check_out_time - attendance.check_in_time;
-    const hours = msWorked / (1000 * 60 * 60);
-    attendance.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+    const checkInTime = new Date(attendance.check_in_time);
+    const checkOutTime = new Date(attendance.check_out_time);
+    const msWorked = checkOutTime.getTime() - checkInTime.getTime();
+    const hours = Math.max(0, msWorked / (1000 * 60 * 60)); // Ensure non-negative
+    
+    // Only set hours_worked if we have a valid positive number
+    if (hours > 0) {
+      attendance.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+    } else {
+      // If hours is 0 or negative, set a minimum of 0.01 to indicate checkout happened
+      attendance.hours_worked = mongoose.Types.Decimal128.fromString("0.01");
+    }
   }
 
   await attendance.save();
 
-  // 5) Badge awarding (progress-based, no past attendance updates)
-  // Count completed events for this gig (check_out_time exists)
+  // 5) Badge awarding
   const completedEventsCount = await EventAttendance.countDocuments({
     gig: gigId,
     check_out_time: { $exists: true, $ne: null },
   });
 
-  // Find all badges where min_events threshold is met
+  // Check if badges exist, if not, create default badges
+  const badgeCount = await Badge.countDocuments();
+  if (badgeCount === 0) {
+    const defaultBadges = [
+      { badge_name: "First Event", min_events: 1 },
+      { badge_name: "Rising Star", min_events: 5 },
+      { badge_name: "Dedicated Worker", min_events: 10 },
+      { badge_name: "Event Expert", min_events: 25 },
+      { badge_name: "Master Gig", min_events: 50 },
+      { badge_name: "Legendary Worker", min_events: 100 },
+    ];
+    
+    await Badge.insertMany(defaultBadges);
+  }
+
   const eligibleBadges = await Badge.find({
     min_events: { $lte: completedEventsCount },
   });
 
-  // Award new badges only (prevent duplicates); enforce KYC when required
   for (const badge of eligibleBadges) {
     const alreadyHasBadge = await UserBadge.findOne({ user: gigId, badge: badge._id });
     if (alreadyHasBadge) continue;
@@ -583,8 +790,20 @@ const checkOut = asyncHandler(async (req, res) => {
     await UserBadge.create({
       user: gigId,
       badge: badge._id,
-      // awarded_at is in timestamps; if you prefer explicit, add field to schema
     });
+  }
+
+  return attendance;
+};
+
+const checkOut = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { eventId } = req.params;
+
+  const attendance = await processCheckout(gigId, eventId);
+  
+  if (!attendance) {
+    throw new ApiError(404, "Attendance record not found");
   }
 
   return res
@@ -602,8 +821,56 @@ const checkOut = asyncHandler(async (req, res) => {
 const getAttendanceHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
+  // Auto-checkout for events that have ended or been marked as completed
+  const openAttendance = await EventAttendance.find({ gig: gigId, check_in_time: { $exists: true }, check_out_time: { $exists: false } })
+    .populate("event", "end_date status");
+  for (const att of openAttendance) {
+    const end = att?.event?.end_date ? new Date(att.event.end_date) : null;
+    const isCompleted = att?.event?.status === "completed";
+    const hasEnded = end && new Date() > end;
+    
+    if (isCompleted || hasEnded) {
+      att.check_out_time = isCompleted ? new Date() : end;
+      if (att.check_in_time && att.check_out_time) {
+        const checkInTime = new Date(att.check_in_time);
+        const checkOutTime = new Date(att.check_out_time);
+        const msWorked = checkOutTime.getTime() - checkInTime.getTime();
+        const hours = Math.max(0, msWorked / (1000 * 60 * 60));
+        att.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+      }
+      await att.save();
+    }
+  }
+
+  // Fix existing records that have checkout but 0 hours (recalculate)
+  const needsRecalc = await EventAttendance.find({ 
+    gig: gigId, 
+    check_in_time: { $exists: true }, 
+    check_out_time: { $exists: true },
+    $or: [
+      { hours_worked: { $exists: false } },
+      { hours_worked: null },
+      { hours_worked: mongoose.Types.Decimal128.fromString("0") },
+      { hours_worked: mongoose.Types.Decimal128.fromString("0.00") }
+    ]
+  });
+
+  for (const att of needsRecalc) {
+    if (att.check_in_time && att.check_out_time) {
+      const checkInTime = new Date(att.check_in_time);
+      const checkOutTime = new Date(att.check_out_time);
+      const msWorked = checkOutTime.getTime() - checkInTime.getTime();
+      const hours = Math.max(0, msWorked / (1000 * 60 * 60));
+      
+      if (hours > 0) {
+        att.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+        await att.save();
+      }
+    }
+  }
+
   const history = await EventAttendance.find({ gig: gigId })
-    .populate("event", "name date location")
+    .populate("event", "title start_date end_date location")
     .select("-__v");
 
   if (!history || history.length === 0) {
@@ -634,6 +901,56 @@ const raiseDispute = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, dispute, "Dispute raised"));
 });
 
+// List my disputes with event and organizer details
+const getMyDisputes = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const disputes = await Dispute.find({ gig: gigId })
+    .populate({
+      path: "event",
+      select: "title start_date end_date description event_type organizer",
+      populate: { path: "organizer", select: "first_name last_name fullName name email avatar profile_image_url" },
+    })
+    .select("-__v")
+    .sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, disputes, "Gig disputes fetched"));
+});
+
+// List escrows related to this gig's accepted events
+const getGigEscrows = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const pools = await Pool.find({ gigs: gigId }).select("event");
+  const eventIds = pools.map((p) => p.event).filter(Boolean);
+
+  if (eventIds.length === 0) {
+    return res.status(200).json(new ApiResponse(200, [], "No escrows found for this gig"));
+  }
+
+  const escrows = await EscrowContract.find({ event: { $in: eventIds } })
+    .populate("event", "title")
+    .select("event total_amount status organizer_percentage gigs_percentage createdAt updatedAt");
+
+  const toNum = (v) => {
+    if (v && typeof v === "object" && v.$numberDecimal) return parseFloat(v.$numberDecimal);
+    const n = parseFloat(v);
+    return Number.isNaN(n) ? 0 : n;
+  };
+
+  const normalized = escrows.map((e) => ({
+    _id: e._id,
+    event: e.event,
+    total_amount: toNum(e.total_amount),
+    status: e.status,
+    organizer_percentage: toNum(e.organizer_percentage),
+    gigs_percentage: toNum(e.gigs_percentage),
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+  }));
+
+  return res.status(200).json(new ApiResponse(200, normalized, "Escrows fetched for gig"));
+});
+
 // 20. Simulate payout from escrow (for testing)
 const simulatePayout = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
@@ -660,11 +977,28 @@ const simulatePayout = asyncHandler(async (req, res) => {
 const getBadges = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  const badges = await UserBadge.find({ user: gigId })
-    .populate("badge", "name description icon_url")
-    .select("awarded_at");
+  const docs = await UserBadge.find({ user: gigId })
+    .populate("badge", "badge_name min_events")
+    .select("createdAt")
+    .lean();
+  const badges = (docs || []).map((b) => ({
+    ...b,
+    awarded_at: b.createdAt,
+  }));
 
   return res.status(200).json(new ApiResponse(200, badges, "Badges fetched"));
+});
+
+// Delete a notification
+const deleteNotification = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { id } = req.params;
+  const notif = await Notification.findById(id);
+  if (!notif || notif.user.toString() !== gigId.toString()) {
+    throw new ApiError(404, "Notification not found");
+  }
+  await Notification.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Notification deleted"));
 });
 
 // 22. Submit event feedback
@@ -687,6 +1021,126 @@ const submitFeedback = asyncHandler(async (req, res) => {
   return res
     .status(201)
     .json(new ApiResponse(201, feedback, "Feedback submitted"));
+});
+
+// 22.1 List my feedbacks
+const getMyFeedbacks = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+
+  const feedbacks = await Feedback.find({ gig: gigId })
+    .populate("event", "title start_date end_date event_type")
+    .select("-__v");
+
+  const reviews = await RatingReview.find({
+    reviewee: gigId,
+    review_type: "organizer_to_gig",
+  })
+    .populate("event", "title start_date end_date event_type")
+    .populate("reviewer", "first_name last_name fullName name email avatar profile_image_url")
+    .select("-__v");
+
+  const myRatings = await RatingReview.find({
+    reviewer: gigId,
+    review_type: "gig_to_organizer",
+  })
+    .populate("event", "title start_date end_date event_type")
+    .populate("reviewee", "first_name last_name fullName name email avatar profile_image_url")
+    .select("-__v");
+
+  const normalizedFeedbacks = feedbacks.map((f) => ({
+    _id: f._id,
+    event: f.event,
+    rating: f.rating,
+    comment: f.comment,
+    createdAt: f.createdAt,
+    source: "gig",
+    kind: "gig_to_event",
+  }));
+
+  const normalizedReviews = reviews.map((r) => {
+    let numericRating;
+    if (r.rating && typeof r.rating === "object" && r.rating.$numberDecimal) {
+      numericRating = parseFloat(r.rating.$numberDecimal);
+    } else {
+      const candidate = Number(r.rating || 0);
+      numericRating = Number.isFinite(candidate) ? candidate : 0;
+    }
+
+    return {
+      _id: r._id,
+      event: r.event,
+      rating: numericRating,
+      comment: r.review_text,
+      createdAt: r.createdAt,
+      source: "organizer",
+      kind: r.review_type || "organizer_to_gig",
+      organizer: r.reviewer
+    };
+  });
+
+  const normalizedMyRatings = myRatings.map((r) => {
+    let numericRating;
+    if (r.rating && typeof r.rating === "object" && r.rating.$numberDecimal) {
+      numericRating = parseFloat(r.rating.$numberDecimal);
+    } else {
+      const candidate = Number(r.rating || 0);
+      numericRating = Number.isFinite(candidate) ? candidate : 0;
+    }
+
+    return {
+      _id: r._id,
+      event: r.event,
+      rating: numericRating,
+      comment: r.review_text,
+      createdAt: r.createdAt,
+      source: "gig",
+      kind: r.review_type || "gig_to_organizer",
+      organizer: r.reviewee,
+    };
+  });
+
+  const combined = [...normalizedFeedbacks, ...normalizedReviews, ...normalizedMyRatings].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
+  return res.status(200).json(new ApiResponse(200, combined, "Gig feedbacks fetched"));
+});
+
+// 22.2 Submit rating for organizer (post-completion)
+const createGigRatingReview = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { eventId, organizerId, rating, review_text } = req.body;
+
+  if (!eventId || !organizerId || rating === undefined) {
+    throw new ApiError(400, "Missing required rating fields");
+  }
+  const numeric = Number(rating);
+  if (!Number.isFinite(numeric) || numeric < 1 || numeric > 5) {
+    throw new ApiError(400, "Rating must be between 1 and 5");
+  }
+
+  // Check if rating already exists
+  const existingRating = await RatingReview.findOne({
+    event: eventId,
+    reviewer: gigId,
+    reviewee: organizerId,
+    review_type: "gig_to_organizer"
+  });
+
+  if (existingRating) {
+    throw new ApiError(400, "You have already rated this organizer for this event");
+  }
+
+  const review = await RatingReview.create({
+    event: eventId,
+    reviewer: gigId,
+    reviewee: organizerId,
+    rating: mongoose.Types.Decimal128.fromString(numeric.toString()),
+    review_text,
+    review_type: "gig_to_organizer",
+  });
+
+  return res.status(201).json(new ApiResponse(201, review, "Rating review submitted"));
 });
 
 // 23. get gig dashboard
@@ -775,15 +1229,10 @@ const sendMessage = asyncHandler(async (req, res) => {
   const { conversationId } = req.params;
   const { message_text } = req.body;
 
-  const conversation = await Conversation.findById(conversationId);
- if (
-  !conversation ||
-  !conversation.participants.some(
-    (p) => p.userId?.toString() === gigId.toString()
-  )
-) {
-  throw new ApiError(403, "Access denied to this conversation");
-}
+ const conversation = await Conversation.findById(conversationId);
+ if (!conversation || !conversation.participants.some((p) => p.toString() === gigId.toString())) {
+   throw new ApiError(403, "Access denied to this conversation");
+ }
 
 
   const message = await Message.create({
@@ -795,21 +1244,109 @@ const sendMessage = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, message, "Message sent"));
 });
 
+//  List messages in a conversation (gig)
+const getGigConversationMessages = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === gigId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const messages = await Message.find({ conversation: conversationId })
+    .populate("sender", "email role")
+    .sort({ createdAt: 1 });
+
+  return res.status(200).json(new ApiResponse(200, messages, "Messages fetched"));
+});
+
+const deleteGigConversation = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { id } = req.params;
+  const conversation = await Conversation.findById(id);
+  if (!conversation) {
+    throw new ApiError(404, "Conversation not found");
+  }
+  if (!conversation.participants.some((p) => p.toString() === gigId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+  conversation.participants = conversation.participants.filter((p) => p.toString() !== gigId.toString());
+  if (conversation.participants.length === 0) {
+    await conversation.softDelete();
+  } else {
+    await conversation.save();
+  }
+  return res.status(200).json(new ApiResponse(200, null, "Conversation deleted"));
+});
+
 //  List chat threads
 const getConversations = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-const conversations = await Conversation.find({
-  "participants.gig": gigId 
-
-}).populate("event", "name date location")
-    .populate("pool", "name")
+  const rows = await Conversation.find({ participants: gigId })
+    .populate("event", "title start_date end_date status")
+    .populate("pool", "pool_name status")
+    .populate("participants", "email role avatar first_name last_name")
     .sort({ createdAt: -1 });
 
-    console.log(conversations)
-  return res
-    .status(200)
-    .json(new ApiResponse(200, conversations, "Conversations fetched"));
+  const conversations = rows.map((c) => {
+    const obj = c.toObject();
+    const organizerUser = (obj.participants || []).find((p) => p.role === "organizer");
+    const organizer =
+      organizerUser &&
+      {
+        _id: organizerUser._id,
+        email: organizerUser.email,
+        avatar: organizerUser.avatar,
+        fullName: `${organizerUser.first_name} ${organizerUser.last_name}`.trim(),
+        name: `${organizerUser.first_name} ${organizerUser.last_name}`.trim(),
+      };
+    return {
+      ...obj,
+      organizer,
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+const deleteGigApplication = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { id } = req.params;
+  const app = await PoolApplication.findById(id);
+  if (!app) throw new ApiError(404, "Application not found");
+  if (app.gig?.toString() !== gigId.toString()) {
+    throw new ApiError(403, "Not authorized to delete this application");
+  }
+  if (!["accepted", "rejected"].includes(app.application_status)) {
+    throw new ApiError(400, "Only accepted or rejected applications can be deleted");
+  }
+  await PoolApplication.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Application deleted"));
+});
+
+//  Remove gig's completed event card (leave pool)
+const deleteCompletedEventCard = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { poolId } = req.params;
+
+  const pool = await Pool.findById(poolId).populate("event", "end_date status");
+  if (!pool) throw new ApiError(404, "Pool not found");
+
+  const isMember = (pool.gigs || []).some((g) => g?.toString() === gigId.toString());
+  if (!isMember) throw new ApiError(403, "Not authorized to modify this pool");
+
+  const now = new Date();
+  const endAt = pool?.event?.end_date ? new Date(pool.event.end_date) : null;
+  const completedByDate = endAt && now > endAt;
+  const completedByStatus = pool?.event?.status === "completed";
+  if (!completedByDate && !completedByStatus) {
+    throw new ApiError(400, "Only completed events can be deleted from your list");
+  }
+
+  await Pool.updateOne({ _id: poolId }, { $pull: { gigs: gigId } });
+  return res.status(200).json(new ApiResponse(200, null, "Event removed from your completed list"));
 });
 
 //  Get notifications
@@ -830,29 +1367,40 @@ export {
   getOrganizerPool,
   joinPool,
   getMyEvents,
+  getMyApplications,
+  deleteGigApplication,
   checkIn,
   checkOut,
+  processCheckout,
   getAttendanceHistory,
   getWallet,
   withdraw,
-  verifyAadhaar,
   getPaymentHistory,
+  verifyAadhaar,
   getProfile,
   updateProfile,
   getBadges,
   getLeaderboard,
   getConversations,
+  getGigConversationMessages,
   sendMessage,
   raiseDispute,
+  getMyDisputes,
+  getGigEscrows,
   getNotifications,
+  deleteNotification,
   updateProfileImage,
   simulatePayout,
   submitFeedback,
+  getMyFeedbacks,
+  createGigRatingReview,
   deleteProfileImage,
   getKYCStatus,
   getGigDashboard,
   uploadDocuments,
+  updateGigDocs,
   uploadKycVideo,
   createWallet,
-  
+  deleteGigConversation,
+  deleteCompletedEventCard,
 };

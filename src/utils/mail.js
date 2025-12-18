@@ -29,7 +29,5 @@ const sendOtpMail = async (to, otp, first_name) => {
     <br/>
     <p>Best Regards,<br/>Event Flex Team</p>`,
   });
-
-  console.log("Message sent:", info.messageId);
 };
 export { sendOtpMail };

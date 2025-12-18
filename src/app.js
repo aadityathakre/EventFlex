@@ -3,25 +3,52 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { sanitizeInput, rateLimit } from "./middlewares/sanitize.middleware.js";
 import dotenv from "dotenv";
+import path from "path";
 
 const app = express();
+app.use(express.static("dist"))
 dotenv.config({ path: "./.env.blockchain" });
 
 //middlewares + configurations
 app.use(express.static("public"));
-app.use(express.json({ limit: "32kb" }));
+// JSON parser that skips multipart/form-data (handled by multer)
+app.use((req, res, next) => {
+  if (req.is('multipart/form-data')) {
+    return next();
+  }
+  express.json({ limit: "32kb" })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
+
+// Build CORS origin - allow all localhost origins for local development
 app.use(
   cors({
-    origin: `${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}` ,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) return callback(null, true);
+      
+      // Allow all localhost origins for local development
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+      
+      // For production, you can add specific domains here
+      callback(null, true);
+    },
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    exposedHeaders: ['Set-Cookie'],
   })
 );
 
 // Security middlewares
 app.use(sanitizeInput);
-app.use(rateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
+app.use(rateLimit(1000, 15 * 60 * 1000)); // 1000 requests per 15 minutes
+
+// Apply rate limiting to API routes only
+app.use("/api/", rateLimit(100, 60 * 1000)); // 100 requests per minute for API
 
 
 // users auth route
@@ -58,6 +85,17 @@ import blockchainRoutes from './routes/blockchain.routes.js';
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', blockchain: process.env.BLOCKCHAIN_ENABLED === 'true' });
 });
+
+// TEST ENDPOINT - Simple cookie test
+app.get('/api/v1/test-cookie', (req, res) => {
+  res.cookie('testCookie', 'testValue123', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'Lax',
+  });
+  res.json({ success: true, message: 'Cookie set' });
+});
+
 // Routes
 app.use('/api/blockchain', blockchainRoutes);
 
@@ -68,7 +106,12 @@ app.use('/api/blockchain', blockchainRoutes);
 // Error handling middleware (must be last)
 import { errorHandler, notFound } from "./middlewares/errorHandler.middleware.js";
 
-// 404 handler for undefined routes
+// Catch-all route for React Router (must be after all API routes but before 404 handler)
+app.use((req, res) => {
+  res.sendFile(path.resolve("./dist/index.html"));
+});
+
+// 404 handler for undefined routes (only for API routes)
 app.use((req, res, next) => {
   const error = new Error(`Route ${req.originalUrl} not found`);
   error.statusCode = 404;
@@ -77,7 +120,6 @@ app.use((req, res, next) => {
 
 // Global error handler
 app.use(errorHandler);
-
 
 //export
 export { app };

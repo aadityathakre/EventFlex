@@ -5,6 +5,7 @@ import {
   // Auth & KYC
   verifyAadhaar,
   uploadDocuments,
+  updateGigDocs,
   uploadKycVideo,
   getKYCStatus,
 
@@ -38,14 +39,28 @@ import {
 
   // Messaging
   getConversations,
+  getGigConversationMessages,
   sendMessage,
+  deleteGigConversation,
+  deleteCompletedEventCard,
+
+  // Escrow
+  getGigEscrows,
 
   // Notifications & Disputes
   getNotifications,
+  deleteNotification,
   raiseDispute,
+  getMyDisputes,
 
   // Feedback
   submitFeedback,
+  getMyFeedbacks,
+  createGigRatingReview,
+  
+  // Applications
+  getMyApplications,
+  deleteGigApplication,
 } from "../controllers/gig.controller.js";
 
 const router = express.Router();
@@ -91,6 +106,11 @@ router.get(
 );
 router.post("/join-pool/:poolId", verifyToken, authorizeRoles("gig"), joinPool);
 
+// Applications
+router.get("/applications", verifyToken, authorizeRoles("gig"), getMyApplications);
+router.delete("/applications/:id", verifyToken, authorizeRoles("gig"), deleteGigApplication);
+router.delete("/events/:poolId", verifyToken, authorizeRoles("gig"), deleteCompletedEventCard);
+
 //
 // 💰 Wallet & Payments
 //
@@ -127,6 +147,12 @@ router.delete(
   authorizeRoles("gig"),
   deleteProfileImage
 );
+router.get(
+  "/escrows",
+  verifyToken,
+  authorizeRoles("gig"),
+  getGigEscrows
+);
 
 router.get("/badges", verifyToken, authorizeRoles("gig"), getBadges);
 router.get("/leaderboard", verifyToken, authorizeRoles("gig"), getLeaderboard);
@@ -140,11 +166,23 @@ router.get(
   authorizeRoles("gig"),
   getConversations
 );
+router.get(
+  "/messages/:conversationId",
+  verifyToken,
+  authorizeRoles("gig"),
+  getGigConversationMessages
+);
 router.post(
   "/message/:conversationId",
   verifyToken,
   authorizeRoles("gig"),
   sendMessage
+);
+router.delete(
+  "/conversations/:id",
+  verifyToken,
+  authorizeRoles("gig"),
+  deleteGigConversation
 );
 
 //
@@ -156,11 +194,23 @@ router.get(
   authorizeRoles("gig"),
   getNotifications
 );
+router.delete(
+  "/notifications/:id",
+  verifyToken,
+  authorizeRoles("gig"),
+  deleteNotification
+);
 router.post(
   "/raise-dispute/:eventId",
   verifyToken,
   authorizeRoles("gig"),
   raiseDispute
+);
+router.get(
+  "/disputes",
+  verifyToken,
+  authorizeRoles("gig"),
+  getMyDisputes
 );
 
 // 📝 Feedback
@@ -169,6 +219,18 @@ router.post(
   verifyToken,
   authorizeRoles("gig"),
   submitFeedback
+);
+router.get(
+  "/feedbacks",
+  verifyToken,
+  authorizeRoles("gig"),
+  getMyFeedbacks
+);
+router.post(
+  "/reviews/rating",
+  verifyToken,
+  authorizeRoles("gig"),
+  createGigRatingReview
 );
 
 
@@ -186,6 +248,13 @@ router.post(
   authorizeRoles("gig"),
   upload.fields([{ name: "fileUrl", maxCount: 1 }]),
   uploadDocuments
+);
+router.put(
+  "/update-docs",
+  verifyToken,
+  authorizeRoles("gig"),
+  upload.fields([{ name: "fileUrl", maxCount: 1 }]),
+  updateGigDocs
 );
 router.post(
   "/kyc/video",
