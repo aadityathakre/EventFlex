@@ -7,15 +7,23 @@ import crypto from "crypto";
 export const createPayment = asyncHandler(async (req, res) => {
   const { amount, currency } = req.body;
 
+  if (!amount || isNaN(amount) || amount <= 0) {
+    throw new ApiError(400, "Invalid amount");
+  }
+
   const options = {
-    amount: amount * 100, // smallest currency unit (paise)
+    amount: Math.round(amount), // smallest currency unit (paise) - ensure integer
     currency: currency || "INR",
     receipt: `receipt_${Math.random().toString(36).substring(7)}`,
   };
 
-  const order = await instance.orders.create(options);
-
-  return res.json(new ApiResponse(true, "Payment created successfully", order));
+  try {
+    const order = await instance.orders.create(options);
+    return res.status(200).json(new ApiResponse(200, order, "Payment created successfully"));
+  } catch (error) {
+    console.error("Razorpay Order Creation Failed:", error);
+    throw new ApiError(500, error.message || "Razorpay order creation failed");
+  }
 });
 
 // Verify Razorpay payment
@@ -28,10 +36,10 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     .digest("hex");
 
   if (generated_signature === razorpay_signature) {
-    return res.json(new ApiResponse(true, "Payment verified successfully"));
+    return res.status(200).json(new ApiResponse(200, { verified: true }, "Payment verified successfully"));
   }
 
   return res
     .status(400)
-    .json(new ApiResponse(false, "Invalid signature, payment verification failed"));
+    .json(new ApiResponse(400, null, "Invalid signature, payment verification failed"));
 });

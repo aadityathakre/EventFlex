@@ -8,6 +8,7 @@ import {
   updateProfileImage,
   deleteProfileImage,
   uploadOrganizerDocs,
+  updateOrganizerDocs,
   submitESignature,
   verifyAadhaarOrganizer,
 
@@ -15,30 +16,48 @@ import {
   getAllEvents,
   reqHostForEvent,
   acceptInvitationFromHost,
+  rejectInvitationFromHost,
   createPool,
+  getMyPools,
+  updatePoolDetails,
   getPoolDetails,
+  getOrganizerPoolByEvent,
   chatWithGig,
   getPoolApplications,
   reviewApplication,
+  deletePool,
+  getOrganizerConversations,
+  getOrganizerConversationMessages,
+  sendOrganizerMessage,
+  deleteOrganizerConversation,
 
   // 📅 Event Management
   getEventDetails,
+  getOrganizerApplications,
+  getOrganizerApplicationSummary,
   getLiveEventTracking,
 
   // 💰 Wallet & Escrow
   getWallet,
   withdrawFunds,
   getPaymentHistory,
+  getEscrowReleaseHistory,
+  deletePaymentHistory,
   simulatePayout,
 
   // 🏆 Reputation & Gamification
   getLeaderboard,
   getOrganizerBadges,
+  getGigPublicProfile,
+  createOrganizerRating,
+  getMyFeedbacks,
+  removeGigFromPool,
   
 
   // 🔔 Notifications
   getNotifications,
   markNotificationRead,
+  deleteNotification,
 
   // 🚨 Dispute Management
   raiseDispute,
@@ -47,6 +66,10 @@ import {
   // 🧠 Wellness & Analytics
   getWellnessScore,
   getNoShowRisk,
+  deleteOrganizerApplication,
+
+  getMyGivenRatings,
+  getMyEvents,
 } from "../controllers/organizer.controller.js";
 
 const router = express.Router();
@@ -58,7 +81,8 @@ router.put("/profile/image", verifyToken, authorizeRoles("organizer"), upload.fi
 router.delete("/profile/image", verifyToken, authorizeRoles("organizer"), deleteProfileImage);
 
 // 📄 Document & E-Signature Management
-router.post("/upload-docs", verifyToken, authorizeRoles("organizer"),upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
+router.post("/upload-docs", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), uploadOrganizerDocs);
+router.put("/update-docs", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), updateOrganizerDocs);
 router.post("/e-signature", verifyToken, authorizeRoles("organizer"), upload.fields([{ name: "fileUrl", maxCount: 1 }]), submitESignature);
 router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyAadhaarOrganizer);
 
@@ -67,13 +91,27 @@ router.post("/aadhaar/verify", verifyToken, authorizeRoles("organizer"), verifyA
 //
 router.post("/events/request-host/:id", verifyToken, authorizeRoles("organizer"), reqHostForEvent);
 router.post("/events/accept-invitation/:id", verifyToken, authorizeRoles("organizer"), acceptInvitationFromHost);
+router.post("/events/reject-invitation/:id", verifyToken, authorizeRoles("organizer"), rejectInvitationFromHost);
 
 router.get("/events/all", verifyToken, authorizeRoles("organizer"), getAllEvents);
+router.get("/events/my", verifyToken, authorizeRoles("organizer"), getMyEvents);
 router.post("/pools/create", verifyToken, authorizeRoles("organizer"), createPool);
+router.get("/pools", verifyToken, authorizeRoles("organizer"), getMyPools);
+router.put("/pools/:id", verifyToken, authorizeRoles("organizer"), updatePoolDetails);
 router.get("/pools/:id", verifyToken, authorizeRoles("organizer"), getPoolDetails);
+router.delete("/pools/:id", verifyToken, authorizeRoles("organizer"), deletePool);
+router.delete("/pools/:poolId/gigs/:gigId", verifyToken, authorizeRoles("organizer"), removeGigFromPool);
 router.post("/pools/chat/:gigId", verifyToken, authorizeRoles("organizer"), chatWithGig);
 router.get("/pools/:poolId/applications", verifyToken, authorizeRoles("organizer"), getPoolApplications);
 router.post("/applications/:applicationId/review", verifyToken, authorizeRoles("organizer"), reviewApplication);
+router.get("/org-pools/by-event/:eventId", verifyToken, authorizeRoles("organizer"), getOrganizerPoolByEvent);
+router.get("/gigs/:id/profile", verifyToken, authorizeRoles("organizer"), getGigPublicProfile);
+
+// 💬 Chat
+router.get("/conversations", verifyToken, authorizeRoles("organizer"), getOrganizerConversations);
+router.get("/messages/:conversationId", verifyToken, authorizeRoles("organizer"), getOrganizerConversationMessages);
+router.post("/message/:conversationId", verifyToken, authorizeRoles("organizer"), sendOrganizerMessage);
+router.delete("/conversations/:id", verifyToken, authorizeRoles("organizer"), deleteOrganizerConversation);
 
 //
 // 🧠 Wellness & Analytics
@@ -86,7 +124,10 @@ router.get("/no-show-risk/:gigId", verifyToken, authorizeRoles("organizer"), get
 // 📅 Event Management
 //
 router.get("/events/:id", verifyToken, authorizeRoles("organizer"), getEventDetails);
-router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
+router.get("/events/:id/live-tracking", verifyToken, authorizeRoles("organizer"), getLiveEventTracking);
+router.get("/applications", verifyToken, authorizeRoles("organizer"), getOrganizerApplications);
+router.get("/applications/summary", verifyToken, authorizeRoles("organizer"), getOrganizerApplicationSummary);
+router.delete("/applications/:id", verifyToken, authorizeRoles("organizer"), deleteOrganizerApplication);
 
 
 //
@@ -95,6 +136,8 @@ router.get("/events/live/:id", verifyToken, authorizeRoles("organizer"), getLive
 router.get("/wallet", verifyToken, authorizeRoles("organizer"), getWallet);
 router.post("/withdraw", verifyToken, authorizeRoles("organizer"), withdrawFunds);
 router.get("/payment-history", verifyToken, authorizeRoles("organizer"), getPaymentHistory);
+router.get("/escrow-release-history", verifyToken, authorizeRoles("organizer"), getEscrowReleaseHistory);
+router.delete("/payment-history/:id", verifyToken, authorizeRoles("organizer"), deletePaymentHistory);
 router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer"), simulatePayout);
 
 //
@@ -102,12 +145,16 @@ router.post("/simulate-payout/:escrowId", verifyToken, authorizeRoles("organizer
 //
 router.get("/leaderboard", verifyToken, authorizeRoles("organizer"), getLeaderboard);
 router.get("/badges", verifyToken, authorizeRoles("organizer"), getOrganizerBadges);
+router.post("/reviews/rating", verifyToken, authorizeRoles("organizer"), createOrganizerRating);
+router.get("/reviews/my-feedbacks", verifyToken, authorizeRoles("organizer"), getMyFeedbacks);
+router.get("/reviews/given", verifyToken, authorizeRoles("organizer"), getMyGivenRatings);
 
 //
 // 🔔 Notifications
 //
 router.get("/notifications", verifyToken, authorizeRoles("organizer"), getNotifications);
 router.put("/notifications/:id/read", verifyToken, authorizeRoles("organizer"), markNotificationRead);
+router.delete("/notifications/:id", verifyToken, authorizeRoles("organizer"), deleteNotification);
 
 //
 // 🚨 Dispute Management

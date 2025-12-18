@@ -45,7 +45,9 @@ export const adminRegister = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: false, // Allow cookies on http://localhost
+    sameSite: 'Lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 
   const registeredAdmin = await Admin.findById(newAdmin._id).select("-password -refreshToken");
@@ -86,7 +88,9 @@ export const adminLogin = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: false, // Allow cookies on http://localhost
+    sameSite: 'Lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 
   const loggedInAdmin = await Admin.findById(admin._id).select("-password -refreshToken");
@@ -123,7 +127,12 @@ export const refreshAdminAccessToken = asyncHandler(async (req, res) => {
       throw new ApiError(401, "Invalid or .... expired refresh token");
     }
 
-    const options = { httpOnly: true, secure: true };
+    const options = { 
+      httpOnly: true, 
+      secure: false, // Allow cookies on http://localhost
+      sameSite: 'Lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    };
     const { accessToken, newRefreshToken } =
       await generateAccessAndRefreshTokensForAdmin(admin._id);
 

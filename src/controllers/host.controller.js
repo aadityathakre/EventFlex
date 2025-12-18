@@ -5,6 +5,7 @@ import UserDocument from "../models/UserDocument.model.js";
 import KYCVerification from "../models/KYCVerification.model.js";
 import Event from "../models/Event.model.js";
 import OrganizerPool from "../models/OrganizerPool.model.js";
+import Pool from "../models/Pool.model.js";
 import Conversation from "../models/Conversation.model.js";
 import Message from "../models/Message.model.js";
 import EscrowContract from "../models/EscrowContract.model.js";
@@ -18,6 +19,9 @@ import User from "../models/User.model.js";
 import EventApplication from "../models/EventApplications.js";
 import mongoose from "mongoose";
 import UserProfile from "../models/UserProfile.model.js";
+import Notification from "../models/Notification.model.js";
+import EventAttendance from "../models/EventAttendance.model.js";
+import { processCheckout } from "./gig.controller.js";
 
 // 1. Host Profile
 export const getHostProfile = asyncHandler(async (req, res) => {
@@ -72,10 +76,28 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const userUpdates = {};
   const profileUpdates = {};
 
-  if (updates.first_name) userUpdates.first_name = updates.first_name;
-  if (updates.last_name) userUpdates.last_name = updates.last_name;
-  if (updates.email) userUpdates.email = updates.email;
-  if (updates.phone) userUpdates.phone = updates.phone;
+  if (updates.first_name) {
+    if(updates.first_name.length > 2 && updates.first_name.length < 30){
+    userUpdates.first_name = updates.first_name;
+    }
+  }
+
+  if (updates.last_name) {
+    if(updates.last_name.length > 2 && updates.last_name.length < 30){
+    userUpdates.last_name = updates.last_name;
+    }
+  }
+
+  if (updates.email){ 
+    if(/\S+@\S+\.\S+/.test(updates.email)){  
+    userUpdates.email = updates.email;}
+  }
+
+  if (updates.phone) {
+    if(/^[6-9]\d{9}$/.test(updates.phone)){
+    userUpdates.phone = updates.phone;
+    }
+  }
 
   if (updates.bio) profileUpdates.bio = updates.bio;
   if (updates.location) profileUpdates.location = updates.location;
@@ -166,11 +188,20 @@ export const uploadHostDocs = asyncHandler(async (req, res) => {
   const localFilePath = req.files?.fileUrl?.[0]?.path;
   const userId = req.user._id;
 
+
   if (!type || !localFilePath) {
     throw new ApiError(400, "Document type and file is required");
   }
 
+  // Check if user already has a document with this type
+  const existingDoc = await UserDocument.findOne({ user: userId, type });
+  
+  if (existingDoc) {
+    throw new ApiError(400, "You already have a document of this type. Please use the update endpoint to modify it.");
+  }
+
   const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+
   if (!cloudinaryRes) {
     throw new ApiError(500, "Cloudinary upload failed");
   }
@@ -181,7 +212,42 @@ export const uploadHostDocs = asyncHandler(async (req, res) => {
     fileUrl: cloudinaryRes.url,
   });
 
-  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
+  return res.status(201).json(new ApiResponse(201, doc, "Document uploaded successfully"));
+});
+
+// 5.1 Update KYC Document (Edit existing document)
+export const updateHostDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body;
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+  const userId = req.user._id;
+
+
+  if (!type || !localFilePath) {
+    throw new ApiError(400, "Document type and file is required");
+  }
+
+  // Find the user's existing document (they only have one)
+  const existingDoc = await UserDocument.findOne({ user: userId });
+
+  if (!existingDoc) {
+    throw new ApiError(404, "No document found. Please upload a document first.");
+  }
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  // Update the document with new type and file
+  existingDoc.type = type;
+  existingDoc.fileUrl = cloudinaryRes.url;
+  existingDoc.status = "pending"; // Reset status to pending after re-upload
+  existingDoc.uploadedAt = new Date();
+  const updatedDoc = await existingDoc.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedDoc, "Document updated successfully"));
 });
 
 // 6. Submit E-Signature
@@ -199,25 +265,16 @@ export const submitESignature = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Cloudinary upload failed");
   }
 
-  const existing = await UserDocument.findOne({
+  const existing = await User.findOne({
     user: userId,
-    type: "signature",
   });
 
-  let signatureDoc;
-
-  if (existing) {
-    existing.fileUrl = cloudinaryRes.url;
-    existing.status = "pending";
-    existing.uploadedAt = new Date();
-    signatureDoc = await existing.save();
-  } else {
-    signatureDoc = await UserDocument.create({
-      user: userId,
-      type: "signature",
-      fileUrl: cloudinaryRes.url,
-    });
+  if(!existing){
+    throw new ApiError(404, "User not found");
   }
+
+  existing.digital_signature = cloudinaryRes.url;
+  const signatureDoc = await existing.save();
 
   return res
     .status(201)
@@ -280,6 +337,124 @@ export const getWalletBalance = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, wallet, "Wallet balance fetched"));
+});
+
+// 8.1 Withdraw funds (test mode) - supports UPI or Bank
+export const withdrawFunds = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { amount, mode, upi_id, beneficiary_name, account_number, ifsc } = req.body;
+
+  // Validate amount
+  const requestedAmount = parseFloat(amount);
+  if (isNaN(requestedAmount) || requestedAmount <= 0) {
+    throw new ApiError(400, "Invalid withdrawal amount");
+  }
+
+  // Validate destination
+  if (mode === "upi") {
+    if (!upi_id || typeof upi_id !== "string" || upi_id.length < 6) {
+      throw new ApiError(400, "Valid UPI ID is required for UPI withdrawals");
+    }
+  } else if (mode === "bank") {
+    if (!account_number || !ifsc) {
+      throw new ApiError(400, "Bank account number and IFSC are required for bank withdrawals");
+    }
+  } else {
+    throw new ApiError(400, "Invalid withdrawal mode. Use 'upi' or 'bank'");
+  }
+
+  // Fetch wallet
+  const wallet = await UserWallet.findOne({ user: hostId });
+  if (!wallet || !wallet.balance_inr) {
+    throw new ApiError(404, "Wallet not found or balance missing");
+  }
+
+  // Convert Decimal128 to float safely
+  const balanceRaw = wallet.balance_inr.toString?.() || "0.00";
+  const currentBalance = parseFloat(balanceRaw);
+  if (isNaN(currentBalance)) {
+    throw new ApiError(500, "Corrupted wallet balance");
+  }
+
+  if (requestedAmount > currentBalance) {
+    throw new ApiError(400, "Insufficient balance");
+  }
+
+  // Deduct and persist
+  const newBalance = (currentBalance - requestedAmount).toFixed(2);
+  wallet.balance_inr = mongoose.Types.Decimal128.fromString(newBalance);
+  await wallet.save();
+
+  // Simulate payout in test mode (mock UTR/refs)
+  const utr = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+  const payout = {
+    mode,
+    amount: requestedAmount,
+    status: "SUCCESS",
+    utr,
+    beneficiary: {
+      name: beneficiary_name || "Beneficiary",
+      ...(mode === "upi" ? { upi_id } : { account_number, ifsc }),
+    },
+    timestamp: new Date(),
+  };
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        new_balance: parseFloat(wallet.balance_inr.toString()),
+        payout,
+      },
+      "Withdrawal processed (test mode)"
+    )
+  );
+});
+
+// 8.2 Add Money to Wallet (Simulated)
+export const addMoneyToWallet = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { amount, transaction_id, payment_method } = req.body;
+
+  const depositAmount = parseFloat(amount);
+  if (isNaN(depositAmount) || depositAmount <= 0) {
+    throw new ApiError(400, "Invalid deposit amount");
+  }
+
+  let wallet = await UserWallet.findOne({ user: hostId });
+  if (!wallet) {
+    wallet = await UserWallet.create({
+      user: hostId,
+      balance_inr: mongoose.Types.Decimal128.fromString("0.00"),
+    });
+  }
+
+  const currentBalance = parseFloat(wallet.balance_inr.toString?.() || "0.00");
+  const newBalance = (currentBalance + depositAmount).toFixed(2);
+  wallet.balance_inr = mongoose.Types.Decimal128.fromString(newBalance);
+  await wallet.save();
+
+  // Record payment
+  await Payment.create({
+    payer: hostId, // Self-deposit
+    payee: hostId,
+    amount: mongoose.Types.Decimal128.fromString(depositAmount.toString()),
+    currency: "INR",
+    status: "completed",
+    type: "deposit", // New type for wallet loads
+    transaction_id: transaction_id || `TXN-${Date.now()}`,
+    payment_method: payment_method || "upi",
+  });
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        new_balance: parseFloat(newBalance),
+      },
+      "Money added to wallet successfully"
+    )
+  );
 });
 
 // 9. Create Event
@@ -357,6 +532,12 @@ export const createEvent = asyncHandler(async (req, res) => {
     budget: mongoose.Types.Decimal128.fromString(budgetAmount.toString()),
   });
 
+  await Notification.create({
+    user: hostId,
+    type: "event",
+    message: `Event ${title} created`,
+  });
+
   return res
     .status(201)
     .json(new ApiResponse(201, event, "Event created successfully"));
@@ -370,7 +551,31 @@ export const editEvent = asyncHandler(async (req, res) => {
   const event = await Event.findOne({ _id: eventId, host: hostId });
   if (!event) throw new ApiError(404, "Event not found or unauthorized");
 
-  Object.assign(event, req.body);
+  // Disallow edits on completed events per business rule
+  if (event.status === "completed") {
+    throw new ApiError(400, "Completed events cannot be edited");
+  }
+
+  const update = { ...req.body };
+
+  // Ensure GeoJSON structure remains valid when updating location
+  if (update.location?.coordinates) {
+    update.location = {
+      type: "Point",
+      coordinates: update.location.coordinates,
+    };
+  }
+
+  // Optional: normalize budget to Decimal128 like createEvent
+  if (update.budget !== undefined) {
+    const budgetAmount = parseFloat(update.budget);
+    if (isNaN(budgetAmount) || budgetAmount <= 0) {
+      throw new ApiError(400, "Budget must be a positive number");
+    }
+    update.budget = mongoose.Types.Decimal128.fromString(budgetAmount.toString());
+  }
+
+  Object.assign(event, update);
   await event.save();
 
   return res.status(200).json(new ApiResponse(200, event, "Event updated"));
@@ -391,7 +596,9 @@ export const getEventDetails = asyncHandler(async (req, res) => {
 // 12. View All Host Events
 export const getHostEvents = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
-  const events = await Event.find({ host: hostId }).sort({ createdAt: -1 });
+  const events = await Event.find({ host: hostId })
+    .populate("organizer", "first_name last_name avatar email")
+    .sort({ createdAt: -1 });
 
   return res
     .status(200)
@@ -409,9 +616,49 @@ export const completeEvent = asyncHandler(async (req, res) => {
   event.status = "completed";
   await event.save();
 
+  // Automatically checkout all checked-in gigs using the proper checkout logic
+  const checkedInAttendances = await EventAttendance.find({
+    event: eventId,
+    check_in_time: { $exists: true },
+    check_out_time: { $exists: false }
+  }).select("gig");
+
+  // Process checkout for each gig (includes badge awarding and proper calculations)
+  for (const attendance of checkedInAttendances) {
+    if (attendance.gig) {
+      await processCheckout(attendance.gig, eventId);
+    }
+  }
+
+  // Also update related OrganizerPool status to completed
+  await OrganizerPool.updateMany({ event: eventId }, { status: "completed" });
+
+  // And archive any Gig Pools for this event
+  await Pool.updateMany({ event: eventId }, { status: "archived" });
+
   return res
     .status(200)
     .json(new ApiResponse(200, event, "Event marked as completed"));
+});
+
+// 13.1 Delete Event (soft delete)
+export const deleteEvent = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const eventId = req.params.id;
+
+  const event = await Event.findOne({ _id: eventId, host: hostId });
+  if (!event) throw new ApiError(404, "Event not found or unauthorized");
+
+  // Only allow deleting completed events per business rule
+  if (event.status !== "completed") {
+    throw new ApiError(400, "Only completed events can be deleted");
+  }
+
+  await event.softDelete();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Event deleted successfully"));
 });
 
 // 14 Get all organizers
@@ -427,16 +674,46 @@ export const getAllOrganizers = asyncHandler(async (req, res) => {
 
 // 15. invite organizer to event
 export const inviteOrganizer = asyncHandler(async (req, res) => {
-  const orgId = req.params;
-  const {eventId, cover_letter} = req.body;
-  //create an event application for the organizer
+  const orgId = req.params.id;
+  const hostId = req.user._id;
+  const {eventId, cover_letter, proposed_rate} = req.body;
+
+  const eventDoc = await Event.findOne({ _id: eventId, host: hostId }).select("title host organizer");
+  if (!eventDoc) {
+    throw new ApiError(404, "Event not found or unauthorized");
+  }
+
+  const existing = await EventApplication.findOne({
+    event: eventId,
+    organizer: orgId,
+    application_status: { $in: ["pending", "accepted"] }
+  });
+  if (existing) {
+    return res.status(200).json(new ApiResponse(200, existing, "Application already exists"));
+  }
+
   let eventApplication = await EventApplication.create({
     event: eventId ,
     applicant: orgId,
+    organizer: orgId,
+    host: hostId,
+    sender: hostId,
+    receiver: orgId,
     application_status: "pending",
     cover_letter,
+    proposed_rate: proposed_rate
+      ? mongoose.Types.Decimal128.fromString(proposed_rate.toString())
+      : undefined,
   });
   eventApplication.save();
+
+  const hostUser = await User.findById(hostId).select("first_name last_name");
+  await Notification.create({
+    user: orgId,
+    type: "event",
+    message: `Host ${hostUser?.fullName || hostUser?.first_name} invited you for ${eventDoc.title}`,
+  });
+
   return res
     .status(201)
     .json(new ApiResponse(201, eventApplication, "Organizer invited to event"));
@@ -455,12 +732,54 @@ export const approveOrganizer = asyncHandler(async (req, res) => {
   eventApplication.application_status = "accepted";
   await eventApplication.save();
 
-  eventApplication.event.organizer = eventApplication.applicant;
-  await eventApplication.save();
+  // Update the Event's organizer field to the accepted applicant
+  const eventId = eventApplication.event;
+  const organizerId = eventApplication.applicant;
+  const updatedEvent = await Event.findByIdAndUpdate(
+    eventId,
+    { $set: { organizer: organizerId } },
+    { new: true }
+  );
+  if (!updatedEvent) {
+    throw new ApiError(404, "Event not found to assign organizer");
+  }
+
+  const orgPoolExists = await OrganizerPool.findOne({ organizer: organizerId, event: eventId });
+  const organizerUser = await User.findById(organizerId).select("first_name last_name");
+  await Notification.create({
+    user: organizerId,
+    type: "event",
+    message: `Your application for ${updatedEvent.title} has been accepted`,
+  });
 
   return res
     .status(200)
-    .json(new ApiResponse(200, eventApplication, "Organizer approved for event"));
+    .json(new ApiResponse(200, { application: eventApplication, organizer_pool_exists: !!orgPoolExists }, "Organizer approved for event"));
+});
+
+// 16.1 Reject organizer application
+export const rejectOrganizer = asyncHandler(async (req, res) => {
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
+  if (!eventApplication) {
+    throw new ApiError(404, "Event application not found");
+  }
+  if (eventApplication.application_status !== "pending") {
+    throw new ApiError(400, "Event application is not pending");
+  }
+  eventApplication.application_status = "rejected";
+  await eventApplication.save();
+
+  const updatedEvent = await Event.findById(eventApplication.event).select("title");
+  await Notification.create({
+    user: eventApplication.applicant,
+    type: "event",
+    message: `Your application for ${updatedEvent?.title} has been rejected`,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, eventApplication, "Organizer application rejected"));
 });
 
 // 17. create organizer pool for event
@@ -486,6 +805,19 @@ export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required fields");
   }
 
+  const eventDoc = await Event.findOne({ _id: eventId, host: hostId }).select("organizer title");
+  if (!eventDoc) {
+    throw new ApiError(404, "Event not found or unauthorized");
+  }
+  if (eventDoc.organizer?.toString() !== organizerId.toString()) {
+    throw new ApiError(400, "Organizer not yet accepted for this event");
+  }
+
+  const existingPool = await OrganizerPool.findOne({ organizer: organizerId, event: eventId });
+  if (existingPool) {
+    return res.status(200).json(new ApiResponse(200, existingPool, "Organizer pool already exists"));
+  }
+
   const pool = await OrganizerPool.create({
     organizer: organizerId,
     event: eventId,
@@ -500,6 +832,12 @@ export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
     status: "open",
   });
 
+  await Notification.create({
+    user: organizerId,
+    type: "event",
+    message: `Organizer pool created for ${eventDoc.title}`,
+  });
+
   return res
     .status(201)
     .json(new ApiResponse(201, pool, "Organizer invited to event"));
@@ -508,18 +846,25 @@ export const createOrganizerPoolForEvent = asyncHandler(async (req, res) => {
 // 18. View Assigned Organizers
 export const getAssignedOrganizer = asyncHandler(async (req, res) => {
   const hostId = req.user._id;
+  const { eventId } = req.query;
 
-  const pools = await OrganizerPool.find()
-    .populate("organizer event")
-    .sort({ createdAt: -1 });
+  let eventIds = [];
+  if (eventId) {
+     // Check if this event belongs to host
+     const event = await Event.findOne({ _id: eventId, host: hostId });
+     if (event) eventIds = [event._id];
+  } else {
+     const events = await Event.find({ host: hostId }).select('_id');
+     eventIds = events.map(e => e._id);
+  }
 
-  const filtered = pools.filter(
-    (pool) => pool.event?.host?.toString() === hostId.toString()
-  );
+  const pools = await OrganizerPool.find({ event: { $in: eventIds } })
+    .populate("organizer", "first_name last_name avatar email")
+    .populate("event", "title status event_type");
 
   return res
     .status(200)
-    .json(new ApiResponse(200, filtered, "Assigned organizers fetched"));
+    .json(new ApiResponse(200, pools, "Assigned organizers fetched"));
 });
 
 // 19. Start In-App Chat with Organizer
@@ -545,16 +890,87 @@ export const startChatWithOrganizer = asyncHandler(async (req, res) => {
     });
   }
 
-  let msg = `Welcome to the event coordination chat`
-  const welcome = await Message.create({
-    conversation: conversation._id,
-    sender: hostId,
-    message_text: msg,
-  });
-
   return res
     .status(201)
-    .json(new ApiResponse(201, { conversation, welcome }, "Chat started"));
+    .json(new ApiResponse(201, { conversation }, "Chat ready"));
+});
+
+// 19.1 List Host Conversations
+export const getHostConversations = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  const conversations = await Conversation.find({
+    participants: hostId,
+  })
+    .populate("event", "title start_date end_date location")
+    .populate({
+      path: "pool",
+      select: "pool_name status",
+      populate: {
+        path: "organizer",
+        select: "first_name last_name fullName email avatar"
+      }
+    })
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+// 19.2 Get messages in a conversation
+export const getConversationMessages = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const messages = await Message.find({ conversation: conversationId })
+    .populate("sender", "email role")
+    .sort({ createdAt: 1 });
+
+  return res.status(200).json(new ApiResponse(200, messages, "Messages fetched"));
+});
+
+// 19.3 Send message in a conversation (Host)
+export const sendHostMessage = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { conversationId } = req.params;
+  const { message_text } = req.body;
+
+  if (!message_text || !message_text.trim()) {
+    throw new ApiError(400, "message_text is required");
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const message = await Message.create({
+    conversation: conversationId,
+    sender: hostId,
+    message_text,
+  });
+
+  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
+export const deleteHostConversation = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+  const conversation = await Conversation.findById(id);
+  if (!conversation) {
+    throw new ApiError(404, "Conversation not found");
+  }
+  if (!conversation.participants.some((p) => p.toString() === hostId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+  await conversation.softDelete();
+  return res.status(200).json(new ApiResponse(200, null, "Conversation deleted"));
 });
 
 // 20.  Host Dashboard
@@ -567,7 +983,10 @@ export const getHostDashboard = asyncHandler(async (req, res) => {
   );
   const payments = await Payment.find({ payer: hostId }).populate(
     "escrow payee"
-  );
+  ).populate({
+    path: "escrow",
+    populate: { path: "event", select: "title" }
+  });
 
   return res
     .status(200)
@@ -578,6 +997,121 @@ export const getHostDashboard = asyncHandler(async (req, res) => {
         "Host dashboard data fetched"
       )
     );
+});
+
+// 20.1 Get Invited/Requested Organizers status for host events
+export const getInvitedOrganizerStatus = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+
+  const events = await Event.find({ host: hostId }).select("_id title organizer");
+  const eventIds = events.map((e) => e._id);
+
+  const applications = await EventApplication.find({ event: { $in: eventIds } })
+    .populate("applicant", "email role first_name last_name avatar")
+    .populate("event", "title organizer event_type status event_end_date")
+    .sort({ createdAt: -1 });
+
+  const requested = applications.filter(a => a.application_status === "pending" && a.sender?.toString() !== hostId.toString());
+  const invited = applications.filter(a => a.application_status === "pending" && a.sender?.toString() === hostId.toString());
+  const accepted = applications.filter(a => a.application_status === "accepted");
+  const rejected = applications.filter(a => a.application_status === "rejected");
+
+  const acceptedWithFlags = await Promise.all(accepted.map(async (a) => {
+    const exists = await OrganizerPool.findOne({ organizer: a.organizer, event: a.event._id });
+    return { ...a.toObject(), organizer_pool_exists: !!exists };
+  }));
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { requested, invited, accepted: acceptedWithFlags, rejected }, "Invited organizers status fetched"));
+});
+
+export const deleteHostApplication = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+  const app = await EventApplication.findById(id);
+  if (!app) throw new ApiError(404, "Application not found");
+  const events = await Event.find({ host: hostId }).select("_id");
+  const eventIds = events.map(e => e._id.toString());
+  if (!eventIds.includes(app.event?.toString())) {
+    throw new ApiError(403, "Not authorized to delete this application");
+  }
+  if (!["accepted", "rejected"].includes(app.application_status)) {
+    throw new ApiError(400, "Only accepted or rejected applications can be deleted");
+  }
+  await EventApplication.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Application deleted"));
+});
+
+export const getHostNotifications = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const notifications = await Notification.find({ user: hostId }).sort({ createdAt: -1 });
+  return res.status(200).json(new ApiResponse(200, notifications, "Notifications fetched"));
+});
+
+export const markHostNotificationRead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updated = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
+  if (!updated) {
+    return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
+  }
+  return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
+});
+
+export const deleteHostNotification = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+  const notif = await Notification.findById(id);
+  if (!notif || notif.user.toString() !== hostId.toString()) {
+    return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
+  }
+  await Notification.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Notification deleted"));
+});
+
+// 19.4 Delete Organizer Pool (Host)
+export const deleteOrganizerPool = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  const { id } = req.params;
+
+  const pool = await OrganizerPool.findById(id).populate("event", "host status");
+  if (!pool) {
+    throw new ApiError(404, "Organizer pool not found");
+  }
+  const event = pool.event;
+  if (!event || event.host?.toString() !== hostId.toString()) {
+    throw new ApiError(403, "Not authorized to delete this organizer pool");
+  }
+  if (event.status !== "completed" && pool.status !== "completed") {
+    throw new ApiError(400, "Only completed pools or events can be deleted");
+  }
+
+  await OrganizerPool.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Organizer assignment deleted"));
+});
+export const getOrganizerPublicProfile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(id).select("first_name last_name email phone role avatar isVerified");
+  if (!user || user.role !== "organizer") {
+    throw new ApiError(404, "Organizer not found");
+  }
+  const kyc = await KYCVerification.findOne({ user: user._id }).select("aadhaar_verified aadhaar_number status verified_at");
+  const aadhaar_last4 = kyc?.aadhaar_number ? kyc.aadhaar_number.slice(-4) : null;
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        user,
+        kyc: {
+          aadhaar_verified: !!kyc?.aadhaar_verified,
+          aadhaar_last4,
+          status: kyc?.status || "pending",
+          verified_at: kyc?.verified_at || null,
+        },
+      },
+      "Organizer profile"
+    )
+  );
 });
 
 // 21. Deposit to Escrow
@@ -604,6 +1138,22 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required deposit fields");
   }
 
+  const totalNum = parseFloat(
+    typeof total_amount === "object" && typeof total_amount.toString === "function"
+      ? total_amount.toString()
+      : total_amount
+  );
+  const hostWallet = await UserWallet.findOne({ user: hostId });
+  if (!hostWallet) {
+    throw new ApiError(400, "Host wallet not found");
+  }
+  const currentBal = parseFloat(hostWallet.balance_inr?.toString?.() || "0");
+  if (currentBal < totalNum) {
+    throw new ApiError(400, "Insufficient balance in host wallet");
+  }
+  hostWallet.balance_inr = mongoose.Types.Decimal128.fromString((currentBal - totalNum).toFixed(2));
+  await hostWallet.save();
+
   const escrow = await EscrowContract.create({
     event: eventId,
     host: hostId,
@@ -614,23 +1164,51 @@ export const depositToEscrow = asyncHandler(async (req, res) => {
     status: "funded",
   });
 
-  const payment = await Payment.create({
-    escrow: escrow._id,
-    payer: hostId,
-    payee: organizerId,
-    amount: total_amount,
-    payment_method,
-    upi_transaction_id,
-    status: "completed",
+  // Note: Payment records are created during escrow release (verifyAttendance),
+  // not during deposit. This ensures we record the actual distribution amounts.
+
+  const eventDoc = await Event.findById(eventId).select("title");
+  
+  // Notify organizer
+  await Notification.create({
+    user: organizerId,
+    type: "payment",
+    message: `Escrow funded for ${eventDoc?.title || "event"}. Amount: ₹${totalNum.toFixed(2)}`,
   });
+  
+  // Notify host
+  await Notification.create({
+    user: hostId,
+    type: "payment",
+    message: `Escrow funded for ${eventDoc?.title || "event"}. Amount: ₹${totalNum.toFixed(2)}`,
+  });
+  
+  // Notify gigs in the pool
+  try {
+    const pool = await Pool.findOne({ organizer: organizerId, event: eventId });
+    if (pool && pool.gigs && pool.gigs.length > 0) {
+      const gigsPct = parseFloat(typeof gigs_percentage === "object" ? gigs_percentage.toString() : gigs_percentage);
+      const gigsShare = (totalNum * gigsPct) / 100;
+      const perGigAmount = gigsShare / pool.gigs.length;
+      for (const gigId of pool.gigs) {
+        await Notification.create({
+          user: gigId,
+          type: "payment",
+          message: `Escrow funded for ${eventDoc?.title || "event"}. Your share: ₹${perGigAmount.toFixed(2)}`,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error notifying gigs on deposit:", err);
+  }
 
   return res
     .status(201)
     .json(
       new ApiResponse(
         201,
-        { escrow, payment },
-        "Escrow funded and payment logged"
+        { escrow },
+        "Escrow funded successfully"
       )
     );
 });
@@ -667,6 +1245,86 @@ export const verifyAttendance = asyncHandler(async (req, res) => {
   escrow.status = "released";
   await escrow.save();
 
+  const total = parseFloat(escrow.total_amount?.toString?.() || "0");
+  const orgPct = parseFloat(escrow.organizer_percentage?.toString?.() || "0");
+  const gigsPct = parseFloat(escrow.gigs_percentage?.toString?.() || "0");
+  const organizerAmount = (total * orgPct) / 100;
+  const gigsAmount = (total * gigsPct) / 100;
+
+  // Use Pool model to find gigs (OrganizerPool doesn't store gigs array)
+  const pool = await Pool.findOne({ organizer: escrow.organizer, event: escrow.event });
+  const gigsCount = pool?.gigs?.length || 0;
+  const perGigAmount = gigsCount > 0 ? gigsAmount / gigsCount : 0;
+
+  const organizerWallet = await UserWallet.findOne({ user: escrow.organizer });
+  if (organizerWallet) {
+    const obal = parseFloat(organizerWallet.balance_inr?.toString?.() || "0");
+    organizerWallet.balance_inr = mongoose.Types.Decimal128.fromString((obal + organizerAmount).toFixed(2));
+    await organizerWallet.save();
+  } else {
+    await UserWallet.create({
+      user: escrow.organizer,
+      balance_inr: mongoose.Types.Decimal128.fromString(organizerAmount.toFixed(2)),
+    });
+  }
+
+  // Create organizer payment record with calculated share
+  await Payment.create({
+    escrow: escrow._id,
+    payer: hostId,
+    payee: escrow.organizer,
+    amount: mongoose.Types.Decimal128.fromString(organizerAmount.toFixed(2)),
+    payment_method: "upi",
+    status: "completed",
+  });
+
+  // Create payment records for gigs
+  for (const gid of pool?.gigs || []) {
+    let gw = await UserWallet.findOne({ user: gid });
+    if (!gw) {
+       gw = await UserWallet.create({
+        user: gid,
+        balance_inr: mongoose.Types.Decimal128.fromString("0.00"),
+       });
+    }
+    const gbal = parseFloat(gw.balance_inr?.toString?.() || "0");
+    gw.balance_inr = mongoose.Types.Decimal128.fromString((gbal + perGigAmount).toFixed(2));
+    await gw.save();
+    await Payment.create({
+      escrow: escrow._id,
+      payer: hostId,
+      payee: gid,
+      amount: mongoose.Types.Decimal128.fromString(perGigAmount.toFixed(2)),
+      payment_method: "upi",
+      status: "completed",
+    });
+  }
+
+  const eventDoc = await Event.findById(escrow.event).select("title");
+  
+  // Notify organizer
+  await Notification.create({
+    user: escrow.organizer,
+    type: "payment",
+    message: `Escrow released for ${eventDoc?.title || "event"}. Your payout: ₹${organizerAmount.toFixed(2)} completed.`,
+  });
+  
+  // Notify gigs
+  for (const gid of pool?.gigs || []) {
+    await Notification.create({
+      user: gid,
+      type: "payment",
+      message: `Escrow released for ${eventDoc?.title || "event"}. Your payout: ₹${perGigAmount.toFixed(2)} completed.`,
+    });
+  }
+  
+  // Notify host
+  await Notification.create({
+    user: hostId,
+    type: "payment",
+    message: `Escrow released for ${eventDoc?.title || "event"}. Total released: ₹${total.toFixed(2)}`,
+  });
+
   return res
     .status(200)
     .json(new ApiResponse(200, escrow, "Attendance verified, escrow released"));
@@ -701,6 +1359,18 @@ export const createRatingReview = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing required rating fields");
   }
 
+  // Check if rating already exists
+  const existingRating = await RatingReview.findOne({
+    event: eventId,
+    reviewer: hostId,
+    reviewee: organizerId,
+    review_type: "host_to_organizer"
+  });
+
+  if (existingRating) {
+    throw new ApiError(400, "You have already rated this organizer for this event");
+  }
+
   const review = await RatingReview.create({
     event: eventId,
     reviewer: hostId,
@@ -711,6 +1381,18 @@ export const createRatingReview = asyncHandler(async (req, res) => {
   });
 
   return res.status(201).json(new ApiResponse(201, review, "Rating review submitted"));
+});
+
+// Get Host's Given Ratings
+export const getMyGivenRatings = asyncHandler(async (req, res) => {
+  const hostId = req.user._id;
+  
+  const ratings = await RatingReview.find({
+    reviewer: hostId,
+    review_type: "host_to_organizer"
+  }).select("event reviewee");
+  
+  return res.status(200).json(new ApiResponse(200, ratings, "Given ratings fetched"));
 });
 
 //  26. Leaderboard

@@ -10,6 +10,7 @@ import User from "../models/User.model.js";
 import EventAttendance from "../models/EventAttendance.model.js";
 import UserWallet from "../models/UserWallet.model.js";
 import Escrow from "../models/EscrowContract.model.js";
+import Payment from "../models/Payment.model.js";
 import Rating from "../models/RatingReview.model.js";
 import Notification from "../models/Notification.model.js";
 import Dispute from "../models/Dispute.model.js";
@@ -43,7 +44,7 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
     });
   }
 
-  // Merge and return
+  // Merge
   const mergedProfile = {
     user: organizerId,
     name: user.fullName || `${user.first_name} ${user.last_name}`,
@@ -59,9 +60,13 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
     updatedAt: profile.updatedAt || user.updatedAt,
   };
 
+  // Also include documents and KYC summary for a complete profile view
+  const documents = await UserDocument.find({ user: organizerId }).select("-__v").lean();
+  const kyc = await KYCVerification.findOne({ user: organizerId }).select("-__v").lean();
+
   return res
     .status(200)
-    .json(new ApiResponse(200, mergedProfile, "Organizer profile fetched"));
+    .json(new ApiResponse(200, { mergedProfile, documents, kyc }, "Organizer profile fetched"));
 });
 
 // 2. Update profile
@@ -186,6 +191,42 @@ export const uploadOrganizerDocs = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, doc, "Document uploaded"));
 });
 
+// Update Organizer Documents
+export const updateOrganizerDocs = asyncHandler(async (req, res) => {
+  const { type } = req.body; // optional: which doc type to update
+  const localFilePath = req.files?.fileUrl?.[0]?.path;
+  const userId = req.user._id;
+
+  if (!localFilePath) {
+    throw new ApiError(400, "Document file is required for update");
+  }
+
+  const cloudinaryRes = await uploadOnCloudinary(localFilePath);
+  if (!cloudinaryRes) {
+    throw new ApiError(500, "Cloudinary upload failed");
+  }
+
+  // Find the most recent doc or by provided type
+  let doc;
+  if (type) {
+    doc = await UserDocument.findOne({ user: userId, type });
+  } else {
+    doc = await UserDocument.findOne({ user: userId }).sort({ uploadedAt: -1 });
+  }
+
+  if (!doc) {
+    // If no doc exists, create one instead of failing
+    doc = await UserDocument.create({ user: userId, type: type || "generic", fileUrl: cloudinaryRes.url });
+  } else {
+    doc.fileUrl = cloudinaryRes.url;
+    doc.status = "pending"; // reset for re-verification
+    doc.uploadedAt = new Date();
+    await doc.save();
+  }
+
+  return res.status(200).json(new ApiResponse(200, doc, "Document updated"));
+});
+
 // 6. Submit E-Signature
 export const submitESignature = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
@@ -277,10 +318,11 @@ export const getWallet = asyncHandler(async (req, res) => {
   }
   
 
+  const balanceNum = parseFloat(wallet.balance_inr?.toString?.() || "0");
   return res.status(200).json(
     new ApiResponse(200, {
-      balance: wallet.balance_inr.toString(),
-      upi_id: wallet.upi_id,
+      balance: balanceNum,
+      upi_id: wallet.upi_id || "",
     }, "Wallet fetched")
   );
 });
@@ -290,16 +332,34 @@ export const withdrawFunds = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { amount, upi_id } = req.body;
 
+  const requestedAmount = parseFloat(amount);
+  if (isNaN(requestedAmount) || requestedAmount <= 0) {
+    throw new ApiError(400, "Invalid withdrawal amount");
+  }
+
   const wallet = await UserWallet.findOne({ user: organizerId });
-  if (!wallet || parseFloat(wallet.balance_inr.toString()) < amount) {
+  if (!wallet || !wallet.balance_inr) {
+    throw new ApiError(404, "Wallet not found or balance missing");
+  }
+
+  const balanceRaw = wallet.balance_inr.toString?.() || "0.00";
+  const currentBalance = parseFloat(balanceRaw);
+  if (isNaN(currentBalance)) {
+    throw new ApiError(500, "Corrupted wallet balance");
+  }
+
+  if (requestedAmount > currentBalance) {
     throw new ApiError(400, "Insufficient balance");
   }
 
-  wallet.balance_inr = parseFloat(wallet.balance_inr.toString()) - amount;
+  const newBalance = (currentBalance - requestedAmount).toFixed(2);
+  wallet.balance_inr = mongoose.Types.Decimal128.fromString(newBalance);
   wallet.upi_id = upi_id || wallet.upi_id;
   await wallet.save();
 
-  return res.status(200).json(new ApiResponse(200, wallet, "Withdrawal successful"));
+  return res.status(200).json(
+    new ApiResponse(200, { new_balance: parseFloat(wallet.balance_inr.toString()) }, "Withdrawal successful")
+  );
 });
 
 // 10. get all active events by host
@@ -309,42 +369,146 @@ export const getAllEvents = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, activeEvents, "Active events fetched"));
 });
 
+export const getMyEvents = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  // Fetch events where I am the organizer
+  // Also populate pool details if needed for the dashboard card
+  // We can just fetch events and let frontend handle pool fetching or populate here.
+  // The requirement says: "event details , pool details and budget amount"
+  // Budget is in event.budget (if exists) or we calculate? 
+  // Event model has 'budget' field? Let's check Event model.
+  // Assuming Event model has basic fields.
+  const events = await Event.find({ organizer: organizerId }).sort({ updatedAt: -1 });
+  return res.status(200).json(new ApiResponse(200, events, "My events fetched"));
+});
+
 // 11. get event organizising order
 export const reqHostForEvent = asyncHandler(async (req, res) => {
-   const hostId = req.params;
-  const {eventId, cover_letter,  proposed_rate} = req.body;
-  //create an event application for the organizer
+  // Organizer requests to manage a host's event
+  const organizerId = req.user._id;
+  // Accept both body and URL param for eventId for robustness
+  const { eventId: eventIdBody, cover_letter, proposed_rate } = req.body;
+  const eventId = eventIdBody || req.params.id;
+
+  if (!eventId) {
+    throw new ApiError(400, "Missing required field: eventId");
+  }
+
+  const eventDoc = await Event.findById(eventId).select("host organizer title");
+  if (!eventDoc) {
+    throw new ApiError(404, "Event not found");
+  }
+
+  const existing = await EventApplication.findOne({
+    event: eventId,
+    organizer: organizerId,
+    application_status: { $in: ["pending", "accepted"] },
+  });
+  if (existing) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, existing, "Application already exists"));
+  }
+
   const eventApplication = await EventApplication.create({
-    event: eventId ,
-    applicant: hostId,
+    event: eventId,
+    applicant: organizerId,
+    organizer: organizerId,
+    host: eventDoc.host,
+    sender: organizerId,
+    receiver: eventDoc.host,
     application_status: "pending",
     cover_letter,
-    proposed_rate
+    proposed_rate: proposed_rate
+      ? mongoose.Types.Decimal128.fromString(proposed_rate.toString())
+      : undefined,
   });
+
+  if (eventDoc.host) {
+    const organizer = await User.findById(organizerId).select("first_name last_name");
+    await Notification.create({
+      user: eventDoc.host,
+      type: "event",
+      message: `Organizer ${organizer?.fullName || organizer?.first_name} requested to manage ${eventDoc.title}`,
+    });
+  }
+
   return res
     .status(201)
-    .json(new ApiResponse(201, eventApplication, "Organizer requested to host for event management"));
+    .json(
+      new ApiResponse(
+        201,
+        eventApplication,
+        "Organizer requested to host event"
+      )
+    );
 });
 
 // 12. accept invitaion for event management
 export const acceptInvitationFromHost = asyncHandler(async (req, res) => {
-  const hostAppId = req.params.id;
-  const eventApplication = await EventApplication.findById(hostAppId);
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
   if (!eventApplication) {
     throw new ApiError(404, "Event application not found");
   }
   if (eventApplication.application_status !== "pending") {
     throw new ApiError(400, "Event application is not pending");
   }
+
+  // Mark accepted
   eventApplication.application_status = "accepted";
   await eventApplication.save();
 
-  eventApplication.event.organizer = eventApplication.applicant;
-  await eventApplication.save();
+  // Assign organizer to event
+  const eventId = eventApplication.event;
+  const organizerId = eventApplication.applicant;
+  const updatedEvent = await Event.findByIdAndUpdate(
+    eventId,
+    { $set: { organizer: organizerId } },
+    { new: true }
+  );
+  if (!updatedEvent) {
+    throw new ApiError(404, "Event not found to assign organizer");
+  }
+
+  const poolExists = await Pool.findOne({ organizer: organizerId, event: eventId });
+  const orgUser = await User.findById(organizerId).select("first_name last_name");
+  await Notification.create({
+    user: eventApplication.host,
+    type: "event",
+    message: `Organizer ${orgUser?.fullName || orgUser?.first_name} accepted invitation for ${updatedEvent.title}`,
+  });
 
   return res
     .status(200)
-    .json(new ApiResponse(200, eventApplication, "Organizer accepted for event"));
+    .json(new ApiResponse(200, { application: eventApplication, pool_exists: !!poolExists }, "Organizer accepted for event"));
+});
+
+// 12.1 Reject invitation from host
+export const rejectInvitationFromHost = asyncHandler(async (req, res) => {
+  const orgAppId = req.params.id;
+  const eventApplication = await EventApplication.findById(orgAppId);
+  if (!eventApplication) {
+    throw new ApiError(404, "Event application not found");
+  }
+  if (eventApplication.application_status !== "pending") {
+    throw new ApiError(400, "Event application is not pending");
+  }
+
+  eventApplication.application_status = "rejected";
+  await eventApplication.save();
+
+  const updatedEvent = await Event.findById(eventApplication.event).select("title");
+  const orgUser = await User.findById(eventApplication.applicant).select("first_name last_name");
+  await Notification.create({
+    user: eventApplication.host,
+    type: "event",
+    message: `Organizer ${orgUser?.fullName || orgUser?.first_name} rejected invitation for ${updatedEvent?.title}`,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, eventApplication, "Invitation rejected"));
 });
 
 // 13. Create Pool
@@ -352,7 +516,20 @@ export const createPool = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { name,eventId, description } = req.body;
 
-    const pool = await Pool.create({
+  const eventDoc = await Event.findById(eventId).select("organizer title host");
+  if (!eventDoc) throw new ApiError(404, "Event not found");
+  if (eventDoc.organizer?.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to create pool for this event");
+  }
+
+  const existingPool = await Pool.findOne({ organizer: organizerId, event: eventId });
+  if (existingPool) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, existingPool, "Pool already exists"));
+  }
+
+  const pool = await Pool.create({
     organizer: organizerId,
     event:eventId,
     name,
@@ -360,11 +537,154 @@ export const createPool = asyncHandler(async (req, res) => {
     status :"active"
   });
 
-  
+  await Notification.create({
+    user: eventDoc.host,
+    type: "event",
+    message: `Organizer created a gig pool for ${eventDoc.title}`,
+  });
 
   return res
     .status(201)
     .json(new ApiResponse(201, pool, "Pool created successfully !"));
+});
+
+// 13.1 List My Pools
+export const getMyPools = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const pools = await Pool.find({ organizer: organizerId })
+    .populate("event", "title start_date end_date location status event_type budget")
+    .populate("organizer", "first_name last_name avatar email fullName")
+    .populate("gigs", "first_name last_name avatar fullName")
+    .select("-__v");
+  return res.status(200).json(new ApiResponse(200, pools, "Organizer pools fetched"));
+});
+
+// 13.2 Update Pool details
+export const updatePoolDetails = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const { name, description, status } = req.body;
+
+  const pool = await Pool.findById(id);
+  if (!pool) throw new ApiError(404, "Pool not found");
+  if (pool.organizer.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to update this pool");
+  }
+
+  if (name !== undefined) pool.name = name;
+  if (description !== undefined) pool.description = description;
+  if (status !== undefined) pool.status = status;
+  await pool.save();
+
+  const populated = await Pool.findById(id)
+    .populate("event", "title start_date end_date location")
+    .populate("gigs", "first_name last_name avatar fullName")
+    .select("-__v");
+
+  return res.status(200).json(new ApiResponse(200, populated, "Pool updated"));
+});
+
+export const deletePool = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+
+  const pool = await Pool.findById(id);
+  if (!pool) throw new ApiError(404, "Pool not found");
+  if (pool.organizer.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to delete this pool");
+  }
+
+  await Pool.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Pool deleted"));
+});
+
+export const removeGigFromPool = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { poolId, gigId } = req.params;
+
+  const pool = await Pool.findById(poolId);
+  if (!pool) throw new ApiError(404, "Pool not found");
+  if (pool.organizer.toString() !== organizerId.toString()) {
+    throw new ApiError(403, "Not authorized to manage this pool");
+  }
+
+  // Remove gig from pool
+  pool.gigs = pool.gigs.filter((id) => id.toString() !== gigId);
+  await pool.save();
+
+  // Also update application status if needed? 
+  // Maybe set application to "rejected" or just leave it. 
+  // Ideally we should reset application to "rejected" or "pending" so they can re-apply or know they were removed.
+  // For now, let's just remove from pool array as requested.
+  // Optionally update PoolApplication status to "removed" if such status existed, but "rejected" works.
+  await PoolApplication.findOneAndUpdate(
+    { pool: poolId, gig: gigId },
+    { application_status: "rejected" }
+  );
+
+  return res.status(200).json(new ApiResponse(200, null, "Gig removed from pool"));
+});
+
+// Get ratings given by organizer (to persist 'Rating Submitted' state)
+export const getMyGivenRatings = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const ratings = await Rating.find({ 
+    reviewer: organizerId,
+    review_type: "organizer_to_gig"
+  }).select("event reviewee rating");
+  
+  return res.status(200).json(new ApiResponse(200, ratings, "My given ratings fetched"));
+});
+
+// 13.3 View a Gig's public profile (for organizer)
+export const getGigPublicProfile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const gig = await User.findById(id).lean();
+  if (!gig || gig.role !== "gig") {
+    throw new ApiError(404, "Gig not found");
+  }
+  
+  // Calculate average rating
+  const ratings = await Rating.find({ reviewee: id });
+  let avgRating = 0;
+  if (ratings.length > 0) {
+    const total = ratings.reduce((sum, r) => sum + parseFloat(r.rating?.toString() || 0), 0);
+    avgRating = (total / ratings.length).toFixed(1);
+  }
+
+  let profile = await UserProfile.findOne({ user: id });
+  if (!profile) {
+    profile = {
+      user: id,
+      bio: "",
+      location: {},
+      availability: {},
+      bank_details: {},
+      profile_image_url: gig.avatar,
+      createdAt: gig.createdAt,
+      updatedAt: gig.updatedAt,
+    };
+  }
+  const mergedProfile = {
+    user: id,
+    name: gig.fullName || `${gig.first_name} ${gig.last_name}`,
+    email: gig.email,
+    phone: gig.phone,
+    role: gig.role,
+    bio: profile.bio || "",
+    location: profile.location || {},
+    availability: profile.availability || {},
+    bank_details: profile.bank_details || {},
+    profile_image_url: profile.profile_image_url || gig.avatar,
+    rating: avgRating,
+    createdAt: profile.createdAt || gig.createdAt,
+    updatedAt: profile.updatedAt || gig.updatedAt,
+  };
+  const documents = await UserDocument.find({ user: id }).select("-__v").lean();
+  const kyc = await KYCVerification.findOne({ user: id }).select("status aadhaar_verified verified_at").lean();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { mergedProfile, documents, kyc }, "Gig profile"));
 });
 
 // 14. check pool applications
@@ -385,10 +705,19 @@ export const reviewApplication = asyncHandler(async (req, res) => {
   if (!application) throw new ApiError(404, "Application not found");
 
   const pool = await Pool.findById(application.pool);
-  const orgPool = await OrganizerPool.findById(orgPoolId);
+  // If orgPoolId is not provided, infer it using organizer + event
+  let orgPool = null;
+  if (orgPoolId) {
+    orgPool = await OrganizerPool.findById(orgPoolId);
+  } else if (pool) {
+    orgPool = await OrganizerPool.findOne({ organizer: pool.organizer, event: pool.event });
+  }
 
   if (action === "approve") {
     // Check capacity
+    if (!orgPool) {
+      throw new ApiError(400, "Organizer pool not found for capacity check");
+    }
     if (pool.gigs.length >= orgPool.max_capacity) {
       pool.status = "archived";
       await pool.save();
@@ -406,14 +735,14 @@ export const reviewApplication = asyncHandler(async (req, res) => {
   }
 
   if (action === "reject") {
-    application.status = "rejected";
+    application.application_status = "rejected";
     await application.save();
     return res.status(200).json(new ApiResponse(200, application, "Gig application rejected"));
   }
 
   throw new ApiError(400, "Invalid action");
 });
-  
+
 // 16. View Pool Details
 export const getPoolDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -429,13 +758,28 @@ export const getPoolDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, pool, "Pool details fetched"));
 });
 
+// 16.1 Get OrganizerPool for an Event (for capacity checks)
+export const getOrganizerPoolByEvent = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { eventId } = req.params;
+
+  const orgPool = await OrganizerPool.findOne({ organizer: organizerId, event: eventId })
+    .select("-__v");
+
+  if (!orgPool) {
+    return res.status(404).json(new ApiResponse(404, null, "Organizer pool not found for event"));
+  }
+
+  return res.status(200).json(new ApiResponse(200, orgPool, "Organizer pool fetched"));
+});
+
 // 17. Chat with Gig (Stub)
 export const chatWithGig = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
   const { gigId } = req.params;
   const { eventId, poolId, message_text } = req.body;
 
-  if (!eventId || !poolId || !message_text) {
+  if (!eventId || !poolId) {
     throw new ApiError(400, "Missing required chat fields");
   }
 
@@ -453,14 +797,17 @@ export const chatWithGig = asyncHandler(async (req, res) => {
     });
   }
 
-  const message = await Message.create({
-    conversation: conversation._id,
-    sender: organizerId,
-    message_text,
-  });
+  let message = null;
+  if (message_text && message_text.trim()) {
+    message = await Message.create({
+      conversation: conversation._id,
+      sender: organizerId,
+      message_text,
+    });
+  }
 
   return res.status(201).json(
-    new ApiResponse(201, { conversation, message }, "Message sent to gig")
+    new ApiResponse(201, { conversation, message }, "Conversation ready")
   );
 });
 
@@ -479,14 +826,204 @@ export const getEventDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, event, "Event details fetched"));
 });
 
+// 18.1 List my event applications
+export const getOrganizerApplications = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const apps = await EventApplication.find({ organizer: organizerId })
+    .populate("event", "title start_date end_date location host organizer status")
+    .select("-__v")
+    .sort({ createdAt: -1 });
+  return res.status(200).json(new ApiResponse(200, apps, "Organizer applications fetched"));
+});
+
+export const getOrganizerApplicationSummary = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const apps = await EventApplication.find({ organizer: organizerId })
+    .populate("event", "title host organizer status event_type")
+    .populate("host", "first_name last_name email avatar")
+    .populate("organizer", "first_name last_name email avatar")
+    .sort({ createdAt: -1 });
+
+  const requested = apps.filter(a => a.application_status === "pending" && a.sender?.toString() === organizerId.toString());
+  const invited = apps.filter(a => a.application_status === "pending" && a.sender?.toString() !== organizerId.toString());
+  const accepted = apps.filter(a => a.application_status === "accepted");
+  const rejected = apps.filter(a => a.application_status === "rejected");
+
+  const acceptedWithFlags = await Promise.all(accepted.map(async (a) => {
+    const exists = await Pool.findOne({ organizer: organizerId, event: a.event });
+    return { ...a.toObject(), pool_exists: !!exists };
+  }));
+
+  return res.status(200).json(
+    new ApiResponse(200, { requested, invited, accepted: acceptedWithFlags, rejected }, "Applications summary fetched")
+  );
+});
+
+export const deleteOrganizerApplication = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const app = await EventApplication.findById(id);
+  if (!app) throw new ApiError(404, "Application not found");
+  if (
+    app.organizer?.toString() !== organizerId.toString() &&
+    app.receiver?.toString() !== organizerId.toString() &&
+    app.sender?.toString() !== organizerId.toString()
+  ) {
+    throw new ApiError(403, "Not authorized to delete this application");
+  }
+  if (!["accepted", "rejected"].includes(app.application_status)) {
+    throw new ApiError(400, "Only accepted or rejected applications can be deleted");
+  }
+  await EventApplication.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Application deleted"));
+});
+
 // 19. Payment History
 export const getPaymentHistory = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const payments = await Escrow.find({ organizer: organizerId }).select("-__v");
+  
+  // Get escrow records
+  const escrows = await Escrow
+    .find({ organizer: organizerId })
+    .populate("event", "title")
+    .select("-__v");
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, payments, "Payment history fetched"));
+  // Get payment records where organizer is the payee
+  const payments = await Payment
+    .find({ payee: organizerId })
+    .populate({
+      path: "escrow",
+      populate: { path: "event", select: "title" }
+    })
+    .sort({ createdAt: -1 })
+    .select("-__v");
+
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      // Decimal128
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Format escrow data
+  const formattedEscrows = escrows.map((e) => {
+    const obj = e.toObject();
+    return {
+      ...obj,
+      type: "escrow",
+      total_amount: toNum(obj.total_amount),
+      organizer_percentage: toNum(obj.organizer_percentage),
+      gigs_percentage: toNum(obj.gigs_percentage),
+    };
+  });
+
+  // Format payment data
+  const formattedPayments = payments.map((p) => {
+    const obj = p.toObject();
+    return {
+      ...obj,
+      type: "payment",
+      amount: toNum(obj.amount),
+      payment_date: obj.createdAt,
+      event: obj.escrow?.event || { title: "N/A" },
+      escrow_id: obj.escrow?._id
+    };
+  });
+
+  // Combine and sort by date
+  const combined = [...formattedEscrows, ...formattedPayments].sort(
+    (a, b) => new Date(b.createdAt || b.payment_date) - new Date(a.createdAt || a.payment_date)
+  );
+
+  return res.status(200).json(new ApiResponse(200, combined, "Payment history fetched"));
+});
+
+export const deletePaymentHistory = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const { type } = req.query;
+  
+  if (type === "payment") {
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      throw new ApiError(404, "Payment record not found");
+    }
+    if (payment.payee?.toString() !== organizerId.toString()) {
+      throw new ApiError(403, "Not authorized to delete this payment record");
+    }
+    await Payment.findByIdAndDelete(id);
+    return res.status(200).json(new ApiResponse(200, null, "Payment record deleted"));
+  } else {
+    const escrow = await Escrow.findById(id);
+    if (!escrow) {
+      throw new ApiError(404, "Escrow record not found");
+    }
+    if (escrow.organizer?.toString() !== organizerId.toString()) {
+      throw new ApiError(403, "Not authorized to delete this escrow record");
+    }
+    await escrow.softDelete();
+    return res.status(200).json(new ApiResponse(200, null, "Escrow record deleted"));
+  }
+});
+
+// Get Escrow Release History (payments released to wallet)
+export const getEscrowReleaseHistory = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  
+  // Get all completed payments to this organizer
+  const payments = await Payment
+    .find({ payee: organizerId, status: "completed" })
+    .populate({
+      path: "escrow",
+      populate: { path: "event", select: "title" }
+    })
+    .sort({ createdAt: -1 })
+    .select("-__v");
+
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formattedPayments = payments.map((p) => {
+    const obj = p.toObject();
+    const escrowData = obj.escrow || {};
+    return {
+      _id: obj._id,
+      event: escrowData?.event || { title: "N/A" },
+      amount: toNum(obj.amount),
+      total_amount: toNum(escrowData.total_amount),
+      organizer_percentage: toNum(escrowData.organizer_percentage),
+      gigs_percentage: toNum(escrowData.gigs_percentage),
+      payment_date: obj.createdAt,
+      payment_method: obj.payment_method,
+      transaction_id: obj.upi_transaction_id || "N/A",
+      status: obj.status,
+      type: "payout",
+      escrow_id: escrowData?._id,
+      createdAt: obj.createdAt,
+      updatedAt: obj.updatedAt
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, formattedPayments, "Escrow release history fetched"));
 });
 
 // 20. Simulate Payout
@@ -554,7 +1091,7 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const attendance = await EventAttendance.find({ event: id })
-    .populate("gig", "name avatar")
+    .populate("gig", "first_name last_name fullName avatar email")
     .select("-__v");
 
   if (!attendance || attendance.length === 0) {
@@ -563,9 +1100,31 @@ export const getLiveEventTracking = asyncHandler(async (req, res) => {
     );
   }
 
+  const toNum = (val) => {
+    try {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return parseFloat(val);
+      if (typeof val === "object" && typeof val.toString === "function") {
+        return parseFloat(val.toString());
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formattedAttendance = attendance.map((a) => {
+    const obj = a.toObject();
+    return {
+      ...obj,
+      hours_worked: toNum(obj.hours_worked)
+    };
+  });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, attendance, "Live attendance data"));
+    .json(new ApiResponse(200, formattedAttendance, "Live attendance data"));
 });
 
 // 26. Badges
@@ -626,6 +1185,53 @@ export const getLeaderboard = asyncHandler(async (req, res) => {
 });
 
 
+export const createOrganizerRating = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { eventId, gigId, rating, review_text } = req.body;
+
+  if (!eventId || !gigId || rating === undefined) {
+    throw new ApiError(400, "Missing required rating fields");
+  }
+
+  // Check if rating already exists
+  const existingRating = await Rating.findOne({
+    event: eventId,
+    reviewer: organizerId,
+    reviewee: gigId,
+    review_type: "organizer_to_gig"
+  });
+
+  if (existingRating) {
+    throw new ApiError(400, "You have already rated this gig for this event");
+  }
+
+  const review = await Rating.create({
+    event: eventId,
+    reviewer: organizerId,
+    reviewee: gigId,
+    rating,
+    review_text,
+    review_type: "organizer_to_gig",
+  });
+
+  return res.status(201).json(new ApiResponse(201, review, "Rating review submitted"));
+});
+
+// Get Organizer Feedbacks
+export const getMyFeedbacks = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+
+  const reviews = await Rating.find({
+    $or: [{ reviewer: organizerId }, { reviewee: organizerId }]
+  })
+  .populate("event", "title event_type")
+  .populate("reviewer", "first_name last_name avatar fullName role")
+  .populate("reviewee", "first_name last_name avatar fullName role")
+  .sort({ createdAt: -1 });
+
+  return res.status(200).json(new ApiResponse(200, reviews, "Organizer reviews fetched"));
+});
+
 
 //  Get Notifications
 export const getNotifications = asyncHandler(async (req, res) => {
@@ -644,6 +1250,114 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
   }
   return res.status(200).json(new ApiResponse(200, updated, "Notification marked as read"));
+});
+
+export const deleteNotification = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const notif = await Notification.findById(id);
+  if (!notif || notif.user.toString() !== organizerId.toString()) {
+    return res.status(404).json(new ApiResponse(404, null, "Notification not found"));
+  }
+  await Notification.findByIdAndDelete(id);
+  return res.status(200).json(new ApiResponse(200, null, "Notification deleted"));
+});
+
+// 28. Organizer: List Conversations
+export const getOrganizerConversations = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+
+  const conversationsRaw = await Conversation.find({
+    participants: organizerId,
+  })
+    .populate("event", "title start_date end_date location")
+    .populate("pool", "pool_name status")
+    .populate("participants", "email role avatar first_name last_name")
+    .sort({ createdAt: -1 });
+
+  const conversations = conversationsRaw.map((c) => {
+    const obj = c.toObject();
+    const hostUser = (obj.participants || []).find((p) => p.role === "host");
+    const gigUser = (obj.participants || []).find((p) => p.role === "gig");
+    const host =
+      hostUser &&
+      {
+        _id: hostUser._id,
+        email: hostUser.email,
+        avatar: hostUser.avatar,
+        fullName: `${hostUser.first_name} ${hostUser.last_name}`.trim(),
+        name: `${hostUser.first_name} ${hostUser.last_name}`.trim(),
+      };
+    const gig =
+      gigUser &&
+      {
+        _id: gigUser._id,
+        email: gigUser.email,
+        avatar: gigUser.avatar,
+        fullName: `${gigUser.first_name} ${gigUser.last_name}`.trim(),
+        name: `${gigUser.first_name} ${gigUser.last_name}`.trim(),
+      };
+    return { ...obj, host, gig };
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, conversations, "Conversations fetched"));
+});
+
+// 29. Organizer: Get messages in a conversation
+export const getOrganizerConversationMessages = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === organizerId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const messages = await Message.find({ conversation: conversationId })
+    .populate("sender", "email role")
+    .sort({ createdAt: 1 });
+
+  return res.status(200).json(new ApiResponse(200, messages, "Messages fetched"));
+});
+
+// 30. Organizer: Send message in a conversation
+export const sendOrganizerMessage = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { conversationId } = req.params;
+  const { message_text } = req.body;
+
+  if (!message_text || !message_text.trim()) {
+    throw new ApiError(400, "message_text is required");
+  }
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !conversation.participants.some((p) => p.toString() === organizerId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+
+  const message = await Message.create({
+    conversation: conversationId,
+    sender: organizerId,
+    message_text,
+  });
+
+  return res.status(201).json(new ApiResponse(201, message, "Message sent"));
+});
+
+export const deleteOrganizerConversation = asyncHandler(async (req, res) => {
+  const organizerId = req.user._id;
+  const { id } = req.params;
+  const conversation = await Conversation.findById(id);
+  if (!conversation) {
+    throw new ApiError(404, "Conversation not found");
+  }
+  if (!conversation.participants.some((p) => p.toString() === organizerId.toString())) {
+    throw new ApiError(403, "Access denied to this conversation");
+  }
+  await conversation.softDelete();
+  return res.status(200).json(new ApiResponse(200, null, "Conversation deleted"));
 });
 
 

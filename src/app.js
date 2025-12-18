@@ -9,19 +9,32 @@ dotenv.config({ path: "./.env.blockchain" });
 
 //middlewares + configurations
 app.use(express.static("public"));
-app.use(express.json({ limit: "32kb" }));
+// JSON parser that skips multipart/form-data (handled by multer)
+app.use((req, res, next) => {
+  if (req.is('multipart/form-data')) {
+    return next();
+  }
+  express.json({ limit: "32kb" })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
+
+// Build CORS origin
+const corsOrigin = `http://${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}`;
+
 app.use(
   cors({
-    origin: `${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}` ,
+    origin: corsOrigin,
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    exposedHeaders: ['Set-Cookie'],
   })
 );
 
 // Security middlewares
 app.use(sanitizeInput);
-app.use(rateLimit(100, 15 * 60 * 1000)); // 100 requests per 15 minutes
+app.use(rateLimit(1000, 15 * 60 * 1000)); // 1000 requests per 15 minutes
 
 
 // users auth route
@@ -58,6 +71,17 @@ import blockchainRoutes from './routes/blockchain.routes.js';
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', blockchain: process.env.BLOCKCHAIN_ENABLED === 'true' });
 });
+
+// TEST ENDPOINT - Simple cookie test
+app.get('/api/v1/test-cookie', (req, res) => {
+  res.cookie('testCookie', 'testValue123', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'Lax',
+  });
+  res.json({ success: true, message: 'Cookie set' });
+});
+
 // Routes
 app.use('/api/blockchain', blockchainRoutes);
 

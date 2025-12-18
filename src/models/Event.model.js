@@ -21,6 +21,7 @@ const EventSchema = new mongoose.Schema(
     event_type: {
       type: String,
       enum: [
+        "Wedding",
         "function",
         "corporate",
         "festival",
@@ -51,6 +52,42 @@ const EventSchema = new mongoose.Schema(
 );
 EventSchema.index({ location: "2dsphere" });
 
+// Normalize Decimal128 budget in JSON responses
+EventSchema.set("toJSON", {
+  virtuals: true,
+  transform: (doc, ret) => {
+    try {
+      if (ret.budget != null) {
+        if (typeof ret.budget === "object" && ret.budget.$numberDecimal) {
+          ret.budget = parseFloat(ret.budget.$numberDecimal);
+        } else if (ret.budget?.toString) {
+          ret.budget = parseFloat(ret.budget.toString());
+        }
+      }
+    } catch (e) {
+      // swallow
+    }
+    return ret;
+  },
+});
+EventSchema.set("toObject", {
+  virtuals: true,
+  transform: (doc, ret) => {
+    try {
+      if (ret.budget != null) {
+        if (typeof ret.budget === "object" && ret.budget.$numberDecimal) {
+          ret.budget = parseFloat(ret.budget.$numberDecimal);
+        } else if (ret.budget?.toString) {
+          ret.budget = parseFloat(ret.budget.toString());
+        }
+      }
+    } catch (e) {
+      // swallow
+    }
+    return ret;
+  },
+});
+
 // Add pre-save middleware for status transitions
 EventSchema.pre("save", function (next) {
   const now = new Date();
@@ -80,7 +117,7 @@ EventSchema.pre("findOneAndUpdate", async function (next) {
     if (!docToUpdate) return next(new Error("Event not found"));
 
     const validTransitions = {
-      published: ["in_progress"],
+      published: ["in_progress", "completed"],
       in_progress: ["completed"],
       completed: []
     };
