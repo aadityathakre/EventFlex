@@ -764,12 +764,6 @@ const processCheckout = async (gigId, eventId) => {
     check_out_time: { $exists: true, $ne: null },
   });
 
-  // 5) Badge awarding
-  const completedEventsCount = await EventAttendance.countDocuments({
-    gig: gigId,
-    check_out_time: { $exists: true, $ne: null },
-  });
-
   // Check if badges exist, if not, create default badges
   const badgeCount = await Badge.countDocuments();
   if (badgeCount === 0) {
@@ -797,7 +791,6 @@ const processCheckout = async (gigId, eventId) => {
       user: gigId,
       badge: badge._id,
     });
-  }
   }
 
   return attendance;
