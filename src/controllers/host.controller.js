@@ -20,6 +20,8 @@ import EventApplication from "../models/EventApplications.js";
 import mongoose from "mongoose";
 import UserProfile from "../models/UserProfile.model.js";
 import Notification from "../models/Notification.model.js";
+import EventAttendance from "../models/EventAttendance.model.js";
+import { processCheckout } from "./gig.controller.js";
 
 // 1. Host Profile
 export const getHostProfile = asyncHandler(async (req, res) => {
@@ -614,6 +616,20 @@ export const completeEvent = asyncHandler(async (req, res) => {
   event.status = "completed";
   await event.save();
 
+  // Automatically checkout all checked-in gigs using the proper checkout logic
+  const checkedInAttendances = await EventAttendance.find({
+    event: eventId,
+    check_in_time: { $exists: true },
+    check_out_time: { $exists: false }
+  }).select("gig");
+
+  // Process checkout for each gig (includes badge awarding and proper calculations)
+  for (const attendance of checkedInAttendances) {
+    if (attendance.gig) {
+      await processCheckout(attendance.gig, eventId);
+    }
+  }
+
   // Also update related OrganizerPool status to completed
   await OrganizerPool.updateMany({ event: eventId }, { status: "completed" });
 
@@ -887,7 +903,14 @@ export const getHostConversations = asyncHandler(async (req, res) => {
     participants: hostId,
   })
     .populate("event", "title start_date end_date location")
-    .populate("pool", "pool_name status")
+    .populate({
+      path: "pool",
+      select: "pool_name status",
+      populate: {
+        path: "organizer",
+        select: "first_name last_name fullName email avatar"
+      }
+    })
     .sort({ createdAt: -1 });
 
   return res

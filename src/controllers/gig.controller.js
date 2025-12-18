@@ -726,46 +726,63 @@ const checkIn = asyncHandler(async (req, res) => {
 });
 
 // 17. check out 
-const checkOut = asyncHandler(async (req, res) => {
-  const gigId = req.user._id;
-  const { eventId } = req.params;
-
+// Helper function to process checkout logic (can be called from endpoint or event completion)
+const processCheckout = async (gigId, eventId) => {
   // 1) Load attendance for this gig-event
   const attendance = await EventAttendance.findOne({ gig: gigId, event: eventId });
-  if (!attendance) throw new ApiError(404, "Attendance record not found");
+  if (!attendance) return null;
 
-  // 2) Prevent duplicate checkout (do not modify past data)
+  // 2) Skip if already checked out
   if (attendance.check_out_time) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, attendance, "Gig already checked out"));
+    return attendance;
   }
 
-  // 3) Set checkout time for THIS event only
+  // 3) Set checkout time
   attendance.check_out_time = new Date();
 
   // 4) Calculate hours worked (stored as Decimal128)
   if (attendance.check_in_time && attendance.check_out_time) {
-    const msWorked = attendance.check_out_time - attendance.check_in_time;
-    const hours = msWorked / (1000 * 60 * 60);
-    attendance.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+    const checkInTime = new Date(attendance.check_in_time);
+    const checkOutTime = new Date(attendance.check_out_time);
+    const msWorked = checkOutTime.getTime() - checkInTime.getTime();
+    const hours = Math.max(0, msWorked / (1000 * 60 * 60)); // Ensure non-negative
+    
+    // Only set hours_worked if we have a valid positive number
+    if (hours > 0) {
+      attendance.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+    } else {
+      // If hours is 0 or negative, set a minimum of 0.01 to indicate checkout happened
+      attendance.hours_worked = mongoose.Types.Decimal128.fromString("0.01");
+    }
   }
 
   await attendance.save();
 
-  // 5) Badge awarding (progress-based, no past attendance updates)
-  // Count completed events for this gig (check_out_time exists)
+  // 5) Badge awarding
   const completedEventsCount = await EventAttendance.countDocuments({
     gig: gigId,
     check_out_time: { $exists: true, $ne: null },
   });
 
-  // Find all badges where min_events threshold is met
+  // Check if badges exist, if not, create default badges
+  const badgeCount = await Badge.countDocuments();
+  if (badgeCount === 0) {
+    const defaultBadges = [
+      { badge_name: "First Event", min_events: 1 },
+      { badge_name: "Rising Star", min_events: 5 },
+      { badge_name: "Dedicated Worker", min_events: 10 },
+      { badge_name: "Event Expert", min_events: 25 },
+      { badge_name: "Master Gig", min_events: 50 },
+      { badge_name: "Legendary Worker", min_events: 100 },
+    ];
+    
+    await Badge.insertMany(defaultBadges);
+  }
+
   const eligibleBadges = await Badge.find({
     min_events: { $lte: completedEventsCount },
   });
 
-  // Award new badges only (prevent duplicates); enforce KYC when required
   for (const badge of eligibleBadges) {
     const alreadyHasBadge = await UserBadge.findOne({ user: gigId, badge: badge._id });
     if (alreadyHasBadge) continue;
@@ -773,8 +790,20 @@ const checkOut = asyncHandler(async (req, res) => {
     await UserBadge.create({
       user: gigId,
       badge: badge._id,
-      // awarded_at is in timestamps; if you prefer explicit, add field to schema
     });
+  }
+
+  return attendance;
+};
+
+const checkOut = asyncHandler(async (req, res) => {
+  const gigId = req.user._id;
+  const { eventId } = req.params;
+
+  const attendance = await processCheckout(gigId, eventId);
+  
+  if (!attendance) {
+    throw new ApiError(404, "Attendance record not found");
   }
 
   return res
@@ -792,19 +821,51 @@ const checkOut = asyncHandler(async (req, res) => {
 const getAttendanceHistory = asyncHandler(async (req, res) => {
   const gigId = req.user._id;
 
-  // Auto-checkout for events that have ended
+  // Auto-checkout for events that have ended or been marked as completed
   const openAttendance = await EventAttendance.find({ gig: gigId, check_in_time: { $exists: true }, check_out_time: { $exists: false } })
-    .populate("event", "end_date");
+    .populate("event", "end_date status");
   for (const att of openAttendance) {
     const end = att?.event?.end_date ? new Date(att.event.end_date) : null;
-    if (end && new Date() > end) {
-      att.check_out_time = end;
+    const isCompleted = att?.event?.status === "completed";
+    const hasEnded = end && new Date() > end;
+    
+    if (isCompleted || hasEnded) {
+      att.check_out_time = isCompleted ? new Date() : end;
       if (att.check_in_time && att.check_out_time) {
-        const msWorked = att.check_out_time - att.check_in_time;
-        const hours = msWorked / (1000 * 60 * 60);
+        const checkInTime = new Date(att.check_in_time);
+        const checkOutTime = new Date(att.check_out_time);
+        const msWorked = checkOutTime.getTime() - checkInTime.getTime();
+        const hours = Math.max(0, msWorked / (1000 * 60 * 60));
         att.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
       }
       await att.save();
+    }
+  }
+
+  // Fix existing records that have checkout but 0 hours (recalculate)
+  const needsRecalc = await EventAttendance.find({ 
+    gig: gigId, 
+    check_in_time: { $exists: true }, 
+    check_out_time: { $exists: true },
+    $or: [
+      { hours_worked: { $exists: false } },
+      { hours_worked: null },
+      { hours_worked: mongoose.Types.Decimal128.fromString("0") },
+      { hours_worked: mongoose.Types.Decimal128.fromString("0.00") }
+    ]
+  });
+
+  for (const att of needsRecalc) {
+    if (att.check_in_time && att.check_out_time) {
+      const checkInTime = new Date(att.check_in_time);
+      const checkOutTime = new Date(att.check_out_time);
+      const msWorked = checkOutTime.getTime() - checkInTime.getTime();
+      const hours = Math.max(0, msWorked / (1000 * 60 * 60));
+      
+      if (hours > 0) {
+        att.hours_worked = mongoose.Types.Decimal128.fromString(hours.toFixed(2));
+        await att.save();
+      }
     }
   }
 
@@ -1310,6 +1371,7 @@ export {
   deleteGigApplication,
   checkIn,
   checkOut,
+  processCheckout,
   getAttendanceHistory,
   getWallet,
   withdraw,
