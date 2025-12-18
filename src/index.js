@@ -6,6 +6,13 @@ import { updateAllEventStatuses } from "./services/eventStatusService.js";
 dotenv.config({ path: "./.env" });
 dotenv.config({ path: "./.env.blockchain"  });
 
+// Set fallback environment variables to prevent crashes
+process.env.PORT = process.env.PORT || "8080";
+process.env.HOST = process.env.HOST || "http://localhost";
+process.env.MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/eventflex";
+process.env.JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_change_in_production";
+process.env.BLOCKCHAIN_ENABLED = process.env.BLOCKCHAIN_ENABLED || "false";
+
 connectedDB()
   .then((msg) => {
     console.log("Connected successfully");

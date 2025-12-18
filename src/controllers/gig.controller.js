@@ -764,9 +764,12 @@ const processCheckout = async (gigId, eventId) => {
     check_out_time: { $exists: true, $ne: null },
   });
 
+  console.log(`[BADGE DEBUG] Gig ${gigId} has ${completedEventsCount} completed events`);
+
   // Check if badges exist, if not, create default badges
   const badgeCount = await Badge.countDocuments();
   if (badgeCount === 0) {
+    console.log("[BADGE DEBUG] No badges found, creating default badges");
     const defaultBadges = [
       { badge_name: "First Event", min_events: 1 },
       { badge_name: "Rising Star", min_events: 5 },
@@ -777,20 +780,27 @@ const processCheckout = async (gigId, eventId) => {
     ];
     
     await Badge.insertMany(defaultBadges);
+    console.log("[BADGE DEBUG] Created default badges");
   }
 
   const eligibleBadges = await Badge.find({
     min_events: { $lte: completedEventsCount },
   });
 
+  console.log(`[BADGE DEBUG] Found ${eligibleBadges.length} eligible badges for ${completedEventsCount} events`);
+
   for (const badge of eligibleBadges) {
     const alreadyHasBadge = await UserBadge.findOne({ user: gigId, badge: badge._id });
-    if (alreadyHasBadge) continue;
+    if (alreadyHasBadge) {
+      console.log(`[BADGE DEBUG] User already has badge: ${badge.badge_name}`);
+      continue;
+    }
 
     await UserBadge.create({
       user: gigId,
       badge: badge._id,
     });
+    console.log(`[BADGE DEBUG] Awarded new badge: ${badge.badge_name}`);
   }
 
   return attendance;

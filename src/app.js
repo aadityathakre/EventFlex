@@ -3,8 +3,10 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { sanitizeInput, rateLimit } from "./middlewares/sanitize.middleware.js";
 import dotenv from "dotenv";
+import path from "path";
 
 const app = express();
+app.use(express.static("dist"))
 dotenv.config({ path: "./.env.blockchain" });
 
 //middlewares + configurations
@@ -19,12 +21,21 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
 app.use(cookieParser());
 
-// Build CORS origin
-const corsOrigin = `http://${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}`;
-
+// Build CORS origin - allow all localhost origins for local development
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) return callback(null, true);
+      
+      // Allow all localhost origins for local development
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+      
+      // For production, you can add specific domains here
+      callback(null, true);
+    },
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -92,7 +103,12 @@ app.use('/api/blockchain', blockchainRoutes);
 // Error handling middleware (must be last)
 import { errorHandler, notFound } from "./middlewares/errorHandler.middleware.js";
 
-// 404 handler for undefined routes
+// Catch-all route for React Router (must be after all API routes but before 404 handler)
+app.use((req, res) => {
+  res.sendFile(path.resolve("./dist/index.html"));
+});
+
+// 404 handler for undefined routes (only for API routes)
 app.use((req, res, next) => {
   const error = new Error(`Route ${req.originalUrl} not found`);
   error.statusCode = 404;
@@ -101,7 +117,6 @@ app.use((req, res, next) => {
 
 // Global error handler
 app.use(errorHandler);
-
 
 //export
 export { app };
