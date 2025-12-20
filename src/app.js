@@ -10,8 +10,7 @@ app.use(express.static("dist"))
 dotenv.config({ path: "./.env.blockchain" });
 
 //middlewares + configurations
-app.use(express.static("public"));
-// JSON parser that skips multipart/form-data (handled by multer)
+app.use(express.static("public"))
 app.use((req, res, next) => {
   if (req.is('multipart/form-data')) {
     return next();
@@ -24,22 +23,8 @@ app.use(cookieParser());
 // Build CORS origin - allow all localhost origins for local development
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or Postman)
-      if (!origin) return callback(null, true);
-      
-      // Allow all localhost origins for local development
-      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-        return callback(null, true);
-      }
-      
-      // For production, you can add specific domains here
-      callback(null, true);
-    },
+    origin: `http://${process.env.CLIENT_HOST}:${process.env.CLIENT_PORT}`,
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    exposedHeaders: ['Set-Cookie'],
   })
 );
 
