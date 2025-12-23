@@ -160,8 +160,8 @@ function Razorpay() {
                     eventId: flow.eventId,
                     organizerId: flow.organizerId,
                     total_amount: flow.amount,
-                    organizer_percentage: flow.organizer_percentage ?? 70,
-                    gigs_percentage: flow.gigs_percentage ?? 30,
+                    organizer_percentage: flow.organizer_percentage ?? 40,
+                    gigs_percentage: flow.gigs_percentage ?? 60,
                     payment_method: flow.payment_method || "upi",
                     upi_transaction_id: response.razorpay_payment_id,
                   }, { withCredentials: true });
@@ -275,8 +275,8 @@ function Razorpay() {
                 eventId: flow.eventId,
               organizerId: flow.organizerId,
               total_amount: flow.amount,
-              organizer_percentage: flow.organizer_percentage ?? 70,
-              gigs_percentage: flow.gigs_percentage ?? 30,
+              organizer_percentage: flow.organizer_percentage ?? 40,
+              gigs_percentage: flow.gigs_percentage ?? 60,
               payment_method: flow.payment_method || "upi",
               upi_transaction_id: "demo",
             }, { withCredentials: true });
